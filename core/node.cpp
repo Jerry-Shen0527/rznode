@@ -2,6 +2,7 @@
 
 #include "nodes/core/node.hpp"
 
+#include <spdlog/spdlog.h>
 #include "entt/meta/resolve.hpp"
 #include "nodes/core/api.h"
 #include "nodes/core/node_link.hpp"
@@ -349,9 +350,8 @@ void Node::generate_socket_groups_socket(
         if (old_socket != old_sockets.end()) {
             (*old_socket)->node = this;
             new_sockets.push_back(*old_socket);
-        }
-        else {
-            log::info("Creating new socket in the group.");
+        }        else {
+            spdlog::info("Creating new socket in the group.");
         }
     }
 }

@@ -9,11 +9,9 @@
 using namespace USTC_CG;
 
 class NodeCoreTest : public ::testing::Test {
-   protected:
-    void SetUp() override
+   protected:    void SetUp() override
     {
-        log::SetMinSeverity(Severity::Info);
-        log::EnableOutputToConsole(true);
+        spdlog::set_level(spdlog::level::info);
     }
     void TearDown() override
     {

@@ -1,7 +1,5 @@
-#include <pxr/base/gf/vec2f.h>
-#include <pxr/base/gf/vec3f.h>
-
-#include "Logger/Logger.h"
+#include <spdlog/spdlog.h>
+#include "nodes/core/math/vec.hpp"
 #include "nodes/core/api.h"
 #include "nodes/core/api.hpp"
 #include "nodes/core/io/json.hpp"
@@ -52,19 +50,18 @@ void NodeSocket::Serialize(nlohmann::json& value)
                 break;
             case entt::type_hash<bool>().value():
                 socket["value"] = default_value_typed<bool>();
-                break;
-            case entt::type_hash<pxr::GfVec2f>().value():
-                socket["value"] = { default_value_typed<pxr::GfVec2f&>()[0],
-                                    default_value_typed<pxr::GfVec2f&>()[1] };
-                break;
-
-            case entt::type_hash<pxr::GfVec3f>().value():
-                socket["value"] = { default_value_typed<pxr::GfVec3f&>()[0],
-                                    default_value_typed<pxr::GfVec3f&>()[1],
-                                    default_value_typed<pxr::GfVec3f&>()[2] };
+                break;            case entt::type_hash<Vec2f>().value():
+                socket["value"] = { default_value_typed<Vec2f&>()[0],
+                                    default_value_typed<Vec2f&>()[1] };
                 break;
 
-            default: log::error("Unknown type in serialization"); break;
+            case entt::type_hash<Vec3f>().value():
+                socket["value"] = { default_value_typed<Vec3f&>()[0],
+                                    default_value_typed<Vec3f&>()[1],
+                                    default_value_typed<Vec3f&>()[2] };
+                break;
+
+            default: spdlog::error("Unknown type in serialization"); break;
         }
     }
 }
@@ -104,13 +101,12 @@ void NodeSocket::DeserializeValue(const nlohmann::json& value)
                 } break;
                 case entt::type_hash<bool>():
                     default_value_typed<bool&>() = value["value"];
+                    break;                case entt::type_hash<Vec2f>():
+                    default_value_typed<Vec2f&>() =
+                        Vec2f(value["value"][0], value["value"][1]);
                     break;
-                case entt::type_hash<pxr::GfVec2f>():
-                    default_value_typed<pxr::GfVec2f&>() =
-                        pxr::GfVec2f(value["value"][0], value["value"][1]);
-                    break;
-                case entt::type_hash<pxr::GfVec3f>():
-                    default_value_typed<pxr::GfVec3f&>() = pxr::GfVec3f(
+                case entt::type_hash<Vec3f>():
+                    default_value_typed<Vec3f&>() = Vec3f(
                         value["value"][0],
                         value["value"][1],
                         value["value"][2]);

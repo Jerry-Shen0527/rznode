@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "Logger/Logger.h"
+#include "spdlog/spdlog.h"
 
 using namespace USTC_CG;
 

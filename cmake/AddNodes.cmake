@@ -43,7 +43,7 @@ function(GEN_NODES_JSON TARGET_NAME)
     string(REPLACE ";" " " CONVERSIONS_FILES_STR "${ABS_CONVERSIONS_FILES}")
 
     # Construct the command to call the Python script
-    set(COMMAND_ARGS ${Python3_EXECUTABLE} ${USTC_CG_ROOT_DIR}/source/Plugins/util_scripts/nodes_json.py)
+    set(COMMAND_ARGS ${Python3_EXECUTABLE} ${RZNODES_DIR}/cmake/nodes_json.py)
 
     if(NODES_DIRS_STR)
         list(APPEND COMMAND_ARGS --nodes-dir ${NODES_DIRS_STR})

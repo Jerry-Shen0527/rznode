@@ -1,6 +1,6 @@
 #include <sstream>
 
-#include "Logger/Logger.h"
+#include <spdlog/spdlog.h>
 #include "nodes/core/def/node_def.hpp"
 
 NODE_DEF_OPEN_SCOPE
@@ -17,11 +17,9 @@ NODE_DECLARATION_FUNCTION(print)
 
 NODE_EXECUTION_FUNCTION(print)
 {
-    auto val = params.get_input<int>("info");
-
-    std::ostringstream oss;
+    auto val = params.get_input<int>("info");    std::ostringstream oss;
     oss << "Print Info: " << val;
-    log::info(oss.str().c_str());
+    spdlog::info(oss.str().c_str());
     return true;
 }
 

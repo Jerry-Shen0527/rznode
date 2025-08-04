@@ -1,7 +1,7 @@
 
 #include "../../system/tests/test_node/test_payload.hpp"
 #include "GUI/window.h"
-#include "Logger/Logger.h"
+#include <spdlog/spdlog.h>
 #include "gtest/gtest.h"
 #include "imgui.h"
 #include "nodes/core/node_tree.hpp"
@@ -29,11 +29,9 @@ class Widget : public IWidget {
 };
 
 class CreateWindowTest : public ::testing::Test {
-   protected:
-    void SetUp() override
+   protected:    void SetUp() override
     {
-        log::SetMinSeverity(Severity::Info);
-        log::EnableOutputToConsole(true);
+        spdlog::set_level(spdlog::level::info);
 
         system_ = create_dynamic_loading_system();
 
@@ -73,8 +71,7 @@ TEST_F(CreateWindowTest, create_window)
 int main()
 {
     std::shared_ptr<NodeSystem> system_;
-    log::SetMinSeverity(Severity::Info);
-    log::EnableOutputToConsole(true);
+    spdlog::set_level(spdlog::level::info);
 
     system_ = create_dynamic_loading_system();
 

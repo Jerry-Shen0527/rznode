@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 
+#include <spdlog/spdlog.h>
 #include "entt/meta/meta.hpp"
 #include "entt/meta/resolve.hpp"
 #include "node.hpp"
@@ -245,9 +246,8 @@ struct NODES_CORE_API NodeTreeExecutor {
     T get_global_payload()
     {
         if (!global_payload) {
-            global_payload = get_socket_type<T>().construct();
-            if (!global_payload) {
-                log::error("The global payload must be default constructable");
+            global_payload = get_socket_type<T>().construct();            if (!global_payload) {
+                spdlog::error("The global payload must be default constructable");
             }
         }
         return global_payload.cast<T>();
