@@ -1,11 +1,13 @@
 #include "nodes/system/node_system.hpp"
 
 #include "nodes/system/node_system_dl.hpp"
+#include "nodes/core/node_exec_eager.hpp"
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 void NodeSystem::init()
 {
     this->node_tree = create_node_tree(node_tree_descriptor());
+    this->node_tree_executor = create_node_tree_executor({});
 }
 
 void NodeSystem::init(std::unique_ptr<NodeTree> tree)
