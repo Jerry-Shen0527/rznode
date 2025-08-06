@@ -57,6 +57,8 @@ struct NODES_CORE_API NodeSocket {
     template<typename T>
     T default_value_typed();
     template<typename T>
+    T default_value_typed_force();
+    template<typename T>
     const T& default_value_typed() const;
 
     friend bool operator==(const NodeSocket& lhs, const NodeSocket& rhs)
@@ -83,6 +85,13 @@ template<typename T>
 T NodeSocket::default_value_typed()
 {
     return dataField.value.cast<T>();
+}
+
+template<typename T>
+T NodeSocket::default_value_typed_force()
+{
+    // 如果T是引用类型，直接reinterpret_cast为T类型的引用
+    return *reinterpret_cast<std::remove_reference_t<T>*>(dataField.value.data());
 }
 
 template<typename T>

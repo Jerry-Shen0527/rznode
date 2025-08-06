@@ -1,8 +1,9 @@
 #include <spdlog/spdlog.h>
-#include "nodes/core/math/vec.hpp"
+
 #include "nodes/core/api.h"
 #include "nodes/core/api.hpp"
 #include "nodes/core/io/json.hpp"
+#include "nodes/core/math/vec.hpp"
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_tree.hpp"
 
@@ -14,6 +15,33 @@ bool NodeSocket::is_placeholder() const
 {
     return !socket_group_identifier.empty() && socket_group->runtime_dynamic &&
            std::string(ui_name).empty();
+}
+
+// Hack...
+#define PXR_NAMESPACE "pxrInternal_v0_25_5__pxrReserved__"
+
+static bool is_vec2(const SocketType& type)
+{
+    if (type.info().name() == "class " PXR_NAMESPACE "::GfVec2f") {
+        return true;
+    }
+    return false;
+}
+
+static bool is_vec3(const SocketType& type)
+{
+    if (type.info().name() == "class " PXR_NAMESPACE "::GfVec3f") {
+        return true;
+    }
+    return false;
+}
+
+static bool is_vec4(const SocketType& type)
+{
+    if (type.info().name() == "class " PXR_NAMESPACE "::GfVec4f") {
+        return true;
+    }
+    return false;
 }
 
 void NodeSocket::Serialize(nlohmann::json& value)
@@ -50,7 +78,8 @@ void NodeSocket::Serialize(nlohmann::json& value)
                 break;
             case entt::type_hash<bool>().value():
                 socket["value"] = default_value_typed<bool>();
-                break;            case entt::type_hash<Vec2f>().value():
+                break;
+            case entt::type_hash<Vec2f>().value():
                 socket["value"] = { default_value_typed<Vec2f&>()[0],
                                     default_value_typed<Vec2f&>()[1] };
                 break;
@@ -61,7 +90,24 @@ void NodeSocket::Serialize(nlohmann::json& value)
                                     default_value_typed<Vec3f&>()[2] };
                 break;
 
-            default: spdlog::error("Unknown type in serialization"); break;
+            default:
+                if (is_vec2(type_info)) {
+                    auto vec = default_value_typed_force<Vec2f&>();
+                    socket["value"] = { vec[0], vec[1] };
+                }
+                else if (is_vec3(type_info)) {
+                    auto vec = default_value_typed_force<Vec3f&>();
+                    socket["value"] = { vec[0], vec[1], vec[2] };
+                }
+                else if (is_vec4(type_info)) {
+                    auto vec = default_value_typed_force<Vec4f&>();
+                    socket["value"] = { vec[0], vec[1], vec[2], vec[3] };
+                }
+                else
+                    spdlog::error(
+                        "Unknown type {} in serialization",
+                        type_info.info().name());
+                break;
         }
     }
 }
@@ -101,7 +147,8 @@ void NodeSocket::DeserializeValue(const nlohmann::json& value)
                 } break;
                 case entt::type_hash<bool>():
                     default_value_typed<bool&>() = value["value"];
-                    break;                case entt::type_hash<Vec2f>():
+                    break;
+                case entt::type_hash<Vec2f>():
                     default_value_typed<Vec2f&>() =
                         Vec2f(value["value"][0], value["value"][1]);
                     break;
@@ -111,8 +158,37 @@ void NodeSocket::DeserializeValue(const nlohmann::json& value)
                         value["value"][1],
                         value["value"][2]);
                     break;
+                case entt::type_hash<Vec4f>():
+                    default_value_typed<Vec4f&>() = Vec4f(
+                        value["value"][0],
+                        value["value"][1],
+                        value["value"][2],
+                        value["value"][3]);
 
-                default: break;
+                default:
+                    if (is_vec2(type_info)) {
+                        default_value_typed_force<Vec2f&>() =
+                            Vec2f(value["value"][0], value["value"][1]);
+                    }
+                    else if (is_vec3(type_info)) {
+                        default_value_typed_force<Vec3f&>() = Vec3f(
+                            value["value"][0],
+                            value["value"][1],
+                            value["value"][2]);
+                    }
+                    else if (is_vec4(type_info)) {
+                        default_value_typed_force<Vec4f&>() = Vec4f(
+                            value["value"][0],
+                            value["value"][1],
+                            value["value"][2],
+                            value["value"][3]);
+                    }
+                    else
+                        spdlog::error(
+                            "Unknown type {} in deserialization",
+                            type_info.info().name());
+
+                    break;
             }
         }
     }
