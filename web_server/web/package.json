@@ -1,0 +1,25 @@
+{
+    "name": "rznode-web-editor",
+    "version": "1.0.0",
+    "description": "Web-based node editor using Baklava.js and Vue.js",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "vue": "^3.4.0",
+        "baklavajs": "^2.7.0",
+        "@baklavajs/core": "^2.7.0",
+        "@baklavajs/engine": "^2.7.0",
+        "@baklavajs/interface-types": "^2.7.0",
+        "@baklavajs/renderer-vue": "^2.7.0",
+        "@baklavajs/themes": "^2.7.0"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^5.0.0",
+        "vite": "^6.0.0"
+    }
+}
