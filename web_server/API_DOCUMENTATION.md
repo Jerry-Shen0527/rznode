@@ -190,10 +190,7 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 {
   "success": true,
   "error_message": "",
-  "execution_time": 0.025,
-  "output_values": {
-    "node_3_result": "8"
-  }
+  "execution_time": 0.025
 }
 ```
 
@@ -216,7 +213,6 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 - `success`: 执行是否成功
 - `error_message`: 错误消息（success为false时）
 - `execution_time`: 执行时间（秒）
-- `output_values`: 输出值映射（节点socket -> JSON值字符串）
 
 ---
 
@@ -336,7 +332,7 @@ async function executeNodeTree(treeData) {
   const result = await response.json();
   
   if (result.success) {
-    console.log('Execution successful:', result.output_values);
+    console.log('Execution successful, time:', result.execution_time);
   } else {
     console.error('Execution failed:', result.error_message);
   }
@@ -528,10 +524,7 @@ Content-Type: application/json
 {
   "success": true,
   "error_message": "",
-  "execution_time": 0.002,
-  "output_values": {
-    "3.result": "30"
-  }
+  "execution_time": 0.002
 }
 ```
 
@@ -625,7 +618,7 @@ const nodeTree = {
 
 api.executeNodeTree(nodeTree).then(result => {
   if (result.success) {
-    console.log('Execution successful:', result.output_values);
+    console.log('Execution successful, time:', result.execution_time);
   } else {
     console.error('Execution failed:', result.error_message);
   }

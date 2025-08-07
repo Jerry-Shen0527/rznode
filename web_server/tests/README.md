@@ -97,7 +97,7 @@ Available node types (2):
   - Test Number (TestNumberNode)
   - Test Add (TestAddNode)
 Empty tree validation: {"valid":true,"message":"Node tree is valid"}
-Simple execution test: {"success":true,"error_message":"","execution_time":0.001,"output_values":{}}
+Simple execution test: {"success":true,"error_message":"","execution_time":0.001}
 [       OK ] WebServerTest.NodeSystemExecution (150 ms)
 ```
 

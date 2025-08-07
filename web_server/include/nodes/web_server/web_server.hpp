@@ -71,7 +71,6 @@ struct WEB_SERVER_API NodeTreeDto {
 struct WEB_SERVER_API ExecutionResultDto {
     bool success = false;
     std::string error_message;
-    std::map<std::string, std::string> output_values;  // JSON格式的输出值
     double execution_time = 0.0;                       // 执行时间（秒）
 };
 

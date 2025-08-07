@@ -288,12 +288,89 @@ NodeTypeDto WebServer::convert_node_type_to_dto(
     // 转换输入输出socket信息
     const auto& declaration = type_info.static_declaration;
 
+    // 创建临时节点实例来提取默认值、最小值、最大值等信息
+    // 这是必要的，因为这些值只有在节点实例化时才会从模板化的Decl类传递到NodeSocket
+    std::unique_ptr<NodeTree> temp_tree;
+    Node* temp_node = nullptr;
+
+    try {
+        if (node_system_) {
+            auto temp_descriptor = node_system_->node_tree_descriptor();
+            temp_tree = create_node_tree(temp_descriptor);
+            temp_node = temp_tree->add_node(type_info.id_name.c_str());
+        }
+    }
+    catch (const std::exception& e) {
+        // 如果创建临时节点失败，记录警告但继续处理基本信息
+        spdlog::warn(
+            "WebServer: Failed to create temporary node for {}: {}",
+            type_info.id_name,
+            e.what());
+    }
+
     for (const auto& input : declaration.inputs) {
         NodeTypeDto::SocketDto socket_dto;
         socket_dto.name = input->name;
         socket_dto.identifier = input->identifier;
         socket_dto.type = get_type_name(input->type);
-        // TODO: 添加默认值、最小值、最大值的提取逻辑
+
+        // 从临时节点实例提取默认值、最小值、最大值等信息
+        // 注意：这些值在temp_tree->add_node()调用时已经通过update_default_value()自动设置到dataField中
+        if (temp_node) {
+            NodeSocket* temp_socket =
+                temp_node->get_input_socket(input->identifier.c_str());
+            if (temp_socket) {
+                // 设置optional属性
+                socket_dto.optional = temp_socket->optional;
+
+                // 使用帮助函数来提取值，减少重复代码
+                auto extract_value = [](const entt::meta_any& any_value,
+                                        entt::id_type type_id) -> std::string {
+                    try {
+                        if (type_id == entt::type_hash<int>()) {
+                            return std::to_string(any_value.cast<int>());
+                        }
+                        else if (type_id == entt::type_hash<float>()) {
+                            return std::to_string(any_value.cast<float>());
+                        }
+                        else if (type_id == entt::type_hash<double>()) {
+                            return std::to_string(any_value.cast<double>());
+                        }
+                        else if (type_id == entt::type_hash<bool>()) {
+                            return any_value.cast<bool>() ? "true" : "false";
+                        }
+                        else if (type_id == entt::type_hash<std::string>()) {
+                            return "\"" + any_value.cast<std::string>() + "\"";
+                        }
+                        return "";
+                    }
+                    catch (const std::exception&) {
+                        return "";
+                    }
+                };
+
+                auto type_id = temp_socket->type_info.id();
+
+                // 提取默认值（根据ValueTrait，所有支持的类型都有默认值）
+                if (temp_socket->dataField.value) {
+                    socket_dto.default_value =
+                        extract_value(temp_socket->dataField.value, type_id);
+                }
+
+                // 提取最小值（只有支持min值的类型dataField才会有min）
+                if (temp_socket->dataField.min) {
+                    socket_dto.min_value =
+                        extract_value(temp_socket->dataField.min, type_id);
+                }
+
+                // 提取最大值（只有支持max值的类型dataField才会有max）
+                if (temp_socket->dataField.max) {
+                    socket_dto.max_value =
+                        extract_value(temp_socket->dataField.max, type_id);
+                }
+            }
+        }
+
         dto.inputs.push_back(socket_dto);
     }
 
@@ -338,8 +415,32 @@ std::unique_ptr<NodeTree> WebServer::convert_dto_to_node_tree(
         }
         node_map[node_dto.id] = node;
 
-        // TODO: 设置输入值
-        // 这里需要根据input_values设置节点的输入socket值
+        // 设置输入值
+        for (const auto& [socket_identifier, json_value_str] :
+             node_dto.input_values) {
+            NodeSocket* input_socket =
+                node->get_input_socket(socket_identifier.c_str());
+            if (input_socket && input_socket->dataField.value) {
+                try {
+                    // 解析JSON字符串
+                    nlohmann::json json_value =
+                        nlohmann::json::parse(json_value_str);
+
+                    // 构造符合DeserializeValue期望的格式
+                    nlohmann::json socket_data;
+                    socket_data["value"] = json_value;
+
+                    // 使用已有的反序列化方法设置值
+                    input_socket->DeserializeValue(socket_data);
+                }
+                catch (const std::exception& e) {
+                    throw std::runtime_error(
+                        "Failed to set input value for socket '" +
+                        socket_identifier + "' on node " +
+                        std::to_string(node_dto.id) + ": " + e.what());
+                }
+            }
+        }
     }
 
     // 创建连接
@@ -376,83 +477,21 @@ ExecutionResultDto WebServer::execute_node_tree_internal(
     auto start_time = std::chrono::high_resolution_clock::now();
 
     try {
-        // 将 NodeTreeDto 转换为 JSON 字符串
-        nlohmann::json tree_json;
-        tree_json["nodes"] = nlohmann::json::array();
-        tree_json["links"] = nlohmann::json::array();
-        
-        // 转换节点
-        for (const auto& node_dto : dto.nodes) {
-            nlohmann::json node_json;
-            node_json["id"] = node_dto.id;
-            node_json["type"] = node_dto.type;
-            node_json["position_x"] = node_dto.position_x;
-            node_json["position_y"] = node_dto.position_y;
-            
-            // 转换输入值
-            if (!node_dto.input_values.empty()) {
-                nlohmann::json input_values_json;
-                for (const auto& [key, value] : node_dto.input_values) {
-                    try {
-                        input_values_json[key] = nlohmann::json::parse(value);
-                    } catch (const std::exception&) {
-                        input_values_json[key] = value;  // 如果解析失败，直接使用字符串
-                    }
-                }
-                node_json["input_values"] = input_values_json;
-            }
-            
-            tree_json["nodes"].push_back(node_json);
-        }
-        
-        // 转换连接
-        for (const auto& link_dto : dto.links) {
-            nlohmann::json link_json;
-            link_json["from_node"] = link_dto.from_node;
-            link_json["from_socket"] = link_dto.from_socket;
-            link_json["to_node"] = link_dto.to_node;
-            link_json["to_socket"] = link_dto.to_socket;
-            tree_json["links"].push_back(link_json);
-        }
-        
-        // 使用新的 JSON 方法设置节点树
-        std::string json_str = tree_json.dump();
-        bool set_success = node_system_->set_node_tree_from_json(json_str);
-        
-        if (!set_success) {
-            throw std::runtime_error("Failed to set node tree from JSON");
-        }
-        
+        // 从 DTO 创建节点树
+        auto tree = convert_dto_to_node_tree(dto);
+
+        // 将新的节点树设置到 NodeSystem 中
+        node_system_->set_node_tree(std::move(tree));
+
         // 执行节点树
         node_system_->execute(false);  // 非UI执行
 
         result.success = true;
         result.error_message = "";
-
-        // TODO: 提取输出值
-        // 这里需要从执行后的节点树中提取输出值
-        // 可以遍历节点树中的所有输出socket并提取它们的值
-        NodeTree* tree = node_system_->get_node_tree();
-        if (tree) {
-            // 收集所有输出值
-            for (auto& node : tree->nodes) {
-                for (auto& output : node->get_outputs()) {
-                    if (output->type_info) {
-                        // 构建输出键名：节点ID_socket标识符
-                        std::string output_key = std::to_string(node->ID.Get()) + "_" + output->identifier;
-                        
-                        // TODO: 这里需要根据socket的类型来序列化值
-                        // 目前简单地存储一个占位符
-                        result.output_values[output_key] = "output_value_placeholder";
-                    }
-                }
-            }
-        }
     }
     catch (const std::exception& e) {
         result.success = false;
         result.error_message = e.what();
-        spdlog::error("WebServer: Execution error: {}", e.what());
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -550,11 +589,6 @@ std::string WebServer::serialize_execution_result(
     json["success"] = result.success;
     json["error_message"] = result.error_message;
     json["execution_time"] = result.execution_time;
-
-    json["output_values"] = nlohmann::json::object();
-    for (const auto& [key, value] : result.output_values) {
-        json["output_values"][key] = value;
-    }
 
     return json.dump(2);
 }
