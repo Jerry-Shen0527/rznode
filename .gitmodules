@@ -7,3 +7,6 @@
 [submodule "ext/spdlog"]
 	path = ext/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "ext/cpp-httplib"]
+	path = ext/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib.git

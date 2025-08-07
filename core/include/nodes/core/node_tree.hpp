@@ -35,6 +35,10 @@ class NODES_CORE_API NodeTreeDescriptor {
         const std::string& conversion_name);
 
     virtual NodeTypeInfo* get_node_type(const std::string& name);
+    std::map<std::string, NodeTypeInfo> get_registered_node_types() const
+    {
+        return node_registry;
+    }
 
     static std::string conversion_node_name(SocketType from, SocketType to);
     bool can_convert(SocketType from, SocketType to) const;
