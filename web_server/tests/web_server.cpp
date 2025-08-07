@@ -125,8 +125,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
             EXPECT_TRUE(node_type.contains("inputs"));
             EXPECT_TRUE(node_type.contains("outputs"));
 
-            std::cout << "  - " << node_type["ui_name"] << " ("
-                      << node_type["id_name"] << ")" << std::endl;
+            std::cout << response->body << std::endl;
         }
     }
 
@@ -146,37 +145,44 @@ TEST_F(WebServerTest, NodeSystemExecution)
         std::cout << "Empty tree validation: " << response->body << std::endl;
     }
 
-    // 4. 测试简单节点树执行API（如果test_nodes.json中有合适的节点）
+    // 4. 测试简单节点树执行API
     {
-        // 先获取可用的节点类型
-        auto node_types_response = client.Get("/api/node-types");
-        if (node_types_response && node_types_response->status == 200) {
-            auto node_types = nlohmann::json::parse(node_types_response->body);
+        // 用add和print两个测试节点，可以创建一个简易节点树
+        nlohmann::json test_tree = { {
+                                         "nodes",
+                                         nlohmann::json::array(
+                                             {
+                                                 {
+                                                     { "id", 1 },
+                                                     { "type", "add" },
+                                                     { "input_values",
+                                                       {
+                                                           { "value", 3 },
+                                                           { "value2", 5 },
+                                                       } },
+                                                 },
+                                                 { { "id", 3 },
+                                                   { "type", "print" },
+                                                   { "input_values", {} } },
+                                             }),
+                                     },
+                                     { "links",
+                                       nlohmann::json::array(
+                                           {
+                                               { { "from_node", 1 },
+                                                 { "from_socket", "value" },
+                                                 { "to_node", 3 },
+                                                 { "to_socket", "info" } },
+                                           }) } };
 
-            if (!node_types.empty()) {
-                // 创建一个简单的测试节点树
-                nlohmann::json test_execution = {
-                    { "nodes",
-                      nlohmann::json::array(
-                          { { { "id", 1 },
-                              { "type", node_types[0]["id_name"] },
-                              { "input_values", nlohmann::json::object() },
-                              { "position_x", 100.0 },
-                              { "position_y", 100.0 } } }) },
-                    { "links", nlohmann::json::array() }
-                };
-
-                auto response = client.Post(
-                    "/api/execute", test_execution.dump(), "application/json");
-                ASSERT_TRUE(response);
-
-                auto execution_result = nlohmann::json::parse(response->body);
-                EXPECT_TRUE(execution_result.contains("success"));
-
-                std::cout << "Simple execution test: " << response->body
-                          << std::endl;
-            }
-        }
+        auto response =
+            client.Post("/api/execute", test_tree.dump(), "application/json");
+        ASSERT_TRUE(response);
+        EXPECT_EQ(response->status, 200);
+        auto execution_result = nlohmann::json::parse(response->body);
+        EXPECT_TRUE(execution_result.contains("success"));
+        EXPECT_TRUE(execution_result["success"]);
+        std::cout << "Execution result: " << response->body << std::endl;
     }
 
     // 停止服务器

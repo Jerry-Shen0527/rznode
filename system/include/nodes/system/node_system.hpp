@@ -23,6 +23,9 @@ class NODES_SYSTEM_API NodeSystem {
         bool is_ui_execution = false,
         Node* required_node = nullptr) const;
 
+    // 设置新的节点树
+    virtual void set_node_tree(std::unique_ptr<NodeTree> new_tree);
+
     [[nodiscard]] NodeTree* get_node_tree() const;
     [[nodiscard]] NodeTreeExecutor* get_node_tree_executor() const;
 

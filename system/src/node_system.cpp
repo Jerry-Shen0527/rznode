@@ -45,6 +45,22 @@ void NodeSystem::execute(bool is_ui_execution, Node* required_node) const
     }
 }
 
+void NodeSystem::set_node_tree(std::unique_ptr<NodeTree> new_tree)
+{
+    // 如果有执行器，先清理当前节点树
+    if (node_tree_executor && node_tree) {
+        node_tree_executor->finalize(node_tree.get());
+    }
+    
+    // 设置新的节点树
+    node_tree = std::move(new_tree);
+    
+    // 如果还没有执行器，创建一个默认的
+    if (!node_tree_executor) {
+        node_tree_executor = create_node_tree_executor({});
+    }
+}
+
 NodeTree* NodeSystem::get_node_tree() const
 {
     return node_tree.get();
