@@ -82,16 +82,9 @@ export function createBaklavaNodeDefinition(nodeTypeData) {
         nodeTypeData.outputs.forEach(output => {
             const outputName = output.name || output.identifier
 
-            if (output.type === 'int') {
-                // 整数输出使用带有默认值0的IntegerInterface
-                nodeDefinition.outputs[output.identifier] = () => new IntegerInterface(outputName, 0)
-            } else if (output.type === 'float' || output.type === 'double') {
-                // 浮点数输出使用带有默认值0.0的NumberInterface
-                nodeDefinition.outputs[output.identifier] = () => new NumberInterface(outputName, 0.0)
-            } else {
-                // 其他类型使用基础NodeInterface
-                nodeDefinition.outputs[output.identifier] = () => new NodeInterface(outputName)
-            }
+            // 所有输出接口都使用基础NodeInterface，因为输出值不应由用户编辑
+            // 输出值由节点的calculate()函数内部逻辑产生
+            nodeDefinition.outputs[output.identifier] = () => new NodeInterface(outputName)
         })
     }
 
