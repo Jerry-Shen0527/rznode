@@ -12,7 +12,9 @@
 #include <windows.h>
 #else
 #include <unistd.h>
+
 #include <climits>
+
 #endif
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
@@ -68,9 +70,14 @@ bool WebServer::initialize(int port)
     // 检查路径是否存在
     if (std::filesystem::exists(web_dist_path)) {
         server_->set_mount_point("/", web_dist_path.string());
-        spdlog::info("WebServer: Mounting static files from: {}", web_dist_path.string());
-    } else {
-        spdlog::warn("WebServer: Web directory not found at: {}, using relative path", web_dist_path.string());
+        spdlog::info(
+            "WebServer: Mounting static files from: {}",
+            web_dist_path.string());
+    }
+    else {
+        spdlog::warn(
+            "WebServer: Web directory not found at: {}, using relative path",
+            web_dist_path.string());
         server_->set_mount_point("/", "./web/dist");  // 回退到相对路径
     }
 

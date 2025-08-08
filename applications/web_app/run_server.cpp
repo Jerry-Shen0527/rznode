@@ -7,7 +7,6 @@
 #include "nodes/system/node_system_dl.hpp"
 #include "nodes/web_server/web_server.hpp"
 
-
 // 全局变量用于信号处理（放在全局命名空间）
 std::unique_ptr<USTC_CG::WebServer> g_web_server;
 
