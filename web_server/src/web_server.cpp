@@ -3,9 +3,17 @@
 #include <spdlog/spdlog.h>
 
 #include <chrono>
+#include <filesystem>
 
 #include "nodes/core/api.hpp"
 #include "nodes/core/io/json.hpp"
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#include <climits>
+#endif
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
@@ -31,8 +39,40 @@ bool WebServer::initialize(int port)
 {
     port_ = port;
 
-    // 设置服务器配置
-    server_->set_mount_point("/", "../web_server/web/dist");
+    // 获取可执行程序所在目录的绝对路径（参考NodeDynamicLoadingSystem的实现）
+    std::filesystem::path executable_path;
+
+#ifdef _WIN32
+    char path[MAX_PATH];
+    GetModuleFileNameA(NULL, path, MAX_PATH);
+    executable_path = std::filesystem::path(path).parent_path();
+#else
+    char path[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", path, PATH_MAX);
+    if (count != -1) {
+        path[count] = '\0';
+        executable_path = std::filesystem::path(path).parent_path();
+    }
+    else {
+        spdlog::error("WebServer: Failed to get executable path");
+        server_->set_mount_point("/", "./web/dist");  // 回退到相对路径
+        spdlog::info("WebServer: Initialized on port {}", port_);
+        return true;
+    }
+#endif
+
+    // 构建web/dist的绝对路径
+    std::filesystem::path web_dist_path = executable_path / "web" / "dist";
+    web_dist_path = web_dist_path.lexically_normal();
+
+    // 检查路径是否存在
+    if (std::filesystem::exists(web_dist_path)) {
+        server_->set_mount_point("/", web_dist_path.string());
+        spdlog::info("WebServer: Mounting static files from: {}", web_dist_path.string());
+    } else {
+        spdlog::warn("WebServer: Web directory not found at: {}, using relative path", web_dist_path.string());
+        server_->set_mount_point("/", "./web/dist");  // 回退到相对路径
+    }
 
     spdlog::info("WebServer: Initialized on port {}", port_);
     return true;
@@ -121,35 +161,9 @@ void WebServer::setup_routes()
             handle_validate_tree(req, res);
         });
 
-    // 默认路由
-    server_->Get("/", [](const httplib::Request& req, httplib::Response& res) {
-        res.set_content(
-            R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>RzNode Web Server</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .status { color: green; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>RzNode 节点编程系统</h1>
-        <p class="status">✓ Web服务器运行正常</p>
-        <p>前端节点编辑器界面</p>
-        <hr>
-        <p><a href="/api/status">API状态检查</a></p>
-        <p><a href="/api/node-types">节点类型列表</a></p>
-    </div>
-</body>
-</html>
-        )",
-            "text/html; charset=utf-8");
-    });
+    // 注意：移除了硬编码的根路由 server_->Get("/", ...)
+    // 现在根路径由静态文件服务 set_mount_point("/", "./web/dist") 处理
+    // 这样可以使用真正的React/Vue前端节点编辑器界面
 }
 
 void WebServer::handle_get_status(
