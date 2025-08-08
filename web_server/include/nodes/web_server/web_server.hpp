@@ -71,7 +71,7 @@ struct WEB_SERVER_API NodeTreeDto {
 struct WEB_SERVER_API ExecutionResultDto {
     bool success = false;
     std::string error_message;
-    double execution_time = 0.0;                       // 执行时间（秒）
+    double execution_time = 0.0;  // 执行时间（秒）
 };
 
 // Web服务器类
