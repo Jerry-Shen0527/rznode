@@ -1,15 +1,17 @@
 #include "nodes/system/node_system_dl.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include <fstream>
 #include <iostream>
 #include <nodes/core/io/json.hpp>
 #include <stdexcept>
 #include <string>
-#include <spdlog/spdlog.h>
 #ifdef _WIN32
 #include <windows.h>
 #else
 #include <dlfcn.h>
+#include <unistd.h>
 #endif
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
@@ -154,8 +156,10 @@ bool NodeDynamicLoadingSystem::load_configuration(
                 }
 
                 new_node.ALWAYS_REQUIRED =
-                    node_always_requred ? node_always_requred() : false;                if (new_node.ALWAYS_REQUIRED) {
-                    spdlog::info("{} is always required.", func_name_str.c_str());
+                    node_always_requred ? node_always_requred() : false;
+                if (new_node.ALWAYS_REQUIRED) {
+                    spdlog::info(
+                        "{} is always required.", func_name_str.c_str());
                 }
                 new_node.set_declare_function(node_declare);
                 new_node.set_execution_function(node_execution);
