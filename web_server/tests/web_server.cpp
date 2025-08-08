@@ -125,7 +125,8 @@ TEST_F(WebServerTest, NodeSystemExecution)
             EXPECT_TRUE(node_type.contains("inputs"));
             EXPECT_TRUE(node_type.contains("outputs"));
 
-            std::cout << response->body << std::endl;
+            std::cout << " - " << node_type["ui_name"] << " ("
+                      << node_type["id_name"] << ")" << std::endl;
         }
     }
 
@@ -183,6 +184,35 @@ TEST_F(WebServerTest, NodeSystemExecution)
         EXPECT_TRUE(execution_result.contains("success"));
         EXPECT_TRUE(execution_result["success"]);
         std::cout << "Execution result: " << response->body << std::endl;
+    }
+
+    // 5. 测试访问根路径（应该返回index.html）
+    {
+        auto response = client.Get("/");
+        ASSERT_TRUE(response);
+        EXPECT_EQ(response->status, 200);
+        EXPECT_TRUE(response->body.find("<!DOCTYPE html") != std::string::npos);
+        EXPECT_TRUE(response->body.find("RzNode") != std::string::npos);
+        std::cout << "Root page successfully served, content length: "
+                  << response->body.length() << std::endl;
+    }
+
+    // 6. 测试访问静态文件（如index.html）
+    {
+        auto response = client.Get("/index.html");
+        ASSERT_TRUE(response);
+        EXPECT_EQ(response->status, 200);
+        EXPECT_TRUE(response->body.find("<!DOCTYPE html") != std::string::npos);
+        std::cout << "index.html successfully served, content length: "
+                  << response->body.length() << std::endl;
+    }
+
+    // 7. 测试访问不存在的文件（应该返回404）
+    {
+        auto response = client.Get("/nonexistent.html");
+        ASSERT_TRUE(response);
+        EXPECT_EQ(response->status, 404);
+        std::cout << "Non-existent file correctly returned 404" << std::endl;
     }
 
     // 停止服务器

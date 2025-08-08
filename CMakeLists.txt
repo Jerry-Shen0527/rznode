@@ -92,3 +92,5 @@ if(NODE_WEB_SERVER_ENABLED)
 
     add_subdirectory(web_server)
 endif()
+
+add_subdirectory(applications)
