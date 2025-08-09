@@ -20,13 +20,13 @@ if(NPM_EXECUTABLE)
         "${WEB_SOURCE_DIR}/package.json"
     )
 
-    # npm run build 依赖文件（src文件夹、index.html、vite.config.js）
+    # npm run build 依赖文件（src文件夹、index.html、vite.config.ts）
     # 注意：排除dist目录，避免循环依赖
     file(GLOB_RECURSE SRC_FILES "${WEB_SOURCE_DIR}/src/*")
     set(BUILD_DEP_FILES 
         ${SRC_FILES}
         "${WEB_SOURCE_DIR}/index.html"
-        "${WEB_SOURCE_DIR}/vite.config.js"
+        "${WEB_SOURCE_DIR}/vite.config.ts"
     )
     
     # 添加调试信息

@@ -6,20 +6,25 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build",
-        "preview": "vite preview"
+        "build": "vue-tsc && vite build",
+        "preview": "vite preview",
+        "type-check": "vue-tsc --noEmit"
     },
     "dependencies": {
-        "vue": "^3.4.0",
-        "baklavajs": "^2.7.0",
         "@baklavajs/core": "^2.7.0",
         "@baklavajs/engine": "^2.7.0",
         "@baklavajs/interface-types": "^2.7.0",
         "@baklavajs/renderer-vue": "^2.7.0",
-        "@baklavajs/themes": "^2.7.0"
+        "@baklavajs/themes": "^2.7.0",
+        "baklavajs": "^2.7.0",
+        "vue": "^3.4.0"
     },
     "devDependencies": {
+        "@types/node": "^24.2.1",
         "@vitejs/plugin-vue": "^5.0.0",
-        "vite": "^6.0.0"
+        "tsx": "^4.20.3",
+        "typescript": "^5.9.2",
+        "vite": "^6.0.0",
+        "vue-tsc": "^3.0.5"
     }
 }
