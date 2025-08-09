@@ -33,28 +33,28 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { BaklavaEditor, useBaklava } from '@baklavajs/renderer-vue'
 // 导入Baklava主题样式
 import '@baklavajs/themes/dist/syrup-dark.css'
-// 导入API客户端
-import RzNodeAPI from './api/rznode-api.js'
-// 导入节点转换器
-import { registerNodeTypesToBaklava, getNodeTypeDisplayInfo } from './utils/nodeConverter.js'
-// 导入节点树序列化器
-import { serializeNodeTree, validateNodeTree, getNodeTreeStats } from './utils/nodeTreeSerializer.js'
+// 导入API客户端 - 使用TypeScript版本
+import { RzNodeAPI } from './api/rznode-api.ts'
+// 导入节点转换器 - 使用TypeScript版本
+import { registerNodeTypesToBaklava, getNodeTypeDisplayInfo, type NodeTypeData } from './utils/nodeConverter.ts'
+// 导入节点树序列化器 - 使用TypeScript版本
+import { serializeNodeTree, validateNodeTree, getNodeTreeStats } from './utils/nodeTreeSerializer.ts'
 
 // 初始化Baklava编辑器
 const baklava = useBaklava()
 
 // 状态管理
-const isConnected = ref(false)
-const connectionStatus = ref('未连接')
-const debugInfo = ref([])
-const nodeTypes = ref([])
-const isExecuting = ref(false)
-const lastExecutionResult = ref(null)
+const isConnected = ref<boolean>(false)
+const connectionStatus = ref<string>('未连接')
+const debugInfo = ref<string[]>([])
+const nodeTypes = ref<NodeTypeData[]>([])
+const isExecuting = ref<boolean>(false)
+const lastExecutionResult = ref<any>(null)
 
 // 计算属性：节点类型显示列表
 const nodeTypeDisplayList = computed(() => {
@@ -65,7 +65,7 @@ const nodeTypeDisplayList = computed(() => {
 const api = new RzNodeAPI()
 
 // 添加调试信息
-const addDebugInfo = (message) => {
+const addDebugInfo = (message: string) => {
   const timestamp = new Date().toLocaleTimeString()
   debugInfo.value.unshift(`[${timestamp}] ${message}`)
   // 限制调试信息数量
@@ -86,7 +86,7 @@ const testConnection = async () => {
   } catch (error) {
     isConnected.value = false
     connectionStatus.value = '连接失败'
-    addDebugInfo(`连接失败: ${error.message}`)
+    addDebugInfo(`连接失败: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -103,7 +103,7 @@ const loadNodeTypes = async () => {
     const registeredCount = registerNodeTypesToBaklava(baklava, types)
     addDebugInfo(`已注册 ${registeredCount} 个节点类型到编辑器`)
   } catch (error) {
-    addDebugInfo(`加载节点类型失败: ${error.message}`)
+    addDebugInfo(`加载节点类型失败: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -116,17 +116,15 @@ const executeNodeTree = async () => {
     // 序列化当前节点树
     const serializedTree = serializeNodeTree(baklava)
     console.log('序列化的节点树:', serializedTree)
-    addDebugInfo(`节点ID映射: ${JSON.stringify(serializedTree.metadata.nodeIdMapping || {})}`)
+    addDebugInfo(`序列化元数据: ${JSON.stringify(serializedTree.metadata)}`)
     
     // 本地验证
     const validation = validateNodeTree(serializedTree)
     if (!validation.valid) {
-      addDebugInfo(`节点树验证失败: ${validation.errors.join(', ')}`)
+      addDebugInfo(`节点树验证失败: ${validation.message}`)
       return
-    }
-    
-    if (validation.warnings.length > 0) {
-      addDebugInfo(`节点树警告: ${validation.warnings.join(', ')}`)
+    } else{
+      addDebugInfo(`节点树警告: ${validation.message}`)
     }
     
     // 显示统计信息
@@ -142,7 +140,7 @@ const executeNodeTree = async () => {
     console.log('执行结果:', result)
     
   } catch (error) {
-    addDebugInfo(`执行失败: ${error.message}`)
+    addDebugInfo(`执行失败: ${error instanceof Error ? error.message : String(error)}`)
     console.error('执行错误:', error)
   } finally {
     isExecuting.value = false
@@ -160,13 +158,13 @@ const validateCurrentTree = async () => {
     // 本地验证
     const localValidation = validateNodeTree(serializedTree)
     if (!localValidation.valid) {
-      addDebugInfo(`本地验证失败: ${localValidation.errors.join(', ')}`)
+      addDebugInfo(`本地验证失败: ${localValidation.message}`)
     } else {
       addDebugInfo('本地验证通过')
     }
     
-    if (localValidation.warnings.length > 0) {
-      addDebugInfo(`警告: ${localValidation.warnings.join(', ')}`)
+    if (localValidation.message) {
+      addDebugInfo(`警告: ${localValidation.message}`)
     }
     
     // 发送到后端验证
@@ -178,7 +176,7 @@ const validateCurrentTree = async () => {
     addDebugInfo(`统计信息: ${stats.totalNodes} 节点, ${stats.totalConnections} 连接, 复杂度: ${stats.complexity}`)
     
   } catch (error) {
-    addDebugInfo(`验证失败: ${error.message}`)
+    addDebugInfo(`验证失败: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
