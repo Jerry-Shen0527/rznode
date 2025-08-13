@@ -101,6 +101,9 @@ class WEB_SERVER_API WebServer {
    protected:
     // API 处理函数
     void handle_get_status(const httplib::Request& req, httplib::Response& res);
+    void handle_get_value_types(
+        const httplib::Request& req,
+        httplib::Response& res);
     void handle_get_node_types(
         const httplib::Request& req,
         httplib::Response& res);
@@ -118,6 +121,8 @@ class WEB_SERVER_API WebServer {
     ExecutionResultDto execute_node_tree_internal(const NodeTreeDto& dto) const;
 
     // JSON 序列化/反序列化
+    std::string serialize_value_types(
+        const std::vector<std::string>& types) const;
     std::string serialize_node_types(
         const std::vector<NodeTypeDto>& types) const;
     std::string serialize_execution_result(
@@ -133,11 +138,19 @@ class WEB_SERVER_API WebServer {
     int port_;
     bool is_running_;
 
+    // 缓存的接口类型信息
+    mutable std::vector<std::string> cached_value_types_;
+    mutable bool value_types_cache_dirty_;
+
+    void refresh_value_types_cache() const;
+
     // 缓存的节点类型信息
     mutable std::vector<NodeTypeDto> cached_node_types_;
     mutable bool node_types_cache_dirty_;
 
     void refresh_node_types_cache() const;
+
+    // 设置路由
     void setup_routes();
 };
 

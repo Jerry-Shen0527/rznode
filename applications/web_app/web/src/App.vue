@@ -5,7 +5,7 @@
       <h1 class="title">RzNode - 节点编程系统</h1>
       <div class="toolbar">
         <button class="btn btn-primary" @click="testConnection">测试连接</button>
-        <button class="btn btn-secondary" @click="loadNodeTypes" :disabled="!isConnected">加载节点类型</button>
+        <button class="btn btn-secondary" @click="loadNodeTypes" :disabled="!isConnected">加载节点和值类型</button>
         <button class="btn btn-success" @click="executeNodeTree" :disabled="!isConnected || isExecuting">
           {{ isExecuting ? '执行中...' : '执行节点树' }}
         </button>
@@ -20,90 +20,98 @@
     <div class="editor-container">
       <BaklavaEditor :view-model="baklava" />
     </div>
-    
-    <!-- 调试信息面板 -->
-    <div class="debug-panel" v-if="debugInfo.length > 0">
-      <h3>调试信息</h3>
-      <div class="debug-messages">
-        <div v-for="(msg, index) in debugInfo" :key="index" class="debug-message">
-          {{ msg }}
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { BaklavaEditor, useBaklava } from '@baklavajs/renderer-vue'
+import { DependencyEngine } from '@baklavajs/engine'
 // 导入Baklava主题样式
 import '@baklavajs/themes/dist/syrup-dark.css'
 // 导入API客户端 - 使用TypeScript版本
 import { RzNodeAPI } from './api/rznode-api.ts'
 // 导入节点转换器 - 使用TypeScript版本
-import { registerNodeTypesToBaklava, getNodeTypeDisplayInfo, type NodeTypeData } from './utils/nodeConverter.ts'
+import { handleNodeTypesApiResponse, type NodeTypeData } from './utils/nodeConverter.ts'
+// 导入值类型注册器 - 使用TypeScript版本
+import { 
+    getCachedValueTypes,
+    type ValueTypeInfo 
+} from './utils/valueTypeRegistrant.ts'
 // 导入节点树序列化器 - 使用TypeScript版本
-import { serializeNodeTree, validateNodeTree, getNodeTreeStats } from './utils/nodeTreeSerializer.ts'
+import { 
+    serializeNodeTree, 
+    safeValidateNodeTree, 
+    getValidationDisplayText, 
+    safeGetNodeTreeStats,
+    isValidationError 
+} from './utils/nodeTreeSerializer.ts'
+// 导入统一的调试工具
+import { logTag } from './utils/logFormatter.ts'
 
 // 初始化Baklava编辑器
 const baklava = useBaklava()
+// 初始化引擎，因为Baklava.js中有一些特性必须在初始化引擎后才能使用
+const engine = new DependencyEngine(baklava.editor); 
 
 // 状态管理
 const isConnected = ref<boolean>(false)
 const connectionStatus = ref<string>('未连接')
-const debugInfo = ref<string[]>([])
 const nodeTypes = ref<NodeTypeData[]>([])
+const valueTypes = ref<ValueTypeInfo[]>([])
 const isExecuting = ref<boolean>(false)
 const lastExecutionResult = ref<any>(null)
-
-// 计算属性：节点类型显示列表
-const nodeTypeDisplayList = computed(() => {
-  return nodeTypes.value.map(nodeType => getNodeTypeDisplayInfo(nodeType))
-})
 
 // 初始化API客户端
 const api = new RzNodeAPI()
 
-// 添加调试信息
-const addDebugInfo = (message: string) => {
-  const timestamp = new Date().toLocaleTimeString()
-  debugInfo.value.unshift(`[${timestamp}] ${message}`)
-  // 限制调试信息数量
-  if (debugInfo.value.length > 10) {
-    debugInfo.value.pop()
-  }
-  console.log(message)
-}
-
 // 测试与后端连接
 const testConnection = async () => {
   try {
-    addDebugInfo('正在测试连接...')
+    console.log(logTag('INFO'), '正在测试连接...')
     const status = await api.getStatus()
     isConnected.value = true
     connectionStatus.value = '已连接'
-    addDebugInfo(`连接成功: ${JSON.stringify(status)}`)
+    console.log(logTag('INFO'), '连接成功:', status)
   } catch (error) {
     isConnected.value = false
     connectionStatus.value = '连接失败'
-    addDebugInfo(`连接失败: ${error instanceof Error ? error.message : String(error)}`)
+    console.error(logTag('ERROR'), '连接失败:', error)
   }
 }
 
 // 加载节点类型
 const loadNodeTypes = async () => {
   try {
-    addDebugInfo('正在加载节点类型...')
-    const types = await api.getNodeTypes()
-    nodeTypes.value = types
-    addDebugInfo(`成功加载 ${types.length} 个节点类型`)
-    console.log('节点类型详情:', types)
+    console.log(logTag('INFO'), '正在加载节点类型和值类型...')
     
-    // 将节点类型注册到Baklava编辑器
-    const registeredCount = registerNodeTypesToBaklava(baklava, types)
-    addDebugInfo(`已注册 ${registeredCount} 个节点类型到编辑器`)
+    // 同时获取节点类型和值类型
+    const [nodeTypesResponse, valueTypesResponse] = await Promise.all([
+      api.getNodeTypes(),
+      api.getValueTypes()
+    ])
+    
+    // 使用辅助函数处理API响应并注册节点类型（同时处理值类型）
+    const registeredCount = handleNodeTypesApiResponse(baklava, nodeTypesResponse, valueTypesResponse)
+    
+    // 如果成功注册，则更新本地状态
+    if (Array.isArray(nodeTypesResponse)) {
+      nodeTypes.value = nodeTypesResponse
+      console.log(logTag('INFO'), `成功加载 ${nodeTypesResponse.length} 个节点类型`)
+      console.log(logTag('INFO'), '节点类型详情:', nodeTypesResponse)
+    }
+    
+    // 更新值类型状态
+    const cachedValueTypes = getCachedValueTypes()
+    if (Array.isArray(cachedValueTypes)) {
+      valueTypes.value = cachedValueTypes
+      console.log(logTag('INFO'), `成功加载 ${cachedValueTypes.length} 个值类型`)
+      console.log(logTag('INFO'), '值类型详情:', cachedValueTypes)
+    }
+    
+    console.log(logTag('INFO'), `已注册 ${registeredCount} 个节点类型到编辑器`)
   } catch (error) {
-    addDebugInfo(`加载节点类型失败: ${error instanceof Error ? error.message : String(error)}`)
+    console.error(logTag('ERROR'), '加载类型失败:', error)
   }
 }
 
@@ -111,37 +119,40 @@ const loadNodeTypes = async () => {
 const executeNodeTree = async () => {
   try {
     isExecuting.value = true
-    addDebugInfo('正在序列化节点树...')
+    console.log(logTag('INFO'), '正在序列化节点树...')
     
     // 序列化当前节点树
     const serializedTree = serializeNodeTree(baklava)
-    console.log('序列化的节点树:', serializedTree)
-    addDebugInfo(`序列化元数据: ${JSON.stringify(serializedTree.metadata)}`)
+    console.log(logTag('INFO'), '序列化的节点树:', serializedTree)
+    console.log(logTag('INFO'), '序列化元数据:', serializedTree.metadata)
     
     // 本地验证
-    const validation = validateNodeTree(serializedTree)
-    if (!validation.valid) {
-      addDebugInfo(`节点树验证失败: ${validation.message}`)
+    const validation = safeValidateNodeTree(serializedTree)
+    if (isValidationError(validation)) {
+      console.error(logTag('ERROR'), '验证过程失败:', validation.error)
       return
-    } else{
-      addDebugInfo(`节点树警告: ${validation.message}`)
+    }
+    
+    if (!validation.valid) {
+      console.warn(logTag('WARNING'), '节点树验证失败:', getValidationDisplayText(validation))
+      return
+    } else {
+      console.log(logTag('INFO'), '节点树验证通过:', getValidationDisplayText(validation))
     }
     
     // 显示统计信息
-    const stats = getNodeTreeStats(serializedTree)
-    addDebugInfo(`节点树统计: ${stats.totalNodes} 个节点, ${stats.totalConnections} 个连接`)
+    const stats = safeGetNodeTreeStats(serializedTree)
+    console.log(logTag('INFO'), `节点树统计: ${stats.totalNodes} 个节点, ${stats.totalConnections} 个连接`)
     
     // 发送到后端执行
-    addDebugInfo('正在发送到后端执行...')
+    console.log(logTag('INFO'), '正在发送到后端执行...')
     const result = await api.executeNodeTree(serializedTree)
     
     lastExecutionResult.value = result
-    addDebugInfo(`执行完成: ${JSON.stringify(result)}`)
-    console.log('执行结果:', result)
+    console.log(logTag('INFO'), '执行完成:', result)
     
   } catch (error) {
-    addDebugInfo(`执行失败: ${error instanceof Error ? error.message : String(error)}`)
-    console.error('执行错误:', error)
+    console.error(logTag('ERROR'), '执行失败:', error)
   } finally {
     isExecuting.value = false
   }
@@ -150,40 +161,38 @@ const executeNodeTree = async () => {
 // 验证当前节点树
 const validateCurrentTree = async () => {
   try {
-    addDebugInfo('正在验证节点树...')
+    console.log(logTag('INFO'), '正在验证节点树...')
     
     // 序列化当前节点树
     const serializedTree = serializeNodeTree(baklava)
     
     // 本地验证
-    const localValidation = validateNodeTree(serializedTree)
-    if (!localValidation.valid) {
-      addDebugInfo(`本地验证失败: ${localValidation.message}`)
+    const localValidation = safeValidateNodeTree(serializedTree)
+    if (isValidationError(localValidation)) {
+      console.error(logTag('ERROR'), '本地验证过程失败:', localValidation.error)
+    } else if (!localValidation.valid) {
+      console.warn(logTag('WARNING'), '本地验证失败:', getValidationDisplayText(localValidation))
     } else {
-      addDebugInfo('本地验证通过')
-    }
-    
-    if (localValidation.message) {
-      addDebugInfo(`警告: ${localValidation.message}`)
+      console.log(logTag('INFO'), '本地验证通过:', getValidationDisplayText(localValidation))
     }
     
     // 发送到后端验证
     const result = await api.validateNodeTree(serializedTree)
-    addDebugInfo(`后端验证结果: ${JSON.stringify(result)}`)
+    console.log(logTag('INFO'), '后端验证结果:', result)
     
     // 显示统计信息
-    const stats = getNodeTreeStats(serializedTree)
-    addDebugInfo(`统计信息: ${stats.totalNodes} 节点, ${stats.totalConnections} 连接, 复杂度: ${stats.complexity}`)
+    const stats = safeGetNodeTreeStats(serializedTree)
+    console.log(logTag('INFO'), `统计信息: ${stats.totalNodes} 节点, ${stats.totalConnections} 连接, 复杂度: ${stats.complexity}`)
     
   } catch (error) {
-    addDebugInfo(`验证失败: ${error instanceof Error ? error.message : String(error)}`)
+    console.error(logTag('ERROR'), '验证失败:', error)
   }
 }
 
 // 组件挂载后的初始化
 onMounted(() => {
-  console.log('BaklavaJS节点编辑器已初始化')
-  addDebugInfo('前端应用已启动')
+  console.log(logTag('INFO'), 'BaklavaJS节点编辑器已初始化')
+  console.log(logTag('INFO'), '前端应用已启动')
   // 自动测试连接
   testConnection()
 })
@@ -299,35 +308,6 @@ onMounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
-}
-
-.debug-panel {
-  background: #f8f9fa;
-  border-top: 2px solid #dee2e6;
-  padding: 1rem;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.debug-panel h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1rem;
-  color: #495057;
-}
-
-.debug-messages {
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 0.85rem;
-}
-
-.debug-message {
-  padding: 0.25rem 0;
-  color: #6c757d;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.debug-message:last-child {
-  border-bottom: none;
 }
 
 /* 覆盖Baklava的默认样式 */
