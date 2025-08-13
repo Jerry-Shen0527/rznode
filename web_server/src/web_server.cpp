@@ -151,6 +151,12 @@ void WebServer::setup_routes()
         });
 
     server_->Get(
+        "/api/value-types",
+        [this](const httplib::Request& req, httplib::Response& res) {
+            handle_get_value_types(req, res);
+        });
+
+    server_->Get(
         "/api/node-types",
         [this](const httplib::Request& req, httplib::Response& res) {
             handle_get_node_types(req, res);
@@ -191,6 +197,37 @@ void WebServer::handle_get_status(
 
     res.set_content(status_json.dump(2), "application/json");
     spdlog::debug("WebServer: Status request handled");
+}
+
+void WebServer::handle_get_value_types(
+    const httplib::Request& req,
+    httplib::Response& res)
+{
+    setup_cors_headers(res);
+
+    if (!node_system_) {
+        nlohmann::json error;
+        error["error"] = "Node system not available";
+        res.status = 500;
+        res.set_content(error.dump(), "application/json");
+        return;
+    }
+
+    try {
+        refresh_value_types_cache();
+        std::string json_response = serialize_value_types(cached_value_types_);
+        res.set_content(json_response, "application/json");
+        spdlog::debug(
+            "WebServer: Value types request handled, {} types",
+            cached_value_types_.size());
+    }
+    catch (const std::exception& e) {
+        nlohmann::json error;
+        error["error"] = std::string("Failed to get value types: ") + e.what();
+        res.status = 500;
+        res.set_content(error.dump(), "application/json");
+        spdlog::error("WebServer: Error getting value types: {}", e.what());
+    }
 }
 
 void WebServer::handle_get_node_types(
@@ -523,6 +560,30 @@ ExecutionResultDto WebServer::execute_node_tree_internal(
     return result;
 }
 
+void WebServer::refresh_value_types_cache() const
+{
+    if (!value_types_cache_dirty_) {
+        return;
+    }
+
+    cached_value_types_.clear();
+
+    if (!node_system_) {
+        return;
+    }
+
+    auto descriptor = node_system_->node_tree_descriptor();
+    auto value_types = descriptor->get_registered_value_types();
+    for (const auto& type : value_types) {
+        cached_value_types_.push_back(std::string{ type.info().name() });
+    }
+
+    value_types_cache_dirty_ = false;
+    spdlog::debug(
+        "WebServer: Value types cache refreshed, {} types",
+        cached_value_types_.size());
+}
+
 void WebServer::refresh_node_types_cache() const
 {
     if (!node_types_cache_dirty_) {
@@ -547,6 +608,20 @@ void WebServer::refresh_node_types_cache() const
     spdlog::debug(
         "WebServer: Node types cache refreshed, {} types",
         cached_node_types_.size());
+}
+
+std::string WebServer::serialize_value_types(
+    const std::vector<std::string>& types) const
+{
+    nlohmann::json json_array = nlohmann::json::array();
+
+    for (const auto& type : types) {
+        nlohmann::json type_json;
+        type_json["type_name"] = type;
+        json_array.push_back(type_json);
+    }
+
+    return json_array.dump(2);
 }
 
 std::string WebServer::serialize_node_types(

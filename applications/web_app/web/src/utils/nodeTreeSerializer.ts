@@ -3,6 +3,8 @@
 import type { IBaklavaViewModel } from '@baklavajs/renderer-vue'
 import type { Graph, AbstractNode, Connection, NodeInterface } from '@baklavajs/core'
 import { error } from 'console'
+// 导入统一的调试工具
+import { logTag } from './logFormatter'
 
 // 类型定义
 export interface SerializedNode {
@@ -33,17 +35,18 @@ export interface SerializedNodeTree {
     }
 }
 
-export type ValidationResult =
-    | {
-        error: string
-        valid?: never
-        message?: never
-    }
-    | {
-        error?: never
-        valid: boolean
-        message: string
-    }
+export interface ValidationResult {
+    valid: boolean
+    message: string
+    errors?: string[]
+    warnings?: string[]
+}
+
+export interface ValidationError {
+    error: string
+}
+
+export type NodeTreeValidationResponse = ValidationResult | ValidationError
 
 
 export interface NodeTreeStats {
@@ -111,7 +114,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
         graph.nodes.forEach((node: AbstractNode) => {
             if (node.type.startsWith('__baklava_GraphNode')) {
                 // 子图节点：需要递归处理其内部子图
-                console.log(`处理子图节点: ${node.id}`)
+                console.log(logTag('INFO'), `处理子图节点: ${node.id}`)
 
                 // 建立子图的输入输出映射，组合当前层的映射
                 const subgraphInputs: Record<string, InputMapping> = {}
@@ -177,7 +180,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
 
             } else if (!node.type.startsWith('__baklava_')) {
                 // 普通节点：直接序列化
-                console.log(`处理普通节点: ${node.id}, type: ${node.type}`)
+                console.log(logTag('INFO'), `处理普通节点: ${node.id}, type: ${node.type}`)
 
                 // 序列化节点
                 const serializedNode: SerializedNode = {
@@ -270,7 +273,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
     // 从主图开始递归处理
     processGraphRecursively(baklavaEditor.editor.graph)
 
-    console.log(`序列化完成: ${nodes.length} 个节点, ${links.length} 个连接`)
+    console.log(logTag('INFO'), `序列化完成: ${nodes.length} 个节点, ${links.length} 个连接`)
 
     return {
         nodes,
@@ -304,10 +307,12 @@ export function validateNodeTree(nodeTree: SerializedNodeTree): ValidationResult
     }
 
     if (errors.length > 0) {
-        const messages: string[] = []
-        messages.push(`错误: ${errors.join('; ')}`)
-        const msg = messages.join(' | ')
-        return { valid: false, message: msg }
+        return {
+            valid: false,
+            message: `结构错误: ${errors.join('; ')}`,
+            errors,
+            warnings
+        }
     }
 
     // 收集所有节点ID（现在是整型）
@@ -338,17 +343,18 @@ export function validateNodeTree(nodeTree: SerializedNodeTree): ValidationResult
     })
 
     const messages: string[] = []
-
     if (errors.length > 0) {
         messages.push(`错误: ${errors.join('; ')}`)
-    } else if (warnings.length > 0) {
+    }
+    if (warnings.length > 0) {
         messages.push(`警告: ${warnings.join('; ')}`)
     }
 
-    const msg = messages.join(' | ')
     return {
         valid: errors.length === 0,
-        message: msg,
+        message: messages.length > 0 ? messages.join(' | ') : '验证通过',
+        errors: errors.length > 0 ? errors : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined
     }
 }
 
@@ -394,4 +400,76 @@ function calculateComplexity(nodeTree: SerializedNodeTree): number {
 
     // 简单的复杂度计算：节点数 + 连接数 * 0.5
     return nodeCount + connectionCount * 0.5
+}
+
+/**
+ * 安全验证节点树，提供统一的错误处理
+ * @param nodeTree - 序列化的节点树
+ * @returns 验证结果或错误信息
+ */
+export function safeValidateNodeTree(nodeTree: SerializedNodeTree): NodeTreeValidationResponse {
+    try {
+        return validateNodeTree(nodeTree)
+    } catch (error) {
+        return {
+            error: `验证过程中发生错误: ${error instanceof Error ? error.message : String(error)}`
+        }
+    }
+}
+
+/**
+ * 检查验证结果是否为错误
+ * @param result - 验证结果
+ * @returns 是否为错误
+ */
+export function isValidationError(result: NodeTreeValidationResponse): result is ValidationError {
+    return 'error' in result && typeof result.error === 'string'
+}
+
+/**
+ * 获取验证结果的友好显示文本
+ * @param result - 验证结果
+ * @returns 显示文本
+ */
+export function getValidationDisplayText(result: NodeTreeValidationResponse): string {
+    if (isValidationError(result)) {
+        return `验证错误: ${result.error}`
+    }
+
+    const parts: string[] = []
+    parts.push(`验证${result.valid ? '成功' : '失败'}`)
+
+    if (result.message) {
+        parts.push(result.message)
+    }
+
+    if (result.errors && result.errors.length > 0) {
+        parts.push(`错误数量: ${result.errors.length}`)
+    }
+
+    if (result.warnings && result.warnings.length > 0) {
+        parts.push(`警告数量: ${result.warnings.length}`)
+    }
+
+    return parts.join(' | ')
+}
+
+/**
+ * 安全获取节点树统计信息
+ * @param nodeTree - 序列化的节点树
+ * @returns 统计信息，如果出错则返回默认值
+ */
+export function safeGetNodeTreeStats(nodeTree: SerializedNodeTree): NodeTreeStats {
+    try {
+        return getNodeTreeStats(nodeTree)
+    } catch (error) {
+        console.warn(logTag('WARNING'), '获取节点树统计信息失败:', error)
+        return {
+            totalNodes: 0,
+            totalConnections: 0,
+            nodeTypes: {},
+            inputValueTypes: {},
+            complexity: 0
+        }
+    }
 }
