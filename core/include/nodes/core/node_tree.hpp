@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "api.hpp"
+#include "entt/meta/resolve.hpp"
 #include "node.hpp"
 #include "node_exec.hpp"
 #include "nodes/core/api.h"
@@ -38,6 +39,16 @@ class NODES_CORE_API NodeTreeDescriptor {
     std::map<std::string, NodeTypeInfo> get_registered_node_types() const
     {
         return node_registry;
+    }
+    std::vector<entt::meta_type> get_registered_value_types() const
+    {
+        std::vector<entt::meta_type> types;
+        for (const auto& type_ref : entt::resolve(get_entt_ctx())) {
+            const auto type_idx = type_ref.first;
+            const auto type = type_ref.second;
+            types.push_back(type);
+        }
+        return types;
     }
 
     static std::string conversion_node_name(SocketType from, SocketType to);

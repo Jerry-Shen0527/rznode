@@ -17,6 +17,7 @@
         "@baklavajs/renderer-vue": "^2.7.0",
         "@baklavajs/themes": "^2.7.0",
         "baklavajs": "^2.7.0",
+        "chalk": "^5.5.0",
         "vue": "^3.4.0"
     },
     "devDependencies": {

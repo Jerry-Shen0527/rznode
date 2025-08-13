@@ -1,7 +1,10 @@
 // RzNode API 客户端 - TypeScript版本
 
 import type { SerializedNodeTree, ValidationResult } from '../utils/nodeTreeSerializer'
-import type { NodeTypeData } from '../utils/nodeConverter'
+import type { NodeTypeData, NodeTypesApiResponse } from '../utils/nodeConverter'
+import type { ValueTypesApiResponse } from '../utils/valueTypeRegistrant'
+// 导入统一的调试工具
+import { logTag } from '../utils/logFormatter'
 
 // API响应类型定义
 export interface ServerStatus {
@@ -56,11 +59,21 @@ export class RzNodeAPI {
     /**
      * 获取节点类型列表
      * @param options - 请求选项
-     * @returns 节点类型数组
+     * @returns 节点类型数组或错误对象
      */
-    async getNodeTypes(options: ApiRequestOptions = {}): Promise<NodeTypeData[]> {
+    async getNodeTypes(options: ApiRequestOptions = {}): Promise<NodeTypesApiResponse> {
         const response = await this.makeRequest('/api/node-types', 'GET', undefined, options)
-        return response as NodeTypeData[]
+        return response as NodeTypesApiResponse
+    }
+
+    /**
+     * 获取值类型列表
+     * @param options - 请求选项
+     * @returns 值类型数组或错误对象
+     */
+    async getValueTypes(options: ApiRequestOptions = {}): Promise<ValueTypesApiResponse> {
+        const response = await this.makeRequest('/api/value-types', 'GET', undefined, options)
+        return response as ValueTypesApiResponse
     }
 
     /**
@@ -186,7 +199,7 @@ export class RzNodeAPI {
             await this.getStatus({ timeout: 5000 })
             return true
         } catch (error) {
-            console.warn('API连接测试失败:', error)
+            console.warn(logTag('WARNING'), 'API连接测试失败:', error)
             return false
         }
     }

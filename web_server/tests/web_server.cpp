@@ -93,7 +93,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
     httplib::Client client("127.0.0.1", 8082);
     client.set_connection_timeout(5, 0);  // 5秒超时
 
-    // 1. 测试服务器状态API
+    // 测试服务器状态API
     {
         auto response = client.Get("/api/status");
         ASSERT_TRUE(response);
@@ -107,7 +107,26 @@ TEST_F(WebServerTest, NodeSystemExecution)
         std::cout << "Server status: " << response->body << std::endl;
     }
 
-    // 2. 测试节点类型查询API
+    // 测试接口值类型查询API
+    {
+        auto response = client.Get("/api/value-types");
+        ASSERT_TRUE(response);
+        EXPECT_EQ(response->status, 200);
+
+        auto value_types_json = nlohmann::json::parse(response->body);
+        EXPECT_TRUE(value_types_json.is_array());
+        EXPECT_GT(value_types_json.size(), 0);  // 应该有至少一个值类型
+
+        std::cout << "Available value types (" << value_types_json.size()
+                  << "):" << std::endl;
+        for (const auto& type : value_types_json) {
+            EXPECT_TRUE(type.contains("type_name"));
+            std::cout << " - " << type["type_name"].get<std::string>()
+                      << std::endl;
+        }
+    }
+
+    // 测试节点类型查询API
     {
         auto response = client.Get("/api/node-types");
         ASSERT_TRUE(response);
@@ -130,7 +149,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
         }
     }
 
-    // 3. 测试节点树验证API
+    // 测试节点树验证API
     {
         nlohmann::json test_tree = { { "nodes", nlohmann::json::array() },
                                      { "links", nlohmann::json::array() } };
@@ -146,7 +165,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
         std::cout << "Empty tree validation: " << response->body << std::endl;
     }
 
-    // 4. 测试简单节点树执行API
+    // 测试简单节点树执行API
     {
         // 用add和print两个测试节点，可以创建一个简易节点树
         nlohmann::json test_tree = { {
@@ -186,7 +205,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
         std::cout << "Execution result: " << response->body << std::endl;
     }
 
-    // 5. 测试访问根路径（应该返回index.html）
+    // 测试访问根路径（应该返回index.html）
     {
         auto response = client.Get("/");
         ASSERT_TRUE(response);
@@ -197,7 +216,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
                   << response->body.length() << std::endl;
     }
 
-    // 6. 测试访问静态文件（如index.html）
+    // 测试访问静态文件（如index.html）
     {
         auto response = client.Get("/index.html");
         ASSERT_TRUE(response);
@@ -207,7 +226,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
                   << response->body.length() << std::endl;
     }
 
-    // 7. 测试访问不存在的文件（应该返回404）
+    // 测试访问不存在的文件（应该返回404）
     {
         auto response = client.Get("/nonexistent.html");
         ASSERT_TRUE(response);

@@ -1,8 +1,17 @@
 // 节点类型转换器 - 将后端节点定义转换为Baklava节点类型
 
-import { defineNode, NodeInterface, } from '@baklavajs/core'
+import { defineNode, NodeInterface } from '@baklavajs/core'
+import { setType } from '@baklavajs/interface-types'
 import { NumberInterface, IntegerInterface, CheckboxInterface, TextInputInterface, TextInterface } from '@baklavajs/renderer-vue'
-import { BaklavaEditor, type IBaklavaViewModel } from '@baklavajs/renderer-vue'
+import { type IBaklavaViewModel } from '@baklavajs/renderer-vue'
+import {
+    handleValueTypesApiResponse,
+    getBaklavaInterfaceType,
+    type ValueTypeInfo,
+    type ValueTypesApiResponse
+} from './valueTypeRegistrant'
+// 导入统一的调试工具
+import { logTag } from './logFormatter'
 
 // 类型定义
 export interface NodeSocketInfo {
@@ -15,52 +24,23 @@ export interface NodeSocketInfo {
     max_value?: string      // C++后端发送的是字符串格式的值
 }
 
-// C++后端可能返回两种情况：
-// 1. 错误情况：只有 error 字段
-// 2. 成功情况：有完整的节点类型信息
-export type NodeTypeData =
+// 单个节点类型的数据结构（对应后端的 NodeTypeDto）
+export interface NodeTypeData {
+    id_name: string
+    ui_name: string
+    color: [number, number, number, number] // RGBA数组
+    inputs: NodeSocketInfo[]
+    outputs: NodeSocketInfo[]
+    groups: any[]
+}
+
+// API 响应类型：要么是错误，要么是节点类型数组
+export type NodeTypesApiResponse =
     | {
         // 错误情况
         error: string
-        id_name?: never
-        ui_name?: never
-        color?: never
-        inputs?: never
-        outputs?: never
-        groups?: never
     }
-    | {
-        // 成功情况
-        error?: never
-        id_name: string
-        ui_name: string
-        color: [number, number, number, number] // RGBA数组
-        inputs: NodeSocketInfo[]
-        outputs: NodeSocketInfo[]
-        groups: any[]
-    }
-
-// export interface BaklavaNodeDefinition {
-//     type: string
-//     title: string
-//     inputs: Record<string, () => any>
-//     outputs: Record<string, () => any>
-//     displayInSidebar: boolean
-//     // calculate: () => Record<string, any>
-// }
-
-export interface NodeTypeDisplayInfo {
-    name: string
-    id: string
-    inputCount: number
-    outputCount: number
-    hasGroups: boolean
-    description: string
-    supportedTypes: {
-        inputs: string[]
-        outputs: string[]
-    }
-}
+    | NodeTypeData[]  // 成功情况：直接返回节点类型数组
 
 /**
  * 解析C++后端发送的字符串值
@@ -108,7 +88,7 @@ function parseBackendValue(valueStr: string | undefined, dataType: string): any 
                 }
         }
     } catch (error) {
-        console.warn(`解析后端值失败: "${valueStr}" (类型: ${dataType})`, error)
+        console.warn(logTag('WARNING'), `解析后端值失败: "${valueStr}" (类型: ${dataType})`, error)
         return undefined
     }
 }
@@ -116,18 +96,12 @@ function parseBackendValue(valueStr: string | undefined, dataType: string): any 
 /**
  * 将后端节点类型转换为Baklava节点类
  * @param nodeTypeData - 后端返回的节点类型数据
- * @returns 创建的Baklava节点定义类，如果有错误则返回null
+ * @returns 创建的Baklava节点定义类
  */
 export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
-    // 检查是否是错误情况
-    if ('error' in nodeTypeData && nodeTypeData.error) {
-        console.error('节点类型包含错误:', nodeTypeData.error)
-        return null
-    }
-
-    // 类型守卫：确保是成功情况的数据
+    // 检查数据完整性
     if (!nodeTypeData.id_name || !nodeTypeData.ui_name) {
-        console.error('节点类型数据不完整:', nodeTypeData)
+        console.error(logTag('ERROR'), '节点类型数据不完整:', nodeTypeData)
         return null
     }
 
@@ -136,20 +110,7 @@ export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
         title: nodeTypeData.ui_name,
         inputs: {} as Record<string, () => NodeInterface>,
         outputs: {} as Record<string, () => NodeInterface>,
-        // 启用在BaklavaJS侧边栏中显示
-        displayInSidebar: true,
-        // 无计算逻辑（C++后端处理输出值）
-        // calculate: () => {
-        //     // 基础计算逻辑，后续可以扩展
-        //     const outputs: Record<string, any> = {}
-        //     // 为每个输出设置默认值
-        //     if (nodeTypeData.outputs) {
-        //         nodeTypeData.outputs.forEach((output: NodeSocketInfo) => {
-        //             outputs[output.identifier] = null
-        //         })
-        //     }
-        //     return outputs
-        // }
+        displayInSidebar: true
     }
 
     // 添加输入接口
@@ -162,55 +123,114 @@ export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
 
             const inputName = input.name || input.identifier
 
+            // 获取 BaklavaJS 接口类型
+            const baklavaType = getBaklavaInterfaceType(input.type)
+
+            if (baklavaType) {
+                console.log(logTag('INFO'), `为输入接口 ${input.identifier} 应用类型约束: ${input.type}`)
+            } else {
+                console.warn(logTag('WARNING'), `未找到输入接口 ${input.identifier} 的类型约束: ${input.type}`)
+            }
+
             if (input.type === 'int') {
                 // 对于整数类型使用IntegerInterface
                 if (minValue !== undefined && maxValue !== undefined) {
-                    nodeDefinition.inputs[input.identifier] = () => new IntegerInterface(
-                        inputName,
-                        Math.round(defaultValue || 0),
-                        Math.round(minValue),
-                        Math.round(maxValue)
-
-                    )
+                    const intInterface = () => {
+                        const intf = new IntegerInterface(
+                            inputName,
+                            Math.round(defaultValue || 0),
+                            Math.round(minValue),
+                            Math.round(maxValue)
+                        )
+                        // 如果找到了对应的类型，则应用类型约束
+                        if (baklavaType) {
+                            intf.use(setType, baklavaType)
+                        }
+                        intf
+                        return intf
+                    }
+                    nodeDefinition.inputs[input.identifier] = intInterface
                 } else {
-                    nodeDefinition.inputs[input.identifier] = () => new IntegerInterface(
-                        inputName,
-                        Math.round(defaultValue || 0)
-                    )
+                    const intInterface = () => {
+                        const intf = new IntegerInterface(
+                            inputName,
+                            Math.round(defaultValue || 0)
+                        )
+                        if (baklavaType) {
+                            intf.use(setType, baklavaType)
+                        }
+                        return intf
+                    }
+                    nodeDefinition.inputs[input.identifier] = intInterface
                 }
             } else if (input.type === 'float' || input.type === 'double') {
                 // 对于浮点数类型使用NumberInterface（BaklavaJS中float和double都用NumberInterface）
                 if (minValue !== undefined && maxValue !== undefined) {
-                    nodeDefinition.inputs[input.identifier] = () => new NumberInterface(
-                        inputName,
-                        defaultValue || 0.0,
-                        minValue,
-                        maxValue
-                    )
+                    const numInterface = () => {
+                        const intf = new NumberInterface(
+                            inputName,
+                            defaultValue || 0.0,
+                            minValue,
+                            maxValue
+                        )
+                        if (baklavaType) {
+                            intf.use(setType, baklavaType)
+                        }
+                        return intf
+                    }
+                    nodeDefinition.inputs[input.identifier] = numInterface
                 } else {
-                    nodeDefinition.inputs[input.identifier] = () => new NumberInterface(
-                        inputName,
-                        defaultValue || 0.0
-                    )
+                    const numInterface = () => {
+                        const intf = new NumberInterface(
+                            inputName,
+                            defaultValue || 0.0
+                        )
+                        if (baklavaType) {
+                            intf.use(setType, baklavaType)
+                        }
+                        return intf
+                    }
+                    nodeDefinition.inputs[input.identifier] = numInterface
                 }
             } else if (input.type === 'bool') {
                 // 对于布尔类型使用CheckboxInterface
-                nodeDefinition.inputs[input.identifier] = () => new CheckboxInterface(
-                    inputName,
-                    defaultValue || false
-                )
+                const boolInterface = () => {
+                    const intf = new CheckboxInterface(
+                        inputName,
+                        defaultValue || false
+                    )
+                    if (baklavaType) {
+                        intf.use(setType, baklavaType)
+                    }
+                    return intf
+                }
+                nodeDefinition.inputs[input.identifier] = boolInterface
             } else if (input.type === 'string') {
                 // 对于字符串类型使用TextInputInterface
-                nodeDefinition.inputs[input.identifier] = () => new TextInputInterface(
-                    inputName,
-                    defaultValue || ''
-                )
+                const stringInterface = () => {
+                    const intf = new TextInputInterface(
+                        inputName,
+                        defaultValue || ''
+                    )
+                    if (baklavaType) {
+                        intf.use(setType, baklavaType)
+                    }
+                    return intf
+                }
+                nodeDefinition.inputs[input.identifier] = stringInterface
             } else {
                 // 对于其他类型（包括未知类型）使用TextInterface
-                nodeDefinition.inputs[input.identifier] = () => new TextInterface(
-                    inputName,
-                    defaultValue || ''
-                )
+                const genericInterface = () => {
+                    const intf = new TextInterface(
+                        inputName,
+                        defaultValue || ''
+                    )
+                    if (baklavaType) {
+                        intf.use(setType, baklavaType)
+                    }
+                    return intf
+                }
+                nodeDefinition.inputs[input.identifier] = genericInterface
             }
         })
     }
@@ -220,9 +240,26 @@ export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
         nodeTypeData.outputs.forEach((output: NodeSocketInfo) => {
             const outputName = output.name || output.identifier
 
+            // 获取 BaklavaJS 接口类型
+            const baklavaType = getBaklavaInterfaceType(output.type)
+
+            if (baklavaType) {
+                console.log(logTag('INFO'), `为输出接口 ${output.identifier} 应用类型约束: ${output.type}`)
+            } else {
+                console.warn(logTag('WARNING'), `未找到输出接口 ${output.identifier} 的类型约束: ${output.type}`)
+            }
+
             // 所有输出接口都使用基础NodeInterface，因为输出值不应由用户编辑
             // 输出值由节点的calculate()函数内部逻辑产生
-            nodeDefinition.outputs[output.identifier] = () => new NodeInterface(outputName, undefined)
+            const outputInterface = () => {
+                const intf = new NodeInterface(outputName, undefined)
+                // 如果找到了对应的类型，则应用类型约束
+                if (baklavaType) {
+                    intf.use(setType, baklavaType)
+                }
+                return intf
+            }
+            nodeDefinition.outputs[output.identifier] = outputInterface
         })
     }
 
@@ -235,7 +272,7 @@ export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
  * @param nodeTypesData - 后端返回的节点类型数组
  */
 export function registerNodeTypesToBaklava(baklava: IBaklavaViewModel, nodeTypesData: NodeTypeData[]): number {
-    console.log('开始注册节点类型到Baklava编辑器...')
+    console.log(logTag('INFO'), '开始注册节点类型到Baklava编辑器...')
 
     let registeredCount = 0
 
@@ -245,101 +282,54 @@ export function registerNodeTypesToBaklava(baklava: IBaklavaViewModel, nodeTypes
 
             // 检查节点类创建是否成功
             if (nodeClass === null) {
-                console.warn(`跳过有问题的节点类型:`, nodeTypeData)
+                console.warn(logTag('WARNING'), `跳过有问题的节点类型:`, nodeTypeData)
                 continue
             }
 
             baklava.editor.registerNodeType(nodeClass)
 
             registeredCount++
-            console.log(`已注册节点类型: ${nodeTypeData.ui_name} (${nodeTypeData.id_name})`)
+            console.log(logTag('INFO'), `已注册节点类型: ${nodeTypeData.ui_name} (${nodeTypeData.id_name})`)
         } catch (error) {
-            console.error(`注册节点类型失败: ${nodeTypeData.ui_name}`, error)
+            console.error(logTag('ERROR'), `注册节点类型失败: ${nodeTypeData.ui_name}`, error)
         }
     }
 
-    console.log(`节点类型注册完成，共注册 ${registeredCount} 个节点`)
+    console.log(logTag('INFO'), `节点类型注册完成，共注册 ${registeredCount} 个节点`)
     return registeredCount
 }
 
 /**
- * 获取节点类型的友好显示信息
- * @param nodeTypeData - 节点类型数据
- * @returns 显示信息，如果数据有误返回错误信息
+ * 处理 API 响应并注册节点类型
+ * @param baklava - Baklava编辑器实例
+ * @param nodeTypesApiResponse - 节点类型 API 响应数据
+ * @param valueTypesApiResponse - 值类型 API 响应数据
+ * @returns 注册的节点数量，如果出错则抛出异常
  */
-export function getNodeTypeDisplayInfo(nodeTypeData: NodeTypeData): NodeTypeDisplayInfo {
-    // 检查是否是错误情况
-    if ('error' in nodeTypeData && nodeTypeData.error) {
-        return {
-            name: 'Error',
-            id: 'error',
-            inputCount: 0,
-            outputCount: 0,
-            hasGroups: false,
-            description: `错误: ${nodeTypeData.error}`,
-            supportedTypes: {
-                inputs: [],
-                outputs: []
-            }
-        }
+export function handleNodeTypesApiResponse(
+    baklava: IBaklavaViewModel,
+    nodeTypesApiResponse: NodeTypesApiResponse,
+    valueTypesApiResponse: ValueTypesApiResponse
+): number {
+    // 检查节点类型响应是否为错误
+    if (!Array.isArray(nodeTypesApiResponse) && 'error' in nodeTypesApiResponse) {
+        throw new Error(`节点类型 API 错误: ${nodeTypesApiResponse.error}`)
     }
 
-    // 类型守卫：确保是成功情况的数据
-    if (!nodeTypeData.id_name || !nodeTypeData.ui_name) {
-        return {
-            name: 'Invalid Data',
-            id: 'invalid',
-            inputCount: 0,
-            outputCount: 0,
-            hasGroups: false,
-            description: '数据不完整',
-            supportedTypes: {
-                inputs: [],
-                outputs: []
-            }
-        }
+    // 确保节点类型响应是数组类型
+    if (!Array.isArray(nodeTypesApiResponse)) {
+        throw new Error('节点类型 API 响应格式错误：期望数组或错误对象')
     }
 
-    // 统计不同类型的输入
-    const inputTypeCount: Record<string, number> = {}
-    if (nodeTypeData.inputs) {
-        nodeTypeData.inputs.forEach((input: NodeSocketInfo) => {
-            inputTypeCount[input.type] = (inputTypeCount[input.type] || 0) + 1
-        })
+    // 先处理值类型，确保接口类型系统已准备好
+    try {
+        const valueTypeCount = handleValueTypesApiResponse(valueTypesApiResponse, baklava)
+        console.log(logTag('INFO'), `已处理 ${valueTypeCount} 个值类型`)
+    } catch (error) {
+        console.error(logTag('ERROR'), '处理值类型失败:', error)
+        // 继续执行，但可能无法使用类型安全的连接
     }
 
-    // 统计不同类型的输出
-    const outputTypeCount: Record<string, number> = {}
-    if (nodeTypeData.outputs) {
-        nodeTypeData.outputs.forEach((output: NodeSocketInfo) => {
-            outputTypeCount[output.type] = (outputTypeCount[output.type] || 0) + 1
-        })
-    }
-
-    const typeDescription: string[] = []
-    if (Object.keys(inputTypeCount).length > 0) {
-        const inputDesc = Object.entries(inputTypeCount)
-            .map(([type, count]: [string, number]) => `${count}×${type}`)
-            .join(', ')
-        typeDescription.push(`输入: ${inputDesc}`)
-    }
-    if (Object.keys(outputTypeCount).length > 0) {
-        const outputDesc = Object.entries(outputTypeCount)
-            .map(([type, count]: [string, number]) => `${count}×${type}`)
-            .join(', ')
-        typeDescription.push(`输出: ${outputDesc}`)
-    }
-
-    return {
-        name: nodeTypeData.ui_name,
-        id: nodeTypeData.id_name,
-        inputCount: nodeTypeData.inputs.length,
-        outputCount: nodeTypeData.outputs.length,
-        hasGroups: nodeTypeData.groups.length > 0,
-        description: typeDescription.join('; ') || '无输入输出',
-        supportedTypes: {
-            inputs: Object.keys(inputTypeCount),
-            outputs: Object.keys(outputTypeCount)
-        }
-    }
+    // 然后处理节点类型
+    return registerNodeTypesToBaklava(baklava, nodeTypesApiResponse)
 }
