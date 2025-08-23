@@ -99,12 +99,15 @@ TEST_F(WebServerTest, NodeSystemExecution)
         ASSERT_TRUE(response);
         EXPECT_EQ(response->status, 200);
 
-        auto status_json = nlohmann::json::parse(response->body);
-        EXPECT_EQ(status_json["status"], "running");
-        EXPECT_EQ(status_json["port"], 8082);
-        EXPECT_EQ(status_json["has_node_system"], true);
+        auto json_response = nlohmann::json::parse(response->body);
+        EXPECT_EQ(json_response["code"], 0);
+        EXPECT_EQ(json_response["message"], "success");
 
-        std::cout << "Server status: " << response->body << std::endl;
+        EXPECT_EQ(json_response["data"]["status"], "running");
+        EXPECT_EQ(json_response["data"]["port"], 8082);
+        EXPECT_EQ(json_response["data"]["has_node_system"], true);
+
+        // std::cout << "Response body: " << json_response.dump(4) << std::endl;
     }
 
     // 测试接口值类型查询API
@@ -113,17 +116,24 @@ TEST_F(WebServerTest, NodeSystemExecution)
         ASSERT_TRUE(response);
         EXPECT_EQ(response->status, 200);
 
-        auto value_types_json = nlohmann::json::parse(response->body);
-        EXPECT_TRUE(value_types_json.is_array());
-        EXPECT_GT(value_types_json.size(), 0);  // 应该有至少一个值类型
+        auto json_response = nlohmann::json::parse(response->body);
+        EXPECT_EQ(json_response["code"], 0);
+        EXPECT_EQ(json_response["message"], "success");
 
-        std::cout << "Available value types (" << value_types_json.size()
+        auto json_data = json_response["data"];
+
+        EXPECT_TRUE(json_data.is_array());
+        EXPECT_GT(json_data.size(), 0);  // 应该有至少一个值类型
+
+        std::cout << "Available value types (" << json_data.size()
                   << "):" << std::endl;
-        for (const auto& type : value_types_json) {
+        for (const auto& type : json_data) {
             EXPECT_TRUE(type.contains("type_name"));
             std::cout << " - " << type["type_name"].get<std::string>()
                       << std::endl;
         }
+
+        // std::cout << "Response body: " << json_response.dump(4) << std::endl;
     }
 
     // 测试节点类型查询API
@@ -132,13 +142,18 @@ TEST_F(WebServerTest, NodeSystemExecution)
         ASSERT_TRUE(response);
         EXPECT_EQ(response->status, 200);
 
-        auto node_types_json = nlohmann::json::parse(response->body);
-        EXPECT_TRUE(node_types_json.is_array());
-        EXPECT_GT(node_types_json.size(), 0);  // 应该有至少一个节点类型
+        auto json_response = nlohmann::json::parse(response->body);
+        EXPECT_EQ(json_response["code"], 0);
+        EXPECT_EQ(json_response["message"], "success");
 
-        std::cout << "Available node types (" << node_types_json.size()
+        auto json_data = json_response["data"];
+
+        EXPECT_TRUE(json_data.is_array());
+        EXPECT_GT(json_data.size(), 0);  // 应该有至少一个节点类型
+
+        std::cout << "Available node types (" << json_data.size()
                   << "):" << std::endl;
-        for (const auto& node_type : node_types_json) {
+        for (const auto& node_type : json_data) {
             EXPECT_TRUE(node_type.contains("id_name"));
             EXPECT_TRUE(node_type.contains("ui_name"));
             EXPECT_TRUE(node_type.contains("inputs"));
@@ -147,6 +162,8 @@ TEST_F(WebServerTest, NodeSystemExecution)
             std::cout << " - " << node_type["ui_name"] << " ("
                       << node_type["id_name"] << ")" << std::endl;
         }
+
+        // std::cout << "Response body: " << json_response.dump(4) << std::endl;
     }
 
     // 测试节点树验证API
@@ -159,10 +176,18 @@ TEST_F(WebServerTest, NodeSystemExecution)
         ASSERT_TRUE(response);
         EXPECT_EQ(response->status, 200);
 
-        auto validation_result = nlohmann::json::parse(response->body);
-        EXPECT_TRUE(validation_result.contains("valid"));
+        auto json_response = nlohmann::json::parse(response->body);
+        EXPECT_EQ(json_response["code"], 0);
+        EXPECT_EQ(json_response["message"], "success");
 
-        std::cout << "Empty tree validation: " << response->body << std::endl;
+        auto json_data = json_response["data"];
+
+        EXPECT_TRUE(json_data.contains("valid"));
+        EXPECT_EQ(json_data["valid"], true);  // 空树应该是有效的
+        EXPECT_TRUE(json_data.contains("error"));
+        EXPECT_EQ(json_data["error"], "");
+
+        // std::cout << "Response body: " << json_response.dump(4) << std::endl;
     }
 
     // 测试简单节点树执行API
@@ -173,7 +198,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
                                          nlohmann::json::array(
                                              {
                                                  {
-                                                     { "id", 1 },
+                                                     { "id", "test-id-1" },
                                                      { "type", "add" },
                                                      { "input_values",
                                                        {
@@ -181,7 +206,7 @@ TEST_F(WebServerTest, NodeSystemExecution)
                                                            { "value2", 5 },
                                                        } },
                                                  },
-                                                 { { "id", 3 },
+                                                 { { "id", "test-id-2" },
                                                    { "type", "print" },
                                                    { "input_values", {} } },
                                              }),
@@ -189,9 +214,9 @@ TEST_F(WebServerTest, NodeSystemExecution)
                                      { "links",
                                        nlohmann::json::array(
                                            {
-                                               { { "from_node", 1 },
+                                               { { "from_node", "test-id-1" },
                                                  { "from_socket", "value" },
-                                                 { "to_node", 3 },
+                                                 { "to_node", "test-id-2" },
                                                  { "to_socket", "info" } },
                                            }) } };
 
@@ -199,10 +224,21 @@ TEST_F(WebServerTest, NodeSystemExecution)
             client.Post("/api/execute", test_tree.dump(), "application/json");
         ASSERT_TRUE(response);
         EXPECT_EQ(response->status, 200);
-        auto execution_result = nlohmann::json::parse(response->body);
-        EXPECT_TRUE(execution_result.contains("success"));
-        EXPECT_TRUE(execution_result["success"]);
-        std::cout << "Execution result: " << response->body << std::endl;
+        auto json_response = nlohmann::json::parse(response->body);
+        EXPECT_EQ(json_response["code"], 0);
+        EXPECT_EQ(json_response["message"], "success");
+
+        auto json_data = json_response["data"];
+
+        EXPECT_TRUE(json_data.contains("execution_time"));
+        EXPECT_TRUE(json_data.contains("success"));
+        EXPECT_EQ(json_data["success"], true);
+        EXPECT_TRUE(json_data.contains("error"));
+        EXPECT_EQ(json_data["error"], "");
+
+        // std::cout << "Query body: " << test_tree.dump(4) << std::endl;
+
+        // std::cout << "Response body: " << json_response.dump(4) << std::endl;
     }
 
     // 测试访问根路径（应该返回index.html）

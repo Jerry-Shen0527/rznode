@@ -32,7 +32,7 @@ import '@baklavajs/themes/dist/syrup-dark.css'
 // 导入API客户端 - 使用TypeScript版本
 import { RzNodeAPI } from './api/rznode-api.ts'
 // 导入节点转换器 - 使用TypeScript版本
-import { handleNodeTypesApiResponse, type NodeTypeData } from './utils/nodeConverter.ts'
+import { handleApiDataNodeTypes, type NodeTypeData } from './utils/nodeConverter.ts'
 // 导入值类型注册器 - 使用TypeScript版本
 import { 
     getCachedValueTypes,
@@ -42,7 +42,6 @@ import {
 import { 
     serializeNodeTree, 
     safeValidateNodeTree, 
-    getValidationDisplayText, 
     safeGetNodeTreeStats,
     isValidationError 
 } from './utils/nodeTreeSerializer.ts'
@@ -92,7 +91,7 @@ const loadNodeTypes = async () => {
     ])
     
     // 使用辅助函数处理API响应并注册节点类型（同时处理值类型）
-    const registeredCount = handleNodeTypesApiResponse(baklava, nodeTypesResponse, valueTypesResponse)
+    const registeredCount = handleApiDataNodeTypes(baklava, nodeTypesResponse, valueTypesResponse)
     
     // 如果成功注册，则更新本地状态
     if (Array.isArray(nodeTypesResponse)) {
@@ -134,10 +133,10 @@ const executeNodeTree = async () => {
     }
     
     if (!validation.valid) {
-      console.warn(logTag('WARNING'), '节点树验证失败:', getValidationDisplayText(validation))
+      console.warn(logTag('ERROR'), '节点树验证失败:', validation.error)
       return
     } else {
-      console.log(logTag('INFO'), '节点树验证通过:', getValidationDisplayText(validation))
+      console.log(logTag('INFO'), '节点树验证通过')
     }
     
     // 显示统计信息
@@ -171,9 +170,9 @@ const validateCurrentTree = async () => {
     if (isValidationError(localValidation)) {
       console.error(logTag('ERROR'), '本地验证过程失败:', localValidation.error)
     } else if (!localValidation.valid) {
-      console.warn(logTag('WARNING'), '本地验证失败:', getValidationDisplayText(localValidation))
+      console.warn(logTag('WARNING'), '本地验证失败:', localValidation.error)
     } else {
-      console.log(logTag('INFO'), '本地验证通过:', getValidationDisplayText(localValidation))
+      console.log(logTag('INFO'), '本地验证通过')
     }
     
     // 发送到后端验证

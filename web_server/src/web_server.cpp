@@ -7,6 +7,7 @@
 
 #include "nodes/core/api.hpp"
 #include "nodes/core/io/json.hpp"
+#include "nodes/core/io/json_fwd.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -173,10 +174,6 @@ void WebServer::setup_routes()
         [this](const httplib::Request& req, httplib::Response& res) {
             handle_validate_tree(req, res);
         });
-
-    // 注意：移除了硬编码的根路由 server_->Get("/", ...)
-    // 现在根路径由静态文件服务 set_mount_point("/", "./web/dist") 处理
-    // 这样可以使用真正的React/Vue前端节点编辑器界面
 }
 
 void WebServer::handle_get_status(
@@ -185,20 +182,18 @@ void WebServer::handle_get_status(
 {
     setup_cors_headers(res);
 
-    nlohmann::json status_json;
-    status_json["status"] = "running";
-    status_json["message"] = "RzNode Web服务器运行正常";
-    status_json["port"] = port_;
-    status_json["has_node_system"] = (node_system_ != nullptr);
-
-    if (node_system_) {
-        status_json["node_system_info"] = "Node system attached";
-    }
-
-    res.set_content(status_json.dump(2), "application/json");
+    nlohmann::json json_response;
+    json_response["code"] = 0;
+    json_response["message"] = "success";
+    json_response["data"]["status"] = "running";
+    json_response["data"]["message"] = (node_system_ != nullptr)
+                                           ? "RzNode Web服务器运行正常"
+                                           : "尚未初始化节点系统";
+    json_response["data"]["port"] = port_;
+    json_response["data"]["has_node_system"] = (node_system_ != nullptr);
+    res.set_content(json_response.dump(), "application/json");
     spdlog::debug("WebServer: Status request handled");
 }
-
 void WebServer::handle_get_value_types(
     const httplib::Request& req,
     httplib::Response& res)
@@ -206,28 +201,57 @@ void WebServer::handle_get_value_types(
     setup_cors_headers(res);
 
     if (!node_system_) {
-        nlohmann::json error;
-        error["error"] = "Node system not available";
+        // Node System未初始化 -- 500错误
+        nlohmann::json json_error;
+        json_error["code"] = 1;
+        json_error["message"] = "Node system not available";
+        json_error["data"] = nullptr;
         res.status = 500;
-        res.set_content(error.dump(), "application/json");
+        res.set_content(json_error.dump(), "application/json");
         return;
     }
 
     try {
         refresh_value_types_cache();
-        std::string json_response = serialize_value_types(cached_value_types_);
-        res.set_content(json_response, "application/json");
-        spdlog::debug(
-            "WebServer: Value types request handled, {} types",
-            cached_value_types_.size());
     }
     catch (const std::exception& e) {
-        nlohmann::json error;
-        error["error"] = std::string("Failed to get value types: ") + e.what();
+        // 后端获取值类型失败 -- 500错误
+        nlohmann::json json_error;
+        json_error["code"] = 2;
+        json_error["message"] =
+            std::string("Failed to get value types: ") + e.what();
+        json_error["data"] = nullptr;
         res.status = 500;
-        res.set_content(error.dump(), "application/json");
+        res.set_content(json_error.dump(), "application/json");
         spdlog::error("WebServer: Error getting value types: {}", e.what());
+        return;
     }
+
+    nlohmann::json json_value_types;
+    try {
+        json_value_types = serialize_value_types(cached_value_types_);
+    }
+    catch (const std::exception& e) {
+        // 序列化值类型失败 -- 500错误
+        nlohmann::json json_error;
+        json_error["code"] = 3;
+        json_error["message"] =
+            std::string("Failed to serialize value types: ") + e.what();
+        json_error["data"] = nullptr;
+        res.status = 500;
+        res.set_content(json_error.dump(), "application/json");
+        spdlog::error("WebServer: Error serializing value types: {}", e.what());
+        return;
+    }
+
+    nlohmann::json json_response;
+    json_response["code"] = 0;
+    json_response["message"] = "success";
+    json_response["data"] = json_value_types;
+    res.set_content(json_response.dump(), "application/json");
+    spdlog::debug(
+        "WebServer: Value types request handled, {} types",
+        cached_value_types_.size());
 }
 
 void WebServer::handle_get_node_types(
@@ -237,28 +261,57 @@ void WebServer::handle_get_node_types(
     setup_cors_headers(res);
 
     if (!node_system_) {
-        nlohmann::json error;
-        error["error"] = "Node system not available";
+        // Node System未初始化 -- 500错误
+        nlohmann::json json_error;
+        json_error["code"] = 1;
+        json_error["message"] = "Node system not available";
+        json_error["data"] = nullptr;
         res.status = 500;
-        res.set_content(error.dump(), "application/json");
+        res.set_content(json_error.dump(), "application/json");
         return;
     }
 
     try {
         refresh_node_types_cache();
-        std::string json_response = serialize_node_types(cached_node_types_);
-        res.set_content(json_response, "application/json");
-        spdlog::debug(
-            "WebServer: Node types request handled, {} types",
-            cached_node_types_.size());
     }
     catch (const std::exception& e) {
-        nlohmann::json error;
-        error["error"] = std::string("Failed to get node types: ") + e.what();
+        // 后端获取节点类型失败 -- 500错误
+        nlohmann::json json_error;
+        json_error["code"] = 2;
+        json_error["message"] =
+            std::string("Failed to get node types: ") + e.what();
+        json_error["data"] = nullptr;
         res.status = 500;
-        res.set_content(error.dump(), "application/json");
+        res.set_content(json_error.dump(), "application/json");
         spdlog::error("WebServer: Error getting node types: {}", e.what());
+        return;
     }
+
+    nlohmann::json json_node_types;
+    try {
+        json_node_types = serialize_node_types(cached_node_types_);
+    }
+    catch (const std::exception& e) {
+        // 序列化节点类型失败 -- 500错误
+        nlohmann::json json_error;
+        json_error["code"] = 3;
+        json_error["message"] =
+            std::string("Failed to serialize node types: ") + e.what();
+        json_error["data"] = nullptr;
+        res.status = 500;
+        res.set_content(json_error.dump(), "application/json");
+        spdlog::error("WebServer: Error serializing node types: {}", e.what());
+        return;
+    }
+
+    nlohmann::json json_response;
+    json_response["code"] = 0;
+    json_response["message"] = "success";
+    json_response["data"] = json_node_types;
+    res.set_content(json_response.dump(), "application/json");
+    spdlog::debug(
+        "WebServer: Node types request handled, {} types",
+        cached_node_types_.size());
 }
 
 void WebServer::handle_execute_tree(
@@ -268,30 +321,62 @@ void WebServer::handle_execute_tree(
     setup_cors_headers(res);
 
     if (!node_system_) {
-        nlohmann::json error;
-        error["error"] = "Node system not available";
+        // Node System未初始化 -- 500错误
+        nlohmann::json json_error;
+        json_error["code"] = 1;
+        json_error["message"] = "Node system not available";
+        json_error["data"] = nullptr;
         res.status = 500;
-        res.set_content(error.dump(), "application/json");
+        res.set_content(json_error.dump(), "application/json");
         return;
     }
 
+    NodeTreeDto tree_dto;
     try {
-        NodeTreeDto tree_dto = deserialize_node_tree(req.body);
-        ExecutionResultDto result = execute_node_tree_internal(tree_dto);
-
-        std::string json_response = serialize_execution_result(result);
-        res.set_content(json_response, "application/json");
-
-        spdlog::info(
-            "WebServer: Tree execution completed, success: {}", result.success);
+        tree_dto = deserialize_node_tree(req.body);
     }
     catch (const std::exception& e) {
-        nlohmann::json error;
-        error["error"] = std::string("Execution failed: ") + e.what();
-        res.status = 500;
-        res.set_content(error.dump(), "application/json");
-        spdlog::error("WebServer: Execution error: {}", e.what());
+        // 解析请求体失败 -- 400错误
+        nlohmann::json json_error;
+        json_error["code"] = 2;
+        json_error["message"] =
+            std::string("Invalid request body: ") + e.what();
+        json_error["data"] = nullptr;
+        res.status = 400;
+        res.set_content(json_error.dump(), "application/json");
+        spdlog::error("WebServer: Failed to parse node tree: {}", e.what());
+        return;
     }
+
+    nlohmann::json json_execution_result;
+    try {
+        // 尝试执行节点树
+        auto result = execute_node_tree_internal(tree_dto);
+
+        // 转换结果为JSON
+        json_execution_result["success"] = result.success;
+        json_execution_result["error"] = result.error;
+        json_execution_result["execution_time"] = result.execution_time;
+
+        spdlog::info(
+            "WebServer: Tree execution completed, time: {} ms",
+            result.execution_time);
+    }
+    catch (const std::exception& e) {
+        // 捕捉异常，执行失败
+        json_execution_result["success"] = false;
+        json_execution_result["error"] = e.what();
+        json_execution_result["execution_time"] = 0.0;
+        spdlog::error("WebServer: Node tree execution failed: {}", e.what());
+    }
+
+    // API 响应成功 -- HTTP 200
+    nlohmann::json json_response;
+    json_response["code"] = 0;
+    json_response["message"] =
+        json_execution_result["success"] ? "success" : "execution failed";
+    json_response["data"] = json_execution_result;
+    res.set_content(json_response.dump(), "application/json");
 }
 
 void WebServer::handle_validate_tree(
@@ -301,34 +386,57 @@ void WebServer::handle_validate_tree(
     setup_cors_headers(res);
 
     if (!node_system_) {
-        nlohmann::json error;
-        error["error"] = "Node system not available";
+        // Node System未初始化 -- 500错误
+        nlohmann::json json_error;
+        json_error["code"] = 1;
+        json_error["message"] = "Node system not available";
+        json_error["data"] = nullptr;
         res.status = 500;
-        res.set_content(error.dump(), "application/json");
+        res.set_content(json_error.dump(), "application/json");
         return;
     }
 
+    NodeTreeDto tree_dto;
     try {
-        NodeTreeDto tree_dto = deserialize_node_tree(req.body);
-
-        // 验证逻辑：尝试构建节点树但不执行
-        auto tree = convert_dto_to_node_tree(tree_dto);
-
-        nlohmann::json result;
-        result["valid"] = (tree != nullptr);
-        result["message"] =
-            tree ? "Node tree is valid" : "Node tree validation failed";
-
-        res.set_content(result.dump(2), "application/json");
-        spdlog::debug("WebServer: Tree validation completed");
+        tree_dto = deserialize_node_tree(req.body);
     }
     catch (const std::exception& e) {
-        nlohmann::json error;
-        error["valid"] = false;
-        error["message"] = std::string("Validation failed: ") + e.what();
-        res.set_content(error.dump(), "application/json");
-        spdlog::warn("WebServer: Validation error: {}", e.what());
+        // 解析请求体失败 -- 400错误
+        nlohmann::json json_error;
+        json_error["code"] = 2;
+        json_error["message"] =
+            std::string("Invalid request body: ") + e.what();
+        json_error["data"] = nullptr;
+        res.status = 400;
+        res.set_content(json_error.dump(), "application/json");
+        spdlog::error("WebServer: Failed to parse node tree: {}", e.what());
+        return;
     }
+
+    nlohmann::json json_validation_result;
+    try {
+        // 尝试构建节点树但不执行
+        auto tree = convert_dto_to_node_tree(tree_dto);
+
+        // 没有异常，验证成功
+        json_validation_result["valid"] = true;
+        json_validation_result["error"] = "";
+        spdlog::info("WebServer: Node tree validation succeeded");
+    }
+    catch (const std::exception& e) {
+        // 捕捉异常，验证失败
+        json_validation_result["valid"] = false;
+        json_validation_result["error"] = e.what();
+        spdlog::warn("WebServer: Node tree validation failed: {}", e.what());
+    }
+
+    // API 响应成功 -- HTTP 200
+    nlohmann::json json_response;
+    json_response["code"] = 0;
+    json_response["message"] =
+        json_validation_result["valid"] ? "success" : "validation failed";
+    json_response["data"] = json_validation_result;
+    res.set_content(json_response.dump(), "application/json");
 }
 
 NodeTypeDto WebServer::convert_node_type_to_dto(
@@ -464,7 +572,7 @@ std::unique_ptr<NodeTree> WebServer::convert_dto_to_node_tree(
     auto tree = create_node_tree(descriptor);
 
     // 创建节点
-    std::map<int, Node*> node_map;
+    std::map<std::string, Node*> node_map;
     for (const auto& node_dto : dto.nodes) {
         Node* node = tree->add_node(node_dto.type.c_str());
         if (!node) {
@@ -494,8 +602,8 @@ std::unique_ptr<NodeTree> WebServer::convert_dto_to_node_tree(
                 catch (const std::exception& e) {
                     throw std::runtime_error(
                         "Failed to set input value for socket '" +
-                        socket_identifier + "' on node " +
-                        std::to_string(node_dto.id) + ": " + e.what());
+                        socket_identifier + "' on node " + node_dto.id + ": " +
+                        e.what());
                 }
             }
         }
@@ -534,28 +642,21 @@ ExecutionResultDto WebServer::execute_node_tree_internal(
     ExecutionResultDto result;
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    try {
-        // 从 DTO 创建节点树
-        auto tree = convert_dto_to_node_tree(dto);
+    // 从 DTO 创建节点树
+    auto tree = convert_dto_to_node_tree(dto);
 
-        // 将新的节点树设置到 NodeSystem 中
-        node_system_->set_node_tree(std::move(tree));
+    // 将新的节点树设置到 NodeSystem 中
+    node_system_->set_node_tree(std::move(tree));
 
-        // 执行节点树
-        node_system_->execute(false);  // 非UI执行
-
-        result.success = true;
-        result.error_message = "";
-    }
-    catch (const std::exception& e) {
-        result.success = false;
-        result.error_message = e.what();
-    }
+    // 执行节点树
+    node_system_->execute(false);  // 非UI执行
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
         end_time - start_time);
-    result.execution_time = duration.count() / 1000.0;
+    result.success = true;
+    result.error = "";
+    result.execution_time = duration.count();
 
     return result;
 }
@@ -610,7 +711,7 @@ void WebServer::refresh_node_types_cache() const
         cached_node_types_.size());
 }
 
-std::string WebServer::serialize_value_types(
+nlohmann::json WebServer::serialize_value_types(
     const std::vector<std::string>& types) const
 {
     nlohmann::json json_array = nlohmann::json::array();
@@ -621,10 +722,10 @@ std::string WebServer::serialize_value_types(
         json_array.push_back(type_json);
     }
 
-    return json_array.dump(2);
+    return json_array;
 }
 
-std::string WebServer::serialize_node_types(
+nlohmann::json WebServer::serialize_node_types(
     const std::vector<NodeTypeDto>& types) const
 {
     nlohmann::json json_array = nlohmann::json::array();
@@ -675,18 +776,7 @@ std::string WebServer::serialize_node_types(
         json_array.push_back(type_json);
     }
 
-    return json_array.dump(2);
-}
-
-std::string WebServer::serialize_execution_result(
-    const ExecutionResultDto& result) const
-{
-    nlohmann::json json;
-    json["success"] = result.success;
-    json["error_message"] = result.error_message;
-    json["execution_time"] = result.execution_time;
-
-    return json.dump(2);
+    return json_array;
 }
 
 NodeTreeDto WebServer::deserialize_node_tree(const std::string& json) const
@@ -702,11 +792,6 @@ NodeTreeDto WebServer::deserialize_node_tree(const std::string& json) const
                 NodeInstanceDto node_dto;
                 node_dto.id = node_json["id"];
                 node_dto.type = node_json["type"];
-
-                if (node_json.contains("position_x"))
-                    node_dto.position_x = node_json["position_x"];
-                if (node_json.contains("position_y"))
-                    node_dto.position_y = node_json["position_y"];
 
                 if (node_json.contains("input_values")) {
                     for (const auto& [key, value] :

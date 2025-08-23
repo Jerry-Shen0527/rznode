@@ -5,10 +5,10 @@ import { setType } from '@baklavajs/interface-types'
 import { NumberInterface, IntegerInterface, CheckboxInterface, TextInputInterface, TextInterface } from '@baklavajs/renderer-vue'
 import { type IBaklavaViewModel } from '@baklavajs/renderer-vue'
 import {
-    handleValueTypesApiResponse,
+    handleApiDataValueTypes,
     getBaklavaInterfaceType,
     type ValueTypeInfo,
-    type ValueTypesApiResponse
+    type ApiDataValueTypes
 } from './valueTypeRegistrant'
 // 导入统一的调试工具
 import { logTag } from './logFormatter'
@@ -34,13 +34,8 @@ export interface NodeTypeData {
     groups: any[]
 }
 
-// API 响应类型：要么是错误，要么是节点类型数组
-export type NodeTypesApiResponse =
-    | {
-        // 错误情况
-        error: string
-    }
-    | NodeTypeData[]  // 成功情况：直接返回节点类型数组
+// API 响应类型：节点类型列表
+export type ApiDataNodeTypes = NodeTypeData[]
 
 /**
  * 解析C++后端发送的字符串值
@@ -302,28 +297,23 @@ export function registerNodeTypesToBaklava(baklava: IBaklavaViewModel, nodeTypes
 /**
  * 处理 API 响应并注册节点类型
  * @param baklava - Baklava编辑器实例
- * @param nodeTypesApiResponse - 节点类型 API 响应数据
- * @param valueTypesApiResponse - 值类型 API 响应数据
+ * @param apiDataNodeTypes - 节点类型 API 响应数据
+ * @param apiDataValueTypes - 值类型 API 响应数据
  * @returns 注册的节点数量，如果出错则抛出异常
  */
-export function handleNodeTypesApiResponse(
+export function handleApiDataNodeTypes(
     baklava: IBaklavaViewModel,
-    nodeTypesApiResponse: NodeTypesApiResponse,
-    valueTypesApiResponse: ValueTypesApiResponse
+    apiDataNodeTypes: ApiDataNodeTypes,
+    apiDataValueTypes: ApiDataValueTypes
 ): number {
-    // 检查节点类型响应是否为错误
-    if (!Array.isArray(nodeTypesApiResponse) && 'error' in nodeTypesApiResponse) {
-        throw new Error(`节点类型 API 错误: ${nodeTypesApiResponse.error}`)
-    }
-
     // 确保节点类型响应是数组类型
-    if (!Array.isArray(nodeTypesApiResponse)) {
+    if (!Array.isArray(apiDataNodeTypes)) {
         throw new Error('节点类型 API 响应格式错误：期望数组或错误对象')
     }
 
     // 先处理值类型，确保接口类型系统已准备好
     try {
-        const valueTypeCount = handleValueTypesApiResponse(valueTypesApiResponse, baklava)
+        const valueTypeCount = handleApiDataValueTypes(apiDataValueTypes, baklava)
         console.log(logTag('INFO'), `已处理 ${valueTypeCount} 个值类型`)
     } catch (error) {
         console.error(logTag('ERROR'), '处理值类型失败:', error)
@@ -331,5 +321,5 @@ export function handleNodeTypesApiResponse(
     }
 
     // 然后处理节点类型
-    return registerNodeTypesToBaklava(baklava, nodeTypesApiResponse)
+    return registerNodeTypesToBaklava(baklava, apiDataNodeTypes)
 }
