@@ -4,7 +4,7 @@
 #include <iostream>
 #include <memory>
 
-#include "nodes/system/node_system_dl.hpp"
+#include "nodes/system/node_system.hpp"
 #include "nodes/web_server/web_server.hpp"
 
 // 全局变量用于信号处理（放在全局命名空间）
@@ -61,8 +61,7 @@ int main(int argc, char* argv[])
 
         // 创建并设置节点系统
         std::cout << "正在加载节点系统..." << std::endl;
-        auto node_system =
-            std::make_shared<USTC_CG::NodeDynamicLoadingSystem>();
+        auto node_system = USTC_CG::create_dynamic_loading_system();
 
         // 尝试加载节点配置
         try {
@@ -74,6 +73,7 @@ int main(int argc, char* argv[])
                       << e.what() << std::endl;
             std::cout << "服务器将以基本模式运行" << std::endl;
         }
+        node_system->init();
 
         g_web_server->set_node_system(node_system);
 

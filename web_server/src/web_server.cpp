@@ -2,9 +2,13 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <string>
+#include <vector>
 
+#include "entt/core/type_info.hpp"
 #include "nodes/core/api.hpp"
 #include "nodes/core/io/json.hpp"
 #include "nodes/core/io/json_fwd.hpp"
@@ -416,7 +420,8 @@ void WebServer::handle_validate_tree(
     nlohmann::json json_validation_result;
     try {
         // 尝试构建节点树但不执行
-        auto tree = convert_dto_to_node_tree(tree_dto);
+        // auto tree = convert_dto_to_node_tree(tree_dto);
+        update_node_tree_from_dto(node_system_->get_node_tree(), tree_dto);
 
         // 没有异常，验证成功
         json_validation_result["valid"] = true;
@@ -478,7 +483,24 @@ NodeTypeDto WebServer::convert_node_type_to_dto(
         NodeTypeDto::SocketDto socket_dto;
         socket_dto.name = input->name;
         socket_dto.identifier = input->identifier;
-        socket_dto.type = get_type_name(input->type);
+        switch (input->type.id()) {
+            case entt::type_hash<int>().value(): socket_dto.type = "int"; break;
+            case entt::type_hash<float>().value():
+                socket_dto.type = "float";
+                break;
+            case entt::type_hash<double>().value():
+                socket_dto.type = "double";
+                break;
+            case entt::type_hash<bool>().value():
+                socket_dto.type = "bool";
+                break;
+            case entt::type_hash<std::string>().value():
+                socket_dto.type = "string";
+                break;
+            default:
+                socket_dto.type = std::string(input->type.info().name());
+                break;
+        }
 
         // 从临时节点实例提取默认值、最小值、最大值等信息
         // 注意：这些值在temp_tree->add_node()调用时已经通过update_default_value()自动设置到dataField中
@@ -572,14 +594,16 @@ std::unique_ptr<NodeTree> WebServer::convert_dto_to_node_tree(
     auto tree = create_node_tree(descriptor);
 
     // 创建节点
-    std::map<std::string, Node*> node_map;
+    cached_dto_id_to_node_.clear();
+    cached_dto_node_ids_.clear();
     for (const auto& node_dto : dto.nodes) {
         Node* node = tree->add_node(node_dto.type.c_str());
         if (!node) {
             throw std::runtime_error(
                 "Failed to create node of type: " + node_dto.type);
         }
-        node_map[node_dto.id] = node;
+        cached_dto_id_to_node_[node_dto.id] = node;
+        cached_dto_node_ids_.push_back(node_dto.id);
 
         // 设置输入值
         for (const auto& [socket_identifier, json_value_str] :
@@ -610,11 +634,14 @@ std::unique_ptr<NodeTree> WebServer::convert_dto_to_node_tree(
     }
 
     // 创建连接
+    cached_dto_id_to_link_.clear();
+    cached_dto_link_ids_.clear();
     for (const auto& link_dto : dto.links) {
-        auto from_node_it = node_map.find(link_dto.from_node);
-        auto to_node_it = node_map.find(link_dto.to_node);
+        auto from_node_it = cached_dto_id_to_node_.find(link_dto.from_node);
+        auto to_node_it = cached_dto_id_to_node_.find(link_dto.to_node);
 
-        if (from_node_it == node_map.end() || to_node_it == node_map.end()) {
+        if (from_node_it == cached_dto_id_to_node_.end() ||
+            to_node_it == cached_dto_id_to_node_.end()) {
             throw std::runtime_error("Invalid node ID in link");
         }
 
@@ -630,23 +657,248 @@ std::unique_ptr<NodeTree> WebServer::convert_dto_to_node_tree(
             throw std::runtime_error("Invalid socket identifier in link");
         }
 
-        tree->add_link(from_socket, to_socket);
+        auto link = tree->add_link(from_socket, to_socket);
+
+        cached_dto_id_to_link_[link_dto.id] = link;
+        cached_dto_link_ids_.push_back(link_dto.id);
     }
 
     return tree;
 }
 
+void WebServer::update_node_tree_from_dto(
+    NodeTree* tree,
+    const NodeTreeDto& dto) const
+{
+    // TODO: Implement it
+    if (!tree) {
+        throw std::runtime_error("Node tree is null");
+    }
+
+    // 收集本次DTO中的节点ID
+    std::vector<std::string> dto_node_ids;
+    for (const auto& node_dto : dto.nodes) {
+        dto_node_ids.push_back(node_dto.id);
+    }
+
+    std::sort(cached_dto_node_ids_.begin(), cached_dto_node_ids_.end());
+    std::sort(dto_node_ids.begin(), dto_node_ids.end());
+
+    // 需要保留的节点（需要修改输入值）
+    std::vector<std::string> nodes_to_keep;
+    std::set_intersection(
+        cached_dto_node_ids_.begin(),
+        cached_dto_node_ids_.end(),
+        dto_node_ids.begin(),
+        dto_node_ids.end(),
+        std::back_inserter(nodes_to_keep));
+    // 需要添加的节点
+    std::vector<std::string> nodes_to_add;
+    std::set_difference(
+        dto_node_ids.begin(),
+        dto_node_ids.end(),
+        cached_dto_node_ids_.begin(),
+        cached_dto_node_ids_.end(),
+        std::back_inserter(nodes_to_add));
+    // 需要删除的节点
+    std::vector<std::string> nodes_to_remove;
+    std::set_difference(
+        cached_dto_node_ids_.begin(),
+        cached_dto_node_ids_.end(),
+        dto_node_ids.begin(),
+        dto_node_ids.end(),
+        std::back_inserter(nodes_to_remove));
+
+    // 1. 删除不在DTO中的节点
+    for (const auto& node_id : nodes_to_remove) {
+        auto it = cached_dto_id_to_node_.find(node_id);
+        if (it != cached_dto_id_to_node_.end()) {
+            Node* node = it->second;
+            tree->delete_node(node);
+            cached_dto_id_to_node_.erase(it);
+        }
+    }
+
+    // 2. 添加DTO中新增的节点，并修改保留节点的输入值
+    for (const auto& node_dto : dto.nodes) {
+        bool is_new_node =
+            (std::find(nodes_to_add.begin(), nodes_to_add.end(), node_dto.id) !=
+             nodes_to_add.end());
+        bool is_existing_node =
+            (std::find(
+                 nodes_to_keep.begin(), nodes_to_keep.end(), node_dto.id) !=
+             nodes_to_keep.end());
+        if (!is_new_node && !is_existing_node) {
+            spdlog::warn(
+                "WebServer: Node ID {} is neither new nor existing, skipping",
+                node_dto.id);
+            continue;  // 应该不存在这种情况
+        }
+        else if (is_existing_node) {
+            // 修改已有节点的输入值
+            auto it = cached_dto_id_to_node_.find(node_dto.id);
+            if (it == cached_dto_id_to_node_.end()) {
+                throw std::runtime_error(
+                    "Inconsistent state: existing node ID not found in "
+                    "cache: " +
+                    node_dto.id);
+            }
+            Node* node = it->second;
+
+            // 设置输入值
+            for (const auto& [socket_identifier, json_value_str] :
+                 node_dto.input_values) {
+                NodeSocket* input_socket =
+                    node->get_input_socket(socket_identifier.c_str());
+                if (input_socket && input_socket->dataField.value) {
+                    try {
+                        // 解析JSON字符串
+                        nlohmann::json json_value =
+                            nlohmann::json::parse(json_value_str);
+
+                        // 构造符合DeserializeValue期望的格式
+                        nlohmann::json socket_data;
+                        socket_data["value"] = json_value;
+
+                        // 使用已有的反序列化方法设置值
+                        input_socket->DeserializeValue(socket_data);
+                    }
+                    catch (const std::exception& e) {
+                        throw std::runtime_error(
+                            "Failed to set input value for socket '" +
+                            socket_identifier + "' on node " + node_dto.id +
+                            ": " + e.what());
+                    }
+                }
+            }
+
+            continue;  // 已处理完修改，继续下一个节点
+        }
+        else if (is_new_node) {
+            // 添加新节点
+            Node* node = tree->add_node(node_dto.type.c_str());
+            if (!node) {
+                throw std::runtime_error(
+                    "Failed to create node of type: " + node_dto.type);
+            }
+            cached_dto_id_to_node_[node_dto.id] = node;
+            cached_dto_node_ids_.push_back(node_dto.id);
+
+            // 设置输入值
+            for (const auto& [socket_identifier, json_value_str] :
+                 node_dto.input_values) {
+                NodeSocket* input_socket =
+                    node->get_input_socket(socket_identifier.c_str());
+                if (input_socket && input_socket->dataField.value) {
+                    try {
+                        // 解析JSON字符串
+                        nlohmann::json json_value =
+                            nlohmann::json::parse(json_value_str);
+
+                        // 构造符合DeserializeValue期望的格式
+                        nlohmann::json socket_data;
+                        socket_data["value"] = json_value;
+
+                        // 使用已有的反序列化方法设置值
+                        input_socket->DeserializeValue(socket_data);
+                    }
+                    catch (const std::exception& e) {
+                        throw std::runtime_error(
+                            "Failed to set input value for socket '" +
+                            socket_identifier + "' on node " + node_dto.id +
+                            ": " + e.what());
+                    }
+                }
+            }
+
+            continue;  // 已处理完添加，继续下一个节点
+        }
+    }
+
+    // 收集本次DTO中的连接ID
+    std::vector<std::string> dto_link_ids;
+    for (const auto& link_dto : dto.links) {
+        dto_link_ids.push_back(link_dto.id);
+    }
+
+    std::sort(cached_dto_link_ids_.begin(), cached_dto_link_ids_.end());
+    std::sort(dto_link_ids.begin(), dto_link_ids.end());
+
+    // 需要添加的连接
+    std::vector<std::string> links_to_add;
+    std::set_difference(
+        dto_link_ids.begin(),
+        dto_link_ids.end(),
+        cached_dto_link_ids_.begin(),
+        cached_dto_link_ids_.end(),
+        std::back_inserter(links_to_add));
+    // 需要删除的连接
+    std::vector<std::string> links_to_remove;
+    std::set_difference(
+        cached_dto_link_ids_.begin(),
+        cached_dto_link_ids_.end(),
+        dto_link_ids.begin(),
+        dto_link_ids.end(),
+        std::back_inserter(links_to_remove));
+
+    // 3. 删除不在DTO中的连接
+    for (const auto& link_id : links_to_remove) {
+        auto it = cached_dto_id_to_link_.find(link_id);
+        if (it != cached_dto_id_to_link_.end()) {
+            NodeLink* link = it->second;
+            tree->delete_link(link);
+            cached_dto_id_to_link_.erase(it);
+        }
+    }
+
+    // 4. 添加DTO中新增的连接
+    for (const auto& link_dto : dto.links) {
+        auto it =
+            std::find(links_to_add.begin(), links_to_add.end(), link_dto.id);
+        if (it == links_to_add.end()) {
+            continue;  // 不是新增连接
+        }
+
+        auto from_node_it = cached_dto_id_to_node_.find(link_dto.from_node);
+        auto to_node_it = cached_dto_id_to_node_.find(link_dto.to_node);
+
+        if (from_node_it == cached_dto_id_to_node_.end() ||
+            to_node_it == cached_dto_id_to_node_.end()) {
+            throw std::runtime_error("Invalid node ID in link");
+        }
+
+        Node* from_node = from_node_it->second;
+        Node* to_node = to_node_it->second;
+
+        NodeSocket* from_socket =
+            from_node->get_output_socket(link_dto.from_socket.c_str());
+        NodeSocket* to_socket =
+            to_node->get_input_socket(link_dto.to_socket.c_str());
+
+        if (!from_socket || !to_socket) {
+            throw std::runtime_error("Invalid socket identifier in link");
+        }
+
+        auto link = tree->add_link(from_socket, to_socket);
+
+        cached_dto_id_to_link_[link_dto.id] = link;
+        cached_dto_link_ids_.push_back(link_dto.id);
+    }
+}
+
 ExecutionResultDto WebServer::execute_node_tree_internal(
     const NodeTreeDto& dto) const
 {
+    // TODO: 不再重新创建NodeTree实例，而是复用已有实例，以保留节点中可能的缓存
     ExecutionResultDto result;
     auto start_time = std::chrono::high_resolution_clock::now();
 
     // 从 DTO 创建节点树
-    auto tree = convert_dto_to_node_tree(dto);
+    // auto tree = convert_dto_to_node_tree(dto);
+    update_node_tree_from_dto(node_system_->get_node_tree(), dto);
 
     // 将新的节点树设置到 NodeSystem 中
-    node_system_->set_node_tree(std::move(tree));
+    // node_system_->set_node_tree(std::move(tree));
 
     // 执行节点树
     node_system_->execute(false);  // 非UI执行
@@ -676,7 +928,27 @@ void WebServer::refresh_value_types_cache() const
     auto descriptor = node_system_->node_tree_descriptor();
     auto value_types = descriptor->get_registered_value_types();
     for (const auto& type : value_types) {
-        cached_value_types_.push_back(std::string{ type.info().name() });
+        switch (type.id()) {
+            case entt::type_hash<int>().value():
+                cached_value_types_.push_back("int");
+                break;
+            case entt::type_hash<float>().value():
+                cached_value_types_.push_back("float");
+                break;
+            case entt::type_hash<double>().value():
+                cached_value_types_.push_back("double");
+                break;
+            case entt::type_hash<bool>().value():
+                cached_value_types_.push_back("bool");
+                break;
+            case entt::type_hash<std::string>().value():
+                cached_value_types_.push_back("string");
+                break;  // 支持的基本类型
+            default:
+                // 其他类型使用其名称
+                cached_value_types_.push_back(std::string(type.info().name()));
+                break;
+        }
     }
 
     value_types_cache_dirty_ = false;
@@ -808,6 +1080,7 @@ NodeTreeDto WebServer::deserialize_node_tree(const std::string& json) const
         if (tree_json.contains("links")) {
             for (const auto& link_json : tree_json["links"]) {
                 NodeLinkDto link_dto;
+                link_dto.id = link_json["id"];
                 link_dto.from_node = link_json["from_node"];
                 link_dto.from_socket = link_json["from_socket"];
                 link_dto.to_node = link_json["to_node"];
