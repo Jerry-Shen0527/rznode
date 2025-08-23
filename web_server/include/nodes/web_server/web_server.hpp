@@ -46,18 +46,16 @@ struct WEB_SERVER_API NodeTypeDto {
 
 // 前端节点实例定义
 struct WEB_SERVER_API NodeInstanceDto {
-    int id;
+    std::string id;
     std::string type;
     std::map<std::string, std::string> input_values;  // JSON格式的输入值
-    float position_x = 0.0f;
-    float position_y = 0.0f;
 };
 
 // 前端连接定义
 struct WEB_SERVER_API NodeLinkDto {
-    int from_node;
+    std::string from_node;
     std::string from_socket;
-    int to_node;
+    std::string to_node;
     std::string to_socket;
 };
 
@@ -69,9 +67,10 @@ struct WEB_SERVER_API NodeTreeDto {
 
 // 执行结果定义
 struct WEB_SERVER_API ExecutionResultDto {
-    bool success = false;
-    std::string error_message;
+    bool success = false;         // 执行是否成功
+    std::string error = "";       // 错误信息（如果有的话）
     double execution_time = 0.0;  // 执行时间（秒）
+    // TODO: 添加执行完成后，各节点输出值、执行状态、颜色等
 };
 
 // Web服务器类
@@ -121,12 +120,10 @@ class WEB_SERVER_API WebServer {
     ExecutionResultDto execute_node_tree_internal(const NodeTreeDto& dto) const;
 
     // JSON 序列化/反序列化
-    std::string serialize_value_types(
+    nlohmann::json serialize_value_types(
         const std::vector<std::string>& types) const;
-    std::string serialize_node_types(
+    nlohmann::json serialize_node_types(
         const std::vector<NodeTypeDto>& types) const;
-    std::string serialize_execution_result(
-        const ExecutionResultDto& result) const;
     NodeTreeDto deserialize_node_tree(const std::string& json) const;
 
     // CORS 设置
