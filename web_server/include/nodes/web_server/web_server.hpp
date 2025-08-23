@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "httplib.h"
@@ -53,6 +54,7 @@ struct WEB_SERVER_API NodeInstanceDto {
 
 // 前端连接定义
 struct WEB_SERVER_API NodeLinkDto {
+    std::string id;
     std::string from_node;
     std::string from_socket;
     std::string to_node;
@@ -116,7 +118,9 @@ class WEB_SERVER_API WebServer {
     // 辅助函数
     NodeTypeDto convert_node_type_to_dto(const NodeTypeInfo& type_info) const;
     std::unique_ptr<NodeTree> convert_dto_to_node_tree(
-        const NodeTreeDto& dto) const;
+        const NodeTreeDto& dto) const;  // 已弃用
+    void update_node_tree_from_dto(NodeTree* tree, const NodeTreeDto& dto)
+        const;
     ExecutionResultDto execute_node_tree_internal(const NodeTreeDto& dto) const;
 
     // JSON 序列化/反序列化
@@ -134,6 +138,14 @@ class WEB_SERVER_API WebServer {
     std::shared_ptr<NodeSystem> node_system_;
     int port_;
     bool is_running_;
+
+    // 缓存的 Node DTO id 到 Node* 的映射（用于更新节点树）
+    mutable std::unordered_map<std::string, Node*> cached_dto_id_to_node_;
+    mutable std::vector<std::string> cached_dto_node_ids_;
+
+    // 缓存的 Link DTO id 到 NodeLink* 的映射（用于更新节点树）
+    mutable std::unordered_map<std::string, NodeLink*> cached_dto_id_to_link_;
+    mutable std::vector<std::string> cached_dto_link_ids_;
 
     // 缓存的接口类型信息
     mutable std::vector<std::string> cached_value_types_;

@@ -14,6 +14,7 @@ export interface SerializedNode {
 }
 
 export interface SerializedLink {
+    id: string
     from_node: string
     from_socket: string
     to_node: string
@@ -183,6 +184,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 !toNode.type.startsWith('__baklava_')) {
 
                 links.push({
+                    id: connection.id,
                     from_node: connection.from.nodeId,
                     from_socket: connection.from.name,
                     to_node: connection.to.nodeId,
@@ -197,6 +199,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 const externalInput = inputs[subgraphFromNode.graphInterfaceId!]
                 if (externalInput) {
                     links.push({
+                        id: connection.id,
                         from_node: externalInput.fromNodeId,
                         from_socket: externalInput.fromSocket,
                         to_node: connection.to.nodeId,
@@ -212,6 +215,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 const externalOutput = outputs[subgraphToNode.graphInterfaceId!]
                 if (externalOutput) {
                     links.push({
+                        id: connection.id,
                         from_node: connection.from.nodeId,
                         from_socket: connection.from.name,
                         to_node: externalOutput.toNodeId,
@@ -229,6 +233,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 const externalOutput = outputs[subgraphToNode.graphInterfaceId!]
                 if (externalInput && externalOutput) {
                     links.push({
+                        id: connection.id,
                         from_node: externalInput.fromNodeId,
                         from_socket: externalInput.fromSocket,
                         to_node: externalOutput.toNodeId,
