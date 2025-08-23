@@ -11,11 +11,7 @@ export interface ValueTypeInfo {
     type_name: string // 类型名称，对应后端的type_name字段
 }
 
-export interface ValueTypeError {
-    error: string
-}
-
-export type ValueTypesApiResponse = ValueTypeInfo[] | ValueTypeError
+export type ApiDataValueTypes = ValueTypeInfo[]
 
 // 简单缓存 - 和 nodeTypes 类似
 let cachedValueTypes: ValueTypeInfo[] = []
@@ -82,36 +78,22 @@ export function getBaklavaInterfaceType(typeName: string): NodeInterfaceType<any
 }
 
 /**
- * 检查API响应是否为错误
- * @param response - API响应
- * @returns 是否为错误响应
- */
-export function isValueTypeError(response: ValueTypesApiResponse): response is ValueTypeError {
-    return !Array.isArray(response) && 'error' in response && typeof response.error === 'string'
-}
-
-/**
  * 处理API响应并更新缓存，同时注册 BaklavaJS 类型
- * @param apiResponse - API响应数据
+ * @param apiDataValueTypes - API响应数据
  * @param baklava - BaklavaJS 编辑器实例（可选，如果提供则会注册类型）
  * @returns 成功加载的值类型数量，失败则抛出异常
  */
-export function handleValueTypesApiResponse(
-    apiResponse: ValueTypesApiResponse,
+export function handleApiDataValueTypes(
+    apiDataValueTypes: ApiDataValueTypes,
     baklava?: IBaklavaViewModel
 ): number {
-    // 检查是否是错误响应
-    if (isValueTypeError(apiResponse)) {
-        throw new Error(`API错误: ${apiResponse.error}`)
-    }
-
     // 确保是数组类型
-    if (!Array.isArray(apiResponse)) {
+    if (!Array.isArray(apiDataValueTypes)) {
         throw new Error('API响应格式错误：期望数组或错误对象')
     }
 
     // 更新缓存
-    cachedValueTypes = apiResponse
+    cachedValueTypes = apiDataValueTypes
 
     // 如果提供了 BaklavaJS 实例，则注册类型
     if (baklava) {
@@ -122,14 +104,14 @@ export function handleValueTypesApiResponse(
             }
 
             // 创建并注册 BaklavaJS 接口类型
-            createBaklavaInterfaceTypesFromValueTypes(apiResponse)
+            createBaklavaInterfaceTypesFromValueTypes(apiDataValueTypes)
         } catch (error) {
             console.error(logTag('ERROR'), '注册 BaklavaJS 接口类型失败:', error)
             // 不抛出异常，因为缓存更新成功了
         }
     }
 
-    return apiResponse.length
+    return apiDataValueTypes.length
 }
 
 /**

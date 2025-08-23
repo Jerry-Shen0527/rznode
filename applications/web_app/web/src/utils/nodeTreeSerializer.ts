@@ -1,25 +1,22 @@
 // 节点树序列化器 - 将BaklavaJS节点树转换为后端可理解的格式
 
 import type { IBaklavaViewModel } from '@baklavajs/renderer-vue'
-import type { Graph, AbstractNode, Connection, NodeInterface } from '@baklavajs/core'
-import { error } from 'console'
+import type { Graph, AbstractNode, Connection, NodeInterface, IGraphNode, GraphInputNode, GraphOutputNode } from '@baklavajs/core'
 // 导入统一的调试工具
 import { logTag } from './logFormatter'
 
 // 类型定义
 export interface SerializedNode {
-    id: number
+    id: string
     type: string
     title: string
-    position_x: number
-    position_y: number
     input_values: Record<string, any>
 }
 
 export interface SerializedLink {
-    from_node: number
+    from_node: string
     from_socket: string
-    to_node: number
+    to_node: string
     to_socket: string
 }
 
@@ -35,18 +32,10 @@ export interface SerializedNodeTree {
     }
 }
 
-export interface ValidationResult {
+export interface ApiDataValidationResult {
     valid: boolean
-    message: string
-    errors?: string[]
-    warnings?: string[]
-}
-
-export interface ValidationError {
     error: string
 }
-
-export type NodeTreeValidationResponse = ValidationResult | ValidationError
 
 
 export interface NodeTreeStats {
@@ -68,11 +57,9 @@ interface OutputMapping {
     toSocket: string
 }
 
-// 扩展节点类型以包含子图特有属性
-interface SubgraphNode extends AbstractNode {
-    subgraph?: Graph
-    graphInterfaceId?: string
-}
+// 声明子图节点类型
+// From: @baklavajs/core/dist/graphNode.d.ts:13
+type GraphNode = AbstractNode & IGraphNode
 
 /**
  * 将BaklavaJS节点树序列化为后端格式（支持子图）
@@ -82,22 +69,6 @@ interface SubgraphNode extends AbstractNode {
 export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedNodeTree {
     const nodes: SerializedNode[] = []
     const links: SerializedLink[] = []
-
-    // 创建字符串ID到整型ID的映射
-    const nodeIdMap = new Map<string, number>()
-    let nodeCounter = 1
-
-    // 先遍历所有图中的普通节点，建立ID映射
-    baklavaEditor.editor.graphs.forEach((graph: Graph) => {
-        graph.nodes.forEach((node: AbstractNode) => {
-            if (!node.type.startsWith('__baklava_')) {
-                // 只处理普通节点，跳过BaklavaJS内部节点
-                if (!nodeIdMap.has(node.id)) {
-                    nodeIdMap.set(node.id, nodeCounter++)
-                }
-            }
-        })
-    })
 
     /**
      * 递归处理图，支持子图展开
@@ -173,7 +144,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 })
 
                 // 递归处理子图，传递组合后的映射
-                const subgraphNode = node as SubgraphNode
+                const subgraphNode = node as GraphNode
                 if (subgraphNode.subgraph) {
                     processGraphRecursively(subgraphNode.subgraph, subgraphInputs, subgraphOutputs)
                 }
@@ -184,11 +155,9 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
 
                 // 序列化节点
                 const serializedNode: SerializedNode = {
-                    id: nodeIdMap.get(node.id)!,
+                    id: node.id,
                     type: node.type,
                     title: node.title,
-                    position_x: node.position.x,
-                    position_y: node.position.y,
                     input_values: {}
                 }
 
@@ -214,9 +183,9 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 !toNode.type.startsWith('__baklava_')) {
 
                 links.push({
-                    from_node: nodeIdMap.get(connection.from.nodeId)!,
+                    from_node: connection.from.nodeId,
                     from_socket: connection.from.name,
-                    to_node: nodeIdMap.get(connection.to.nodeId)!,
+                    to_node: connection.to.nodeId,
                     to_socket: connection.to.name
                 })
             } else if (fromNode && toNode &&
@@ -224,13 +193,13 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 !toNode.type.startsWith('__baklava_')) {
                 // 情况1：SubgraphInput → 普通节点
                 // 映射后创建连接
-                const subgraphFromNode = fromNode as SubgraphNode
+                const subgraphFromNode = fromNode as GraphInputNode
                 const externalInput = inputs[subgraphFromNode.graphInterfaceId!]
                 if (externalInput) {
                     links.push({
-                        from_node: nodeIdMap.get(externalInput.fromNodeId)!,
+                        from_node: externalInput.fromNodeId,
                         from_socket: externalInput.fromSocket,
-                        to_node: nodeIdMap.get(connection.to.nodeId)!,
+                        to_node: connection.to.nodeId,
                         to_socket: connection.to.name
                     })
                 }
@@ -239,13 +208,13 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 toNode.type.startsWith('__baklava_SubgraphOutputNode')) {
                 // 情况2：普通节点 → SubgraphOutput
                 // 映射后创建连接
-                const subgraphToNode = toNode as SubgraphNode
+                const subgraphToNode = toNode as GraphOutputNode
                 const externalOutput = outputs[subgraphToNode.graphInterfaceId!]
                 if (externalOutput) {
                     links.push({
-                        from_node: nodeIdMap.get(connection.from.nodeId)!,
+                        from_node: connection.from.nodeId,
                         from_socket: connection.from.name,
-                        to_node: nodeIdMap.get(externalOutput.toNodeId)!,
+                        to_node: externalOutput.toNodeId,
                         to_socket: externalOutput.toSocket
                     })
                 }
@@ -254,15 +223,15 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
                 toNode.type.startsWith('__baklava_SubgraphOutputNode')) {
                 // 情况3：SubgraphInput → SubgraphOutput
                 // 两端映射后创建连接
-                const subgraphFromNode = fromNode as SubgraphNode
-                const subgraphToNode = toNode as SubgraphNode
+                const subgraphFromNode = fromNode as GraphInputNode
+                const subgraphToNode = toNode as GraphOutputNode
                 const externalInput = inputs[subgraphFromNode.graphInterfaceId!]
                 const externalOutput = outputs[subgraphToNode.graphInterfaceId!]
                 if (externalInput && externalOutput) {
                     links.push({
-                        from_node: nodeIdMap.get(externalInput.fromNodeId)!,
+                        from_node: externalInput.fromNodeId,
                         from_socket: externalInput.fromSocket,
-                        to_node: nodeIdMap.get(externalOutput.toNodeId)!,
+                        to_node: externalOutput.toNodeId,
                         to_socket: externalOutput.toSocket
                     })
                 }
@@ -293,7 +262,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
  * @param nodeTree - 序列化的节点树
  * @returns 验证结果
  */
-export function validateNodeTree(nodeTree: SerializedNodeTree): ValidationResult {
+export function validateNodeTree(nodeTree: SerializedNodeTree): ApiDataValidationResult {
     const errors: string[] = []
     const warnings: string[] = []
 
@@ -309,9 +278,7 @@ export function validateNodeTree(nodeTree: SerializedNodeTree): ValidationResult
     if (errors.length > 0) {
         return {
             valid: false,
-            message: `结构错误: ${errors.join('; ')}`,
-            errors,
-            warnings
+            error: `结构错误: ${errors.join('; ')}`,
         }
     }
 
@@ -330,7 +297,7 @@ export function validateNodeTree(nodeTree: SerializedNodeTree): ValidationResult
     })
 
     // 检查孤立节点
-    const connectedNodes = new Set<number>()
+    const connectedNodes = new Set<string>()
     nodeTree.links.forEach((link: SerializedLink) => {
         connectedNodes.add(link.from_node)
         connectedNodes.add(link.to_node)
@@ -352,9 +319,7 @@ export function validateNodeTree(nodeTree: SerializedNodeTree): ValidationResult
 
     return {
         valid: errors.length === 0,
-        message: messages.length > 0 ? messages.join(' | ') : '验证通过',
-        errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        error: messages.join(' | ')
     }
 }
 
@@ -407,11 +372,12 @@ function calculateComplexity(nodeTree: SerializedNodeTree): number {
  * @param nodeTree - 序列化的节点树
  * @returns 验证结果或错误信息
  */
-export function safeValidateNodeTree(nodeTree: SerializedNodeTree): NodeTreeValidationResponse {
+export function safeValidateNodeTree(nodeTree: SerializedNodeTree): ApiDataValidationResult {
     try {
         return validateNodeTree(nodeTree)
     } catch (error) {
         return {
+            valid: false,
             error: `验证过程中发生错误: ${error instanceof Error ? error.message : String(error)}`
         }
     }
@@ -422,36 +388,8 @@ export function safeValidateNodeTree(nodeTree: SerializedNodeTree): NodeTreeVali
  * @param result - 验证结果
  * @returns 是否为错误
  */
-export function isValidationError(result: NodeTreeValidationResponse): result is ValidationError {
-    return 'error' in result && typeof result.error === 'string'
-}
-
-/**
- * 获取验证结果的友好显示文本
- * @param result - 验证结果
- * @returns 显示文本
- */
-export function getValidationDisplayText(result: NodeTreeValidationResponse): string {
-    if (isValidationError(result)) {
-        return `验证错误: ${result.error}`
-    }
-
-    const parts: string[] = []
-    parts.push(`验证${result.valid ? '成功' : '失败'}`)
-
-    if (result.message) {
-        parts.push(result.message)
-    }
-
-    if (result.errors && result.errors.length > 0) {
-        parts.push(`错误数量: ${result.errors.length}`)
-    }
-
-    if (result.warnings && result.warnings.length > 0) {
-        parts.push(`警告数量: ${result.warnings.length}`)
-    }
-
-    return parts.join(' | ')
+export function isValidationError(result: ApiDataValidationResult): boolean {
+    return result.error !== undefined && result.error.length > 0
 }
 
 /**

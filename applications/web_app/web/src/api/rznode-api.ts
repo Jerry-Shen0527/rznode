@@ -1,37 +1,50 @@
 // RzNode API 客户端 - TypeScript版本
 
-import type { SerializedNodeTree, ValidationResult } from '../utils/nodeTreeSerializer'
-import type { NodeTypeData, NodeTypesApiResponse } from '../utils/nodeConverter'
-import type { ValueTypesApiResponse } from '../utils/valueTypeRegistrant'
+import type { SerializedNodeTree, ApiDataValidationResult } from '../utils/nodeTreeSerializer'
+import type { ApiDataNodeTypes } from '../utils/nodeConverter'
+import type { ApiDataValueTypes } from '../utils/valueTypeRegistrant'
 // 导入统一的调试工具
 import { logTag } from '../utils/logFormatter'
 
+export interface ApiResponse<T> {
+    code: number
+    message: string
+    data: T | null
+}
+
 // API响应类型定义
-export interface ServerStatus {
+export interface ApiDataServerStatus {
     status: string
     message: string
     port: number
     has_node_system: boolean
-    node_system_info?: string
 }
 
-export type ExecutionResponse =
-    | {
-        error: string
-        success?: never
-        error_message?: never
-        execution_time?: never
-    }
-    | {
-        error?: never
-        success: boolean
-        error_message: string
-        execution_time: number
-    }
+export interface ApiDataExecutionResult {
+    success: boolean
+    error: string
+    execution_time: number
+}
+
 
 export interface ApiRequestOptions {
     timeout?: number
     headers?: Record<string, string>
+}
+
+/**
+ * 自定义API错误类
+ */
+export class ApiError extends Error {
+    constructor(
+        public code: number,
+        public apiMessage: string,
+        public endpoint: string,
+        public originalError?: string
+    ) {
+        super(`API Error [${code}] at ${endpoint}: ${apiMessage}`)
+        this.name = 'ApiError'
+    }
 }
 
 /**
@@ -51,9 +64,9 @@ export class RzNodeAPI {
      * @param options - 请求选项
      * @returns 服务器状态信息
      */
-    async getStatus(options: ApiRequestOptions = {}): Promise<ServerStatus> {
-        const response = await this.makeRequest('/api/status', 'GET', undefined, options)
-        return response as ServerStatus
+    async getStatus(options: ApiRequestOptions = {}): Promise<ApiDataServerStatus> {
+        const data = await this.makeRequest<ApiDataServerStatus>('/api/status', 'GET', undefined, options)
+        return data as ApiDataServerStatus
     }
 
     /**
@@ -61,9 +74,9 @@ export class RzNodeAPI {
      * @param options - 请求选项
      * @returns 节点类型数组或错误对象
      */
-    async getNodeTypes(options: ApiRequestOptions = {}): Promise<NodeTypesApiResponse> {
-        const response = await this.makeRequest('/api/node-types', 'GET', undefined, options)
-        return response as NodeTypesApiResponse
+    async getNodeTypes(options: ApiRequestOptions = {}): Promise<ApiDataNodeTypes> {
+        const data = await this.makeRequest<ApiDataNodeTypes>('/api/node-types', 'GET', undefined, options)
+        return data as ApiDataNodeTypes
     }
 
     /**
@@ -71,9 +84,9 @@ export class RzNodeAPI {
      * @param options - 请求选项
      * @returns 值类型数组或错误对象
      */
-    async getValueTypes(options: ApiRequestOptions = {}): Promise<ValueTypesApiResponse> {
-        const response = await this.makeRequest('/api/value-types', 'GET', undefined, options)
-        return response as ValueTypesApiResponse
+    async getValueTypes(options: ApiRequestOptions = {}): Promise<ApiDataValueTypes> {
+        const data = await this.makeRequest<ApiDataValueTypes>('/api/value-types', 'GET', undefined, options)
+        return data as ApiDataValueTypes
     }
 
     /**
@@ -82,9 +95,9 @@ export class RzNodeAPI {
      * @param options - 请求选项
      * @returns 执行结果
      */
-    async executeNodeTree(nodeTree: SerializedNodeTree, options: ApiRequestOptions = {}): Promise<ExecutionResponse> {
-        const response = await this.makeRequest('/api/execute', 'POST', nodeTree, options)
-        return response as ExecutionResponse
+    async executeNodeTree(nodeTree: SerializedNodeTree, options: ApiRequestOptions = {}): Promise<ApiDataExecutionResult> {
+        const data = await this.makeRequest<ApiDataExecutionResult>('/api/execute', 'POST', nodeTree, options)
+        return data as ApiDataExecutionResult
     }
 
     /**
@@ -93,10 +106,12 @@ export class RzNodeAPI {
      * @param options - 请求选项
      * @returns 验证结果
      */
-    async validateNodeTree(nodeTree: SerializedNodeTree, options: ApiRequestOptions = {}): Promise<ValidationResult> {
-        const response = await this.makeRequest('/api/validate', 'POST', nodeTree, options)
-        return response as ValidationResult
+    async validateNodeTree(nodeTree: SerializedNodeTree, options: ApiRequestOptions = {}): Promise<ApiDataValidationResult> {
+        const data = await this.makeRequest<ApiDataValidationResult>('/api/validate', 'POST', nodeTree, options)
+        return data as ApiDataValidationResult
     }
+
+
 
     /**
      * 通用请求方法
@@ -106,7 +121,7 @@ export class RzNodeAPI {
      * @param options - 请求选项
      * @returns 响应数据
      */
-    private async makeRequest(
+    private async makeRequest<T>(
         endpoint: string,
         method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
         body?: any,
@@ -143,18 +158,31 @@ export class RzNodeAPI {
                 throw new Error(`HTTP ${response.status}: ${errorText}`)
             }
 
-            return await response.json()
+            // return await response.json()
+
+            const apiResponse: ApiResponse<T> = await response.json()
+
+            if (apiResponse.code !== 0) {
+                throw new ApiError(apiResponse.code, apiResponse.message, endpoint)
+            }
+
+            return apiResponse.data as T    // 返回data字段（后端应保证成功时data不为null）
+
         } catch (error) {
             clearTimeout(timeoutId)
 
+            if (error instanceof ApiError) {
+                throw error // 保留业务错误
+            }
+
             if (error instanceof Error) {
                 if (error.name === 'AbortError') {
-                    throw new Error(`请求超时 (${timeout}ms): ${endpoint}`)
+                    throw new ApiError(-1, `请求超时 (${timeout}ms)`, endpoint, error.message)
                 }
-                throw new Error(`API请求失败: ${error.message}`)
-            } else {
-                throw new Error(`API请求失败: 未知错误`)
+                throw new ApiError(-2, `网络错误: ${error.message}`, endpoint, error.message)
             }
+
+            throw new ApiError(-3, '未知错误', endpoint)
         }
     }
 
