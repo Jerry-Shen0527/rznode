@@ -214,7 +214,8 @@ TEST_F(WebServerTest, NodeSystemExecution)
                                      { "links",
                                        nlohmann::json::array(
                                            {
-                                               { { "from_node", "test-id-1" },
+                                               { { "id", "test-link-1" },
+                                                 { "from_node", "test-id-1" },
                                                  { "from_socket", "value" },
                                                  { "to_node", "test-id-2" },
                                                  { "to_socket", "info" } },
