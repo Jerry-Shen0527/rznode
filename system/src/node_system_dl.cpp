@@ -134,6 +134,14 @@ bool NodeDynamicLoadingSystem::load_configuration(
                     library_map[key]
                         ->template getFunction<void(NodeDeclarationBuilder&)>(
                             "node_declare_" + func_name_str);
+
+                if (!node_declare) {
+                    spdlog::warn(
+                        "Failed to load node_declare function for {}, maybe "
+                        "because it is based on GPU or USD related",
+                        func_name_str);
+                    continue;
+                }
                 auto node_execution =
                     library_map[key]->template getFunction<bool(ExeParams)>(
                         "node_execution_" + func_name_str);
