@@ -1,15 +1,10 @@
 // 节点类型转换器 - 将后端节点定义转换为Baklava节点类型
 
-import { defineNode, NodeInterface } from '@baklavajs/core'
-import { setType } from '@baklavajs/interface-types'
-import { NumberInterface, IntegerInterface, CheckboxInterface, TextInputInterface, TextInterface } from '@baklavajs/renderer-vue'
-import { type IBaklavaViewModel } from '@baklavajs/renderer-vue'
 import {
-    handleApiDataValueTypes,
-    getBaklavaInterfaceType,
-    type ValueTypeInfo,
-    type ApiDataValueTypes
-} from './valueTypeRegistrant'
+    defineNode, NodeInterface, setType,
+    NumberInterface, IntegerInterface, CheckboxInterface, TextInputInterface, TextInterface,
+    type IBaklavaViewModel, type NodeInterfaceType
+} from 'baklavajs'
 // 导入统一的调试工具
 import { logTag } from './logFormatter'
 
@@ -93,7 +88,10 @@ function parseBackendValue(valueStr: string | undefined, dataType: string): any 
  * @param nodeTypeData - 后端返回的节点类型数据
  * @returns 创建的Baklava节点定义类
  */
-export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
+export function createBaklavaNodeClass(
+    nodeTypeData: NodeTypeData,
+    interfaceTypeMap: Map<string, NodeInterfaceType<any>>
+): any | null {
     // 检查数据完整性
     if (!nodeTypeData.id_name || !nodeTypeData.ui_name) {
         console.error(logTag('ERROR'), '节点类型数据不完整:', nodeTypeData)
@@ -119,7 +117,7 @@ export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
             const inputName = input.name || input.identifier
 
             // 获取 BaklavaJS 接口类型
-            const baklavaType = getBaklavaInterfaceType(input.type)
+            const baklavaType = interfaceTypeMap.get(input.type)
 
             if (baklavaType) {
                 console.log(logTag('INFO'), `为输入接口 ${input.identifier} 应用类型约束: ${input.type}`)
@@ -236,7 +234,7 @@ export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
             const outputName = output.name || output.identifier
 
             // 获取 BaklavaJS 接口类型
-            const baklavaType = getBaklavaInterfaceType(output.type)
+            const baklavaType = interfaceTypeMap.get(output.type)
 
             if (baklavaType) {
                 console.log(logTag('INFO'), `为输出接口 ${output.identifier} 应用类型约束: ${output.type}`)
@@ -266,14 +264,18 @@ export function createBaklavaNodeClass(nodeTypeData: NodeTypeData) {
  * @param baklava - Baklava编辑器实例
  * @param nodeTypesData - 后端返回的节点类型数组
  */
-export function registerNodeTypesToBaklava(baklava: IBaklavaViewModel, nodeTypesData: NodeTypeData[]): number {
+export function registerNodeTypesToBaklava(
+    baklava: IBaklavaViewModel,
+    nodeTypesData: NodeTypeData[],
+    interfaceTypeMap: Map<string, NodeInterfaceType<any>>
+): number {
     console.log(logTag('INFO'), '开始注册节点类型到Baklava编辑器...')
 
     let registeredCount = 0
 
     for (const nodeTypeData of nodeTypesData) {
         try {
-            const nodeClass = createBaklavaNodeClass(nodeTypeData)
+            const nodeClass = createBaklavaNodeClass(nodeTypeData, interfaceTypeMap)
 
             // 检查节点类创建是否成功
             if (nodeClass === null) {
@@ -304,22 +306,13 @@ export function registerNodeTypesToBaklava(baklava: IBaklavaViewModel, nodeTypes
 export function handleApiDataNodeTypes(
     baklava: IBaklavaViewModel,
     apiDataNodeTypes: ApiDataNodeTypes,
-    apiDataValueTypes: ApiDataValueTypes
+    interfaceTypeMap: Map<string, NodeInterfaceType<any>>
 ): number {
     // 确保节点类型响应是数组类型
     if (!Array.isArray(apiDataNodeTypes)) {
         throw new Error('节点类型 API 响应格式错误：期望数组或错误对象')
     }
 
-    // 先处理值类型，确保接口类型系统已准备好
-    try {
-        const valueTypeCount = handleApiDataValueTypes(apiDataValueTypes, baklava)
-        console.log(logTag('INFO'), `已处理 ${valueTypeCount} 个值类型`)
-    } catch (error) {
-        console.error(logTag('ERROR'), '处理值类型失败:', error)
-        // 继续执行，但可能无法使用类型安全的连接
-    }
-
     // 然后处理节点类型
-    return registerNodeTypesToBaklava(baklava, apiDataNodeTypes)
+    return registerNodeTypesToBaklava(baklava, apiDataNodeTypes, interfaceTypeMap)
 }

@@ -11,14 +11,10 @@
         "type-check": "vue-tsc --noEmit"
     },
     "dependencies": {
-        "@baklavajs/core": "^2.7.0",
-        "@baklavajs/engine": "^2.7.0",
-        "@baklavajs/interface-types": "^2.7.0",
-        "@baklavajs/renderer-vue": "^2.7.0",
-        "@baklavajs/themes": "^2.7.0",
         "baklavajs": "^2.7.0",
         "chalk": "^5.5.0",
-        "vue": "^3.4.0"
+        "vue": "^3.4.0",
+        "pinia": "^3.0.3"
     },
     "devDependencies": {
         "@types/node": "^24.2.1",
