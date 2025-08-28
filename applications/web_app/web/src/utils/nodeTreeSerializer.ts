@@ -1,7 +1,9 @@
 // 节点树序列化器 - 将BaklavaJS节点树转换为后端可理解的格式
 
-import type { IBaklavaViewModel } from '@baklavajs/renderer-vue'
-import type { Graph, AbstractNode, Connection, NodeInterface, IGraphNode, GraphInputNode, GraphOutputNode } from '@baklavajs/core'
+import type {
+    IBaklavaViewModel, Graph, AbstractNode, Connection, NodeInterface,
+    IGraphNode, GraphInputNode, GraphOutputNode
+} from 'baklavajs'
 // 导入统一的调试工具
 import { logTag } from './logFormatter'
 
@@ -394,7 +396,7 @@ export function safeValidateNodeTree(nodeTree: SerializedNodeTree): ApiDataValid
  * @returns 是否为错误
  */
 export function isValidationError(result: ApiDataValidationResult): boolean {
-    return result.error !== undefined && result.error.length > 0
+    return result.valid === false
 }
 
 /**

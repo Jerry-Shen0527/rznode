@@ -1,8 +1,10 @@
 // 接口值类型注册器 - 将后端的cpp值类型注册到前端，以便使得只有同类型的接口可以连接
 
-import { NodeInterfaceType } from '@baklavajs/interface-types'
-import { BaklavaInterfaceTypes } from '@baklavajs/interface-types'
-import type { IBaklavaViewModel } from '@baklavajs/renderer-vue'
+import {
+    NodeInterfaceType,
+    type BaklavaInterfaceTypes
+} from 'baklavajs'
+import { useValueTypeStore } from '../stores/valueTypeStores'
 // 导入统一的调试工具
 import { logTag } from './logFormatter'
 
@@ -13,36 +15,15 @@ export interface ValueTypeInfo {
 
 export type ApiDataValueTypes = ValueTypeInfo[]
 
-// 简单缓存 - 和 nodeTypes 类似
-let cachedValueTypes: ValueTypeInfo[] = []
-
-// BaklavaJS 类型管理
-let baklavaInterfaceTypes: BaklavaInterfaceTypes | null = null
-let interfaceTypeMap: Map<string, NodeInterfaceType<any>> = new Map()
-
-/**
- * 初始化 BaklavaJS 接口类型系统
- * @param baklava - BaklavaJS 编辑器实例
- */
-export function initializeBaklavaInterfaceTypes(baklava: IBaklavaViewModel): void {
-    if (baklavaInterfaceTypes) {
-        console.warn(logTag('WARNING'), 'BaklavaJS 接口类型系统已经初始化过了')
-        return
-    }
-
-    baklavaInterfaceTypes = new BaklavaInterfaceTypes(baklava.editor)
-    console.log(logTag('INFO'), 'BaklavaJS 接口类型系统已初始化')
-}
-
 /**
  * 为值类型创建 BaklavaJS 接口类型
  * @param valueTypes - 值类型数组
  */
-export function createBaklavaInterfaceTypesFromValueTypes(valueTypes: ValueTypeInfo[]): void {
-    if (!baklavaInterfaceTypes) {
-        throw new Error('必须先调用 initializeBaklavaInterfaceTypes 初始化类型系统')
-    }
-
+export function createBaklavaInterfaceTypesFromValueTypes(
+    baklavaInterfaceTypes: BaklavaInterfaceTypes,
+    valueTypes: ValueTypeInfo[],
+    interfaceTypeMap: Map<string, NodeInterfaceType<any>>
+): void {
     // 清空现有的类型映射
     interfaceTypeMap.clear()
 
@@ -69,61 +50,28 @@ export function createBaklavaInterfaceTypesFromValueTypes(valueTypes: ValueTypeI
 }
 
 /**
- * 根据类型名称获取 BaklavaJS 接口类型
- * @param typeName - 类型名称
- * @returns BaklavaJS 接口类型实例或 null
- */
-export function getBaklavaInterfaceType(typeName: string): NodeInterfaceType<any> | null {
-    return interfaceTypeMap.get(typeName) || null
-}
-
-/**
  * 处理API响应并更新缓存，同时注册 BaklavaJS 类型
  * @param apiDataValueTypes - API响应数据
  * @param baklava - BaklavaJS 编辑器实例（可选，如果提供则会注册类型）
  * @returns 成功加载的值类型数量，失败则抛出异常
  */
 export function handleApiDataValueTypes(
+    baklavaInterfaceTypes: BaklavaInterfaceTypes,
     apiDataValueTypes: ApiDataValueTypes,
-    baklava?: IBaklavaViewModel
+    interfaceTypeMap: Map<string, NodeInterfaceType<any>>
 ): number {
     // 确保是数组类型
     if (!Array.isArray(apiDataValueTypes)) {
         throw new Error('API响应格式错误：期望数组或错误对象')
     }
 
-    // 更新缓存
-    cachedValueTypes = apiDataValueTypes
 
-    // 如果提供了 BaklavaJS 实例，则注册类型
-    if (baklava) {
-        try {
-            // 初始化类型系统（如果还没初始化）
-            if (!baklavaInterfaceTypes) {
-                initializeBaklavaInterfaceTypes(baklava)
-            }
-
-            // 创建并注册 BaklavaJS 接口类型
-            createBaklavaInterfaceTypesFromValueTypes(apiDataValueTypes)
-        } catch (error) {
-            console.error(logTag('ERROR'), '注册 BaklavaJS 接口类型失败:', error)
-            // 不抛出异常，因为缓存更新成功了
-        }
+    try {
+        // 创建并注册 BaklavaJS 接口类型
+        createBaklavaInterfaceTypesFromValueTypes(baklavaInterfaceTypes, apiDataValueTypes, interfaceTypeMap)
+    } catch (error) {
+        console.error(logTag('ERROR'), '注册 BaklavaJS 接口类型失败:', error)
     }
 
     return apiDataValueTypes.length
-}
-
-/**
- * 获取缓存的值类型
- * @param typeName - 类型名称（可选）
- * @returns 指定类型或所有类型
- */
-export function getCachedValueTypes(typeName?: string): ValueTypeInfo[] | ValueTypeInfo | null {
-    if (typeName) {
-        const found = cachedValueTypes.find(type => type.type_name === typeName)
-        return found || null
-    }
-
-    return cachedValueTypes
 }
