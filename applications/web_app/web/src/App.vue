@@ -116,7 +116,6 @@ const executeNodeTree = async () => {
     // 序列化当前节点树
     const serializedTree = serializeNodeTree(baklava)
     console.log(logTag('INFO'), '序列化的节点树:', serializedTree)
-    console.log(logTag('INFO'), '序列化元数据:', serializedTree.metadata)
 
     // 本地验证
     const validation = safeValidateNodeTree(serializedTree)

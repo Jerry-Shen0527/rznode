@@ -91,6 +91,16 @@ if(NODE_WEB_SERVER_ENABLED)
     endif()
 
     add_subdirectory(web_server)
+
+    # oatpp version
+    set(OATPP_INSTALL OFF CACHE BOOL "Disable installation of oatpp")
+    set(OATPP_BUILD_TESTS OFF CACHE BOOL "Disable building tests for oatpp")
+    set(OATPP_LINK_TEST_LIBRARY OFF CACHE BOOL "Disable linking test library for oatpp")
+    set(BUILD_SHARED_LIBS OFF)  # Build oatpp as static library
+    add_subdirectory(ext/oatpp)
+    set(BUILD_SHARED_LIBS ON)
+
+    add_subdirectory(web_server_oatpp)
 endif()
 
 add_subdirectory(applications)

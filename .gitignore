@@ -4,6 +4,7 @@ Binaries/
 .vs/
 out/
 __pycache__/
+.github/
 
 # Node.js / npm
 node_modules/
