@@ -3,6 +3,11 @@ UCG_ADD_APP(
     LIBS web_server nodes_system httplib::httplib
 )
 
+UCG_ADD_APP(
+    SRC run_server_oatpp.cpp
+    LIBS web_server_oatpp nodes_system oatpp
+)
+
 # 设置路径
 set(WEB_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/web")
 set(WEB_DEST_DIR "${OUT_BINARY_DIR}/web/dist")

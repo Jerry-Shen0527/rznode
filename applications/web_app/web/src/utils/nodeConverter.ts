@@ -30,7 +30,9 @@ export interface NodeTypeData {
 }
 
 // API 响应类型：节点类型列表
-export type ApiDataNodeTypes = NodeTypeData[]
+export interface ApiDataNodeTypes {
+    node_types: NodeTypeData[]
+}
 
 /**
  * 解析C++后端发送的字符串值
@@ -308,11 +310,6 @@ export function handleApiDataNodeTypes(
     apiDataNodeTypes: ApiDataNodeTypes,
     interfaceTypeMap: Map<string, NodeInterfaceType<any>>
 ): number {
-    // 确保节点类型响应是数组类型
-    if (!Array.isArray(apiDataNodeTypes)) {
-        throw new Error('节点类型 API 响应格式错误：期望数组或错误对象')
-    }
-
     // 然后处理节点类型
-    return registerNodeTypesToBaklava(baklava, apiDataNodeTypes, interfaceTypeMap)
+    return registerNodeTypesToBaklava(baklava, apiDataNodeTypes.node_types, interfaceTypeMap)
 }

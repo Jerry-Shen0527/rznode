@@ -13,7 +13,9 @@ export interface ValueTypeInfo {
     type_name: string // 类型名称，对应后端的type_name字段
 }
 
-export type ApiDataValueTypes = ValueTypeInfo[]
+export interface ApiDataValueTypes {
+    value_types: ValueTypeInfo[]
+}
 
 /**
  * 为值类型创建 BaklavaJS 接口类型
@@ -60,18 +62,12 @@ export function handleApiDataValueTypes(
     apiDataValueTypes: ApiDataValueTypes,
     interfaceTypeMap: Map<string, NodeInterfaceType<any>>
 ): number {
-    // 确保是数组类型
-    if (!Array.isArray(apiDataValueTypes)) {
-        throw new Error('API响应格式错误：期望数组或错误对象')
-    }
-
-
     try {
         // 创建并注册 BaklavaJS 接口类型
-        createBaklavaInterfaceTypesFromValueTypes(baklavaInterfaceTypes, apiDataValueTypes, interfaceTypeMap)
+        createBaklavaInterfaceTypesFromValueTypes(baklavaInterfaceTypes, apiDataValueTypes.value_types, interfaceTypeMap)
     } catch (error) {
         console.error(logTag('ERROR'), '注册 BaklavaJS 接口类型失败:', error)
     }
 
-    return apiDataValueTypes.length
+    return apiDataValueTypes.value_types.length
 }

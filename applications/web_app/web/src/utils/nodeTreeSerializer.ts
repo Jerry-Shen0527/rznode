@@ -26,13 +26,6 @@ export interface SerializedLink {
 export interface SerializedNodeTree {
     nodes: SerializedNode[]
     links: SerializedLink[]
-    metadata: {
-        version: string
-        createdAt: string
-        nodeCount: number
-        connectionCount: number
-        serializationMethod: string
-    }
 }
 
 export interface ApiDataValidationResult {
@@ -253,14 +246,7 @@ export function serializeNodeTree(baklavaEditor: IBaklavaViewModel): SerializedN
 
     return {
         nodes,
-        links,
-        metadata: {
-            version: "1.0",
-            createdAt: new Date().toISOString(),
-            nodeCount: nodes.length,
-            connectionCount: links.length,
-            serializationMethod: "recursive-subgraph-expansion"
-        }
+        links
     }
 }
 
