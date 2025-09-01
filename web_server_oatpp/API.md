@@ -16,7 +16,7 @@ RZNode Web Server 提供了一组 RESTful API 接口，允许用户通过 HTTP �
         "data": {
             "has_node_system": true,
             "message": "RzNode Web服务器运行正常",
-            "port": 8082,
+            "port": 8080,
             "status": "running"
         }
     }
