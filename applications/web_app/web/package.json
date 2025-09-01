@@ -13,11 +13,14 @@
     "dependencies": {
         "baklavajs": "^2.7.0",
         "chalk": "^5.5.0",
+        "pinia": "^3.0.3",
+        "three": "^0.179.1",
         "vue": "^3.4.0",
-        "pinia": "^3.0.3"
+        "vue-router": "^4.5.1"
     },
     "devDependencies": {
         "@types/node": "^24.2.1",
+        "@types/three": "^0.179.0",
         "@vitejs/plugin-vue": "^5.0.0",
         "tsx": "^4.20.3",
         "typescript": "^5.9.2",
