@@ -74,6 +74,8 @@ set_target_properties(spdlog PROPERTIES ${OUTPUT_DIR})
 add_subdirectory(core)
 add_subdirectory(system)
 
+add_subdirectory(ext/GCore)
+
 option(NODE_IMGUI_ENABLED "Enable ImGui UI Nodes" OFF)
 if(NODE_IMGUI_ENABLED)
     add_subdirectory(ui_imgui)
