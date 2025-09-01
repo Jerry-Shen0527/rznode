@@ -1,4 +1,6 @@
 // WebSocket client for geometry visualization
+// 使用JSON格式传输几何数据，便于早期开发和调试
+
 export interface GeometryData {
     id: string
     type: 'mesh' | 'line' | 'point'
@@ -47,6 +49,7 @@ export class GeometryWebSocketClient {
 
                 this.ws.onmessage = (event) => {
                     try {
+                        // 使用JSON格式处理消息
                         const message: GeometryMessage = JSON.parse(event.data)
                         this.handleMessage(message)
                     } catch (error) {

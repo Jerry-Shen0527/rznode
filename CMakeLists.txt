@@ -74,14 +74,13 @@ set_target_properties(spdlog PROPERTIES ${OUTPUT_DIR})
 add_subdirectory(core)
 add_subdirectory(system)
 
-add_subdirectory(ext/GCore)
-
 option(NODE_IMGUI_ENABLED "Enable ImGui UI Nodes" OFF)
 if(NODE_IMGUI_ENABLED)
     add_subdirectory(ui_imgui)
 endif()
 
 option(NODE_WEB_SERVER_ENABLED "Enable Web Server with BaklavaJS integration" ON)
+option(GEOM_EXTENSION_ENABLED "Enable GCore geometry extension for web server" ON)
 if(NODE_WEB_SERVER_ENABLED)
     set(HTTPLIB_INSTALL OFF CACHE BOOL "Disable installation of cpp-httplib")
     set(HTTPLIB_COMPILE ON CACHE BOOL "Use the compiled version of cpp-httplib")
@@ -108,6 +107,13 @@ if(NODE_WEB_SERVER_ENABLED)
     set(BUILD_SHARED_LIBS ON)
 
     add_subdirectory(web_server_oatpp)
+    if(GEOM_EXTENSION_ENABLED)
+        add_subdirectory(ext/GCore)
+        target_link_libraries(web_server_oatpp PUBLIC geometry)
+        target_include_directories(web_server_oatpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/web_server_oatpp/geom_extension/include)
+        target_compile_definitions(web_server_oatpp PUBLIC GEOM_EXTENSION=1)
+    endif()
+
 endif()
 
 add_subdirectory(applications)
