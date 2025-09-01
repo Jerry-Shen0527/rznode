@@ -16,3 +16,6 @@
 [submodule "ext/oatpp-websocket"]
 	path = ext/oatpp-websocket
 	url = https://github.com/oatpp/oatpp-websocket.git
+[submodule "ext/GCore"]
+	path = ext/GCore
+	url = https://github.com/USTC-CG-NEXT/GCore.git
