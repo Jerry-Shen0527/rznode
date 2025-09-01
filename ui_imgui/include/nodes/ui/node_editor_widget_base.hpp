@@ -24,7 +24,10 @@ using ax::Widgets::IconType;
 class NODES_UI_IMGUI_API NodeEditorWidgetBase : public IWidget {
    public:
     NodeEditorWidgetBase(const NodeWidgetSettings& desc);
-
+    bool borderless() override
+    {
+        return true;
+    }
     bool BuildUI() override;
 
    protected:
