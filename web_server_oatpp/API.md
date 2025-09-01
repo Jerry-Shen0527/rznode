@@ -290,3 +290,283 @@ RZNode Web Server 提供了一组 RESTful API 接口，允许用户通过 HTTP �
         "data": null
     }
     ```
+
+---
+
+## WebSocket API
+
+### 概述
+RZNode Web Server 除了提供 RESTful API 外，还通过 WebSocket 协议支持实时几何可视化功能。WebSocket 连接主要用于：
+- 实时传输几何数据到前端可视化器
+- 接收用户在可视化器中的交互事件
+- 支持双向的实时通信
+
+### 连接信息
+- **WebSocket URL**: `ws://localhost:8080/geometry`
+- **协议**: WebSocket (RFC 6455)
+- **数据格式**: JSON
+
+### 消息类型
+
+#### 1. 几何数据消息 (Backend → Frontend)
+
+**几何数据更新**
+```typescript
+interface GeometryMessage {
+    type: 'geometry_update' | 'geometry_clear' | 'scene_update'
+    geometries: GeometryData[]
+    scene_id: string
+    timestamp: number
+}
+
+interface GeometryData {
+    id: string                    // 几何对象唯一标识符
+    type: 'mesh' | 'line' | 'point'  // 几何类型
+    vertices: number[]            // 顶点坐标数组 [x1,y1,z1, x2,y2,z2, ...]
+    indices?: number[]            // 索引数组（用于网格）
+    colors?: number[]             // 颜色数组 [r1,g1,b1,a1, r2,g2,b2,a2, ...]
+    normals?: number[]            // 法向量数组 [nx1,ny1,nz1, nx2,ny2,nz2, ...]
+    transform?: number[]          // 4x4变换矩阵（行主序）
+}
+```
+
+**消息示例**：
+```json
+{
+    "type": "geometry_update",
+    "scene_id": "scene_001",
+    "timestamp": 1693536000000,
+    "geometries": [
+        {
+            "id": "mesh_001",
+            "type": "mesh",
+            "vertices": [0,0,0, 1,0,0, 0.5,1,0],
+            "indices": [0,1,2],
+            "colors": [1,0,0,1, 0,1,0,1, 0,0,1,1],
+            "normals": [0,0,1, 0,0,1, 0,0,1],
+            "transform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
+        }
+    ]
+}
+```
+
+**几何数据清空**
+```json
+{
+    "type": "geometry_clear",
+    "scene_id": "scene_001", 
+    "timestamp": 1693536000000,
+    "geometries": []
+}
+```
+
+**场景更新**
+```json
+{
+    "type": "scene_update",
+    "scene_id": "scene_002",
+    "timestamp": 1693536000000,
+    "geometries": [...]
+}
+```
+
+**JSON格式优势**（当前阶段）：
+- 易于调试和日志记录
+- 前后端开发并行，无需协议协商
+- 浏览器原生支持，开发工具友好
+- 快速原型验证和功能迭代
+- 无需复杂的二进制解析逻辑
+
+**消息示例**：
+```json
+{
+    "type": "geometry_update",
+    "scene_id": "scene_001",
+    "timestamp": 1693536000000,
+    "geometries": [
+        {
+            "id": "mesh_001",
+            "type": "mesh",
+            "vertices": [0,0,0, 1,0,0, 0.5,1,0],
+            "indices": [0,1,2],
+            "colors": [1,0,0,1, 0,1,0,1, 0,0,1,1],
+            "normals": [0,0,1, 0,0,1, 0,0,1],
+            "transform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
+        }
+    ]
+}
+```
+
+**几何数据清空**
+```json
+{
+    "type": "geometry_clear",
+    "scene_id": "scene_001", 
+    "timestamp": 1693536000000,
+    "geometries": []
+}
+```
+
+**场景更新**
+```json
+{
+    "type": "scene_update",
+    "scene_id": "scene_002",
+    "timestamp": 1693536000000,
+    "geometries": [...]
+}
+```
+
+#### 2. 用户交互消息 (Frontend → Backend)
+
+```typescript
+interface VisualizerMessage {
+    type: 'user_interaction' | 'geometry_selection' | 'camera_change'
+    data: any
+    target_node?: string  // 目标节点标识符（可选）
+}
+```
+
+**用户交互**
+```json
+{
+    "type": "user_interaction",
+    "data": {
+        "action": "click",
+        "position": [100, 200],
+        "modifiers": ["ctrl", "shift"]
+    },
+    "target_node": "node_get_current_geom_in_visualizer"
+}
+```
+
+**几何对象选择**
+```json
+{
+    "type": "geometry_selection",
+    "data": {
+        "selected_ids": ["mesh_001", "line_002"],
+        "deselected_ids": ["mesh_003"],
+        "selection_mode": "add"
+    }
+}
+```
+
+**相机变化**
+```json
+{
+    "type": "camera_change",
+    "data": {
+        "position": [10, 10, 10],
+        "target": [0, 0, 0],
+        "up": [0, 1, 0],
+        "fov": 60,
+        "near": 0.1,
+        "far": 1000
+    }
+}
+```
+
+### 连接流程
+
+1. **建立连接**
+   ```javascript
+   const ws = new WebSocket('ws://localhost:8080/geometry');
+   ```
+
+2. **连接成功**
+   ```javascript
+   ws.onopen = () => {
+       console.log('WebSocket连接已建立');
+   };
+   ```
+
+3. **接收消息**
+   ```javascript
+   ws.onmessage = (event) => {
+       const message = JSON.parse(event.data);
+       // 处理几何数据或其他消息
+   };
+   ```
+
+4. **发送消息**
+   ```javascript
+   const message = {
+       type: 'geometry_selection',
+       data: { selected_ids: ['mesh_001'] }
+   };
+   ws.send(JSON.stringify(message));
+   ```
+
+5. **连接关闭**
+   ```javascript
+   ws.onclose = () => {
+       console.log('WebSocket连接已关闭');
+   };
+   ```
+
+### 错误处理
+
+**连接错误**
+```javascript
+ws.onerror = (error) => {
+    console.error('WebSocket错误:', error);
+};
+```
+
+**消息格式错误**
+- 服务器会忽略格式不正确的消息
+- 客户端应验证接收到的消息格式
+
+### 最佳实践
+
+1. **重连机制**
+   - 实现指数退避重连策略
+   - 限制最大重连次数
+   - 在网络不稳定时自动重连
+
+2. **消息缓冲**
+   - 在连接断开时缓冲待发送消息
+   - 连接恢复后批量发送
+
+3. **性能优化**
+   - 对频繁的几何更新进行节流
+   - 使用二进制格式传输大量几何数据（未来考虑）
+
+4. **状态同步**
+   - 连接建立后请求当前场景状态
+   - 处理并发修改冲突
+
+### 架构说明
+
+#### 当前实现 (Phase 1 - 开发中)
+- **JSON传输**: 使用标准JSON格式传输几何数据，便于调试和快速开发
+- **混合通信模式**: 节点编辑器使用 RESTful API，几何可视化器使用 WebSocket
+- **单向数据流**: 后端 → 可视化器（仅几何数据传输）
+- **oatpp WebSocket**: 基于oatpp库的WebSocket实现，发送JSON消息
+- **开发友好**: 浏览器原生支持，易于调试和日志记录
+
+#### Phase 2 规划
+- **全 WebSocket 架构**: 两个页面均使用 WebSocket 通信
+- **双向数据流**: 可视化器交互数据回传到节点树
+- **完整协议替代**: WebSocket 协议完全替代 RESTful API
+- **交互节点**: 支持 `node_get_current_geom_in_visualizer` 等交互节点
+- **性能优化**: 根据需要考虑二进制格式或数据压缩
+
+#### 技术实现重点
+
+**几何序列化模块** (`ext/GCore/`)：
+- `MeshComponent` → JSON序列化接口
+- 集成现有USD/IGL视图，保持API兼容
+- 支持顶点、索引、颜色、法向量的完整导出
+
+**WebSocket传输层** (`web_server_oatpp/`)：
+- 基于oatpp实现JSON消息传输
+- 连接管理、错误处理、重连机制
+- 多客户端消息分发
+
+**开发阶段优势**：
+- 快速原型验证和功能迭代
+- 前后端并行开发，无协议复杂性
+- 易于单元测试和集成测试
+- 浏览器开发工具直接支持消息查看
