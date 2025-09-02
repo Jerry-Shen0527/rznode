@@ -13,3 +13,6 @@
 [submodule "ext/oatpp"]
 	path = ext/oatpp
 	url = https://github.com/oatpp/oatpp.git
+[submodule "ext/oatpp-websocket"]
+	path = ext/oatpp-websocket
+	url = https://github.com/oatpp/oatpp-websocket.git

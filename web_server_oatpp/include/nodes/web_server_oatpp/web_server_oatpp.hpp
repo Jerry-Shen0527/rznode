@@ -39,7 +39,7 @@ class WEB_SERVER_OATPP_API WebServerOatpp {
     std::shared_ptr<oatpp::web::server::HttpRouter> router_;
     std::shared_ptr<oatpp::web::mime::ContentMappers> api_content_mappers_;
     std::shared_ptr<oatpp::web::server::HttpConnectionHandler>
-        connection_handler_;
+        http_connection_handler_;
     std::shared_ptr<oatpp::network::ServerConnectionProvider>
         server_connection_provider_;
     std::shared_ptr<oatpp::network::Server> server_;
