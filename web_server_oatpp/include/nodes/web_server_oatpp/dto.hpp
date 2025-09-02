@@ -39,7 +39,7 @@ class WEB_SERVER_OATPP_API NodeTypeDto : public oatpp::DTO {
     DTO_FIELD(String, id_name);
     DTO_FIELD(String, ui_name);
 
-    class SocketDto : public oatpp::DTO {
+    class WEB_SERVER_OATPP_API SocketDto : public oatpp::DTO {
         DTO_INIT(SocketDto, DTO)
 
         DTO_FIELD(String, name);
@@ -53,7 +53,7 @@ class WEB_SERVER_OATPP_API NodeTypeDto : public oatpp::DTO {
         DTO_FIELD(String, max_value);
     };
 
-    class SocketGroupDto : public oatpp::DTO {
+    class WEB_SERVER_OATPP_API SocketGroupDto : public oatpp::DTO {
         DTO_INIT(SocketGroupDto, DTO)
 
         DTO_FIELD(String, identifier);
