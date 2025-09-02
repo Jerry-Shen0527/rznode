@@ -1,8 +1,11 @@
 #pragma once
 
+#ifdef GEOM_EXTENSION
+#include "nodes//web_server_oatpp/geom_ws_listener.hpp"
+#endif
+
 #include <memory>
 
-#include "nodes//web_server_oatpp/wslistener.hpp"
 #include "nodes/web_server_oatpp/api.h"
 #include "nodes/web_server_oatpp/dto.hpp"
 #include "nodes/web_server_oatpp/util.hpp"
@@ -12,7 +15,6 @@
 #include "oatpp/web/mime/ContentMappers.hpp"
 #include "oatpp/web/server/api/ApiController.hpp"
 #include "spdlog/spdlog.h"
-
 
 #include OATPP_CODEGEN_BEGIN(ApiController)  //<- Begin Codegen
 
@@ -35,10 +37,13 @@ class WEB_SERVER_OATPP_API ApiController
     {
         static_files_manager_ = std::make_unique<StaticFilesManager>();
         node_system_component_ = std::make_unique<NodeSystemComponent>();
-        websocket_connection_handler =
+
+#ifdef GEOM_EXTENSION
+        geometry_ws_connection_handler =
             oatpp::websocket::ConnectionHandler::createShared();
-        websocket_connection_handler->setSocketInstanceListener(
-            std::make_shared<WSInstanceListener>());
+        geometry_ws_connection_handler->setSocketInstanceListener(
+            std::make_shared<GeometryWSInstanceListener>());
+#endif
     }
 
     void set_node_system(std::shared_ptr<NodeSystem> node_system)
@@ -51,32 +56,31 @@ class WEB_SERVER_OATPP_API ApiController
         return node_system_component_->node_system_attached();
     }
 
-    std::shared_ptr<oatpp::websocket::ConnectionHandler>
-    get_websocket_connection_handler() const
-    {
-        return websocket_connection_handler;
-    }
-
    private:
     // 静态文件管理器，用于提供前端文件
     std::unique_ptr<StaticFilesManager> static_files_manager_ = nullptr;
     // NodeSystem 组件
     std::unique_ptr<NodeSystemComponent> node_system_component_ = nullptr;
-    // WebSocket 连接处理器
+
+#ifdef GEOM_EXTENSION
+    // 用于处理 Geometry Visualizer 相关的 WebSocket 连接
     std::shared_ptr<oatpp::websocket::ConnectionHandler>
-        websocket_connection_handler = nullptr;
+        geometry_ws_connection_handler = nullptr;
+#endif
 
    public:
+#ifdef GEOM_EXTENSION
     // 测试websocket接口
     ENDPOINT(
         "GET",
-        "ws",
-        ws,
+        "/geometry/ws",
+        GeometryWS,
         REQUEST(std::shared_ptr<IncomingRequest>, request))
     {
         return oatpp::websocket::Handshaker::serversideHandshake(
-            request->getHeaders(), websocket_connection_handler);
+            request->getHeaders(), geometry_ws_connection_handler);
     };
+#endif
 
     ENDPOINT_INFO(GetStatus)
     {

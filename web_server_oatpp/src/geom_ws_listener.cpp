@@ -1,35 +1,41 @@
+#ifdef GEOM_EXTENSION
+
 /**
  * 参考资料：
  * https://github.com/oatpp/example-websocket/blob/master/server/src/websocket/WSListener.cpp
  */
 
-#include "nodes/web_server_oatpp/wslistener.hpp"
+#include "nodes/web_server_oatpp/geom_ws_listener.hpp"
 
-#include "oatpp/base/Log.hpp"
+#include "spdlog/spdlog.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// WSListener
+// GeometryWSListener
 
-void WSListener::onPing(const WebSocket& socket, const oatpp::String& message)
+void GeometryWSListener::onPing(
+    const WebSocket& socket,
+    const oatpp::String& message)
 {
-    OATPP_LOGd(TAG, "onPing");
+    spdlog::debug("WebSocket: onPing");
     socket.sendPong(message);
 }
 
-void WSListener::onPong(const WebSocket& socket, const oatpp::String& message)
+void GeometryWSListener::onPong(
+    const WebSocket& socket,
+    const oatpp::String& message)
 {
-    OATPP_LOGd(TAG, "onPong");
+    spdlog::debug("WebSocket: onPong");
 }
 
-void WSListener::onClose(
+void GeometryWSListener::onClose(
     const WebSocket& socket,
     v_uint16 code,
     const oatpp::String& message)
 {
-    OATPP_LOGd(TAG, "onClose code={}", code);
+    spdlog::debug("WebSocket: onClose code={}", code);
 }
 
-void WSListener::readMessage(
+void GeometryWSListener::readMessage(
     const WebSocket& socket,
     v_uint8 opcode,
     p_char8 data,
@@ -40,7 +46,7 @@ void WSListener::readMessage(
         auto wholeMessage = m_messageBuffer.toString();
         m_messageBuffer.setCurrentPosition(0);
 
-        OATPP_LOGd(TAG, "onMessage message='{}'", wholeMessage);
+        spdlog::debug("WebSocket: onMessage message='{}'", *wholeMessage);
 
         /* Send message in reply */
         socket.sendOneFrameText("Hello from oatpp!: " + wholeMessage);
@@ -51,26 +57,30 @@ void WSListener::readMessage(
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// WSInstanceListener
+// GeometryWSInstanceListener
 
-std::atomic<v_int32> WSInstanceListener::SOCKETS(0);
+std::atomic<v_int32> GeometryWSInstanceListener::SOCKETS(0);
 
-void WSInstanceListener::onAfterCreate(
+void GeometryWSInstanceListener::onAfterCreate(
     const oatpp::websocket::WebSocket& socket,
     const std::shared_ptr<const ParameterMap>& params)
 {
     SOCKETS++;
-    OATPP_LOGd(
-        TAG, "New Incoming Connection. Connection count={}", SOCKETS.load());
+    spdlog::debug(
+        "WebSocket: New Incoming Connection. Connection count={}",
+        SOCKETS.load());
 
     /* In this particular case we create one WSListener per each connection */
     /* Which may be redundant in many cases */
-    socket.setListener(std::make_shared<WSListener>());
+    socket.setListener(std::make_shared<GeometryWSListener>());
 }
 
-void WSInstanceListener::onBeforeDestroy(
+void GeometryWSInstanceListener::onBeforeDestroy(
     const oatpp::websocket::WebSocket& socket)
 {
     SOCKETS--;
-    OATPP_LOGd(TAG, "Connection closed. Connection count={}", SOCKETS.load());
+    spdlog::debug(
+        "WebSocket: Connection closed. Connection count={}", SOCKETS.load());
 }
+
+#endif

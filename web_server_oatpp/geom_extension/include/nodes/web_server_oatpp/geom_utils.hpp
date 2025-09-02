@@ -1,8 +1,11 @@
 #pragma once
 
+// #include <memory>
+
 #include "GCore/Components/CurveComponent.h"
 #include "GCore/Components/MeshComponent.h"
 #include "GCore/Components/PointsComponent.h"
+#include "GCore/Components/XformComponent.h"
 #include "GCore/GOP.h"
 #include "nodes/web_server_oatpp/api.h"
 #include "nodes/web_server_oatpp/geom_dto.hpp"
@@ -26,12 +29,14 @@ class WEB_SERVER_OATPP_API GeometryUtils {
         const std::string& geom_id);
 
    private:
-    static oatpp::Object<MeshDataDto> convertMeshToDto(
+    static oatpp::Object<MeshDataDto::MeshDto> convertMeshToDto(
         const std::shared_ptr<MeshComponent>& mesh);
-    static oatpp::Object<PointsDataDto> convertPointsToDto(
+    static oatpp::Object<PointsDataDto::PointsDto> convertPointsToDto(
         const std::shared_ptr<PointsComponent>& points);
-    static oatpp::Object<CurveDataDto> convertCurveToDto(
+    static oatpp::Object<CurveDataDto::CurveDto> convertCurveToDto(
         const std::shared_ptr<CurveComponent>& curve);
+    static oatpp::Vector<oatpp::Float32> convertMatrixToDto(
+        const std::shared_ptr<XformComponent>& xform);
 };
 
 USTC_CG_NAMESPACE_CLOSE_SCOPE
