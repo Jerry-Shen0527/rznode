@@ -24,55 +24,39 @@ oatpp::Object<GeometryDataDto> GeometryUtils::convertGeometryToDto(
         return nullptr;
     }
 
-    auto geom_data_dto = GeometryDataDto::createShared();
-    geom_data_dto->id = geom_id;
-
     auto mesh = geometry->get_component<MeshComponent>();
     if (mesh) {
-        auto mesh_dto = geom_data_dto.cast<oatpp::Object<MeshDataDto>>();
+        auto mesh_dto = MeshDataDto::createShared();
+        mesh_dto->id = geom_id;
         mesh_dto->type = "mesh";
         mesh_dto->mesh_data = convertMeshToDto(mesh);
+        mesh_dto->transform =
+            convertMatrixToDto(geometry->get_component<XformComponent>());
+        return mesh_dto;
     }
 
     auto points = geometry->get_component<PointsComponent>();
     if (points) {
-        auto points_dto = geom_data_dto.cast<oatpp::Object<PointsDataDto>>();
+        auto points_dto = PointsDataDto::createShared();
+        points_dto->id = geom_id;
         points_dto->type = "points";
         points_dto->points_data = convertPointsToDto(points);
+        points_dto->transform =
+            convertMatrixToDto(geometry->get_component<XformComponent>());
+        return points_dto;
     }
 
     auto curve = geometry->get_component<CurveComponent>();
     if (curve) {
-        auto curve_dto = geom_data_dto.cast<oatpp::Object<CurveDataDto>>();
+        auto curve_dto = CurveDataDto::createShared();
+        curve_dto->id = geom_id;
         curve_dto->type = "curve";
         curve_dto->curve_data = convertCurveToDto(curve);
+        curve_dto->transform =
+            convertMatrixToDto(geometry->get_component<XformComponent>());
+        return curve_dto;
     }
-
-    // 获取变换矩阵
-    auto xform = geometry->get_component<XformComponent>();
-    if (xform) {
-        auto transform = xform->get_transform();
-        geom_data_dto->transform =
-            oatpp::Vector<oatpp::Float32>::createShared();
-        geom_data_dto->transform->reserve(16);
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                geom_data_dto->transform->push_back(transform[i][j]);
-            }
-        }
-    }
-    else {
-        // 如果没有变换组件，使用单位矩阵
-        // clang-format off
-            geom_data_dto->transform =
-                { 1.0f, 0.0f, 0.0f, 0.0f,
-                  0.0f, 1.0f, 0.0f, 0.0f,
-                  0.0f, 0.0f, 1.0f, 0.0f,
-                  0.0f, 0.0f, 0.0f, 1.0f };
-        // clang-format on
-    }
-
-    return geom_data_dto;
+    return nullptr;
 }
 
 oatpp::Vector<oatpp::Object<GeometryDataDto>>
@@ -123,7 +107,7 @@ GeometryUtils::convertGeometriesToDto(
     return dto_list;
 }
 
-oatpp::Object<MeshDataDto> GeometryUtils::convertMeshToDto(
+oatpp::Object<MeshDataDto::MeshDto> GeometryUtils::convertMeshToDto(
     const std::shared_ptr<MeshComponent>& mesh)
 {
     if (!mesh) {
@@ -202,7 +186,7 @@ oatpp::Object<MeshDataDto> GeometryUtils::convertMeshToDto(
     return mesh_dto;
 }
 
-oatpp::Object<PointsDataDto> GeometryUtils::convertPointsToDto(
+oatpp::Object<PointsDataDto::PointsDto> GeometryUtils::convertPointsToDto(
     const std::shared_ptr<PointsComponent>& points)
 {
     if (!points) {
@@ -266,7 +250,7 @@ oatpp::Object<PointsDataDto> GeometryUtils::convertPointsToDto(
     return points_dto;
 }
 
-oatpp::Object<CurveDataDto> GeometryUtils::convertCurveToDto(
+oatpp::Object<CurveDataDto::CurveDto> GeometryUtils::convertCurveToDto(
     const std::shared_ptr<CurveComponent>& curve)
 {
     if (!curve) {
@@ -339,6 +323,34 @@ oatpp::Object<CurveDataDto> GeometryUtils::convertCurveToDto(
     curve_dto->periodic = periodic;
 
     return curve_dto;
+}
+
+oatpp::Vector<oatpp::Float32> GeometryUtils::convertMatrixToDto(
+    const std::shared_ptr<XformComponent>& xform)
+{
+    auto matrix_dto = oatpp::Vector<oatpp::Float32>::createShared();
+    matrix_dto->reserve(16);
+
+    if (xform) {
+        auto transform = xform->get_transform();
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                matrix_dto->push_back(transform[i][j]);
+            }
+        }
+    }
+    else {
+        // 如果没有变换组件，使用单位矩阵
+        // clang-format off
+            matrix_dto =
+                { 1.0f, 0.0f, 0.0f, 0.0f,
+                  0.0f, 1.0f, 0.0f, 0.0f,
+                  0.0f, 0.0f, 1.0f, 0.0f,
+                  0.0f, 0.0f, 0.0f, 1.0f };
+        // clang-format on
+    }
+
+    return matrix_dto;
 }
 
 USTC_CG_NAMESPACE_CLOSE_SCOPE

@@ -11,10 +11,7 @@
 /**
  * WebSocket listener listens on incoming WebSocket events.
  */
-class WSListener : public oatpp::websocket::WebSocket::Listener {
-   private:
-    static constexpr const char* TAG = "Server_WSListener";
-
+class GeometryWSListener : public oatpp::websocket::WebSocket::Listener {
    private:
     /**
      * Buffer for messages. Needed for multi-frame messages.
@@ -54,11 +51,8 @@ class WSListener : public oatpp::websocket::WebSocket::Listener {
 /**
  * Listener on new WebSocket connections.
  */
-class WSInstanceListener
+class GeometryWSInstanceListener
     : public oatpp::websocket::ConnectionHandler::SocketInstanceListener {
-   private:
-    static constexpr const char* TAG = "Server_WSInstanceListener";
-
    public:
     /**
      * Counter for connected clients.

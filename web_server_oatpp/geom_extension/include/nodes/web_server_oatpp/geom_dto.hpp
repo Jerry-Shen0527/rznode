@@ -18,7 +18,7 @@ class WEB_SERVER_OATPP_API GeometryDataDto : public oatpp::DTO {
 
     DTO_FIELD(String, id);    // 几何体ID
     DTO_FIELD(String, type);  // 几何体类型，如 "mesh", "points", "curve"
-    DTO_FIELD(Vector<Float32>, transform) = { };  // 4x4变换矩阵（行主序）
+    DTO_FIELD(Vector<Float32>, transform);  // 4x4变换矩阵（行主序）
 };
 
 class WEB_SERVER_OATPP_API MeshDataDto : public GeometryDataDto {
@@ -27,9 +27,9 @@ class WEB_SERVER_OATPP_API MeshDataDto : public GeometryDataDto {
     class WEB_SERVER_OATPP_API MeshDto : public oatpp::DTO {
         DTO_INIT(MeshDto, DTO)
 
-        DTO_FIELD(Vector<Float32>, vertices) = { };
-        DTO_FIELD(Vector<Int32>, face_vertex_counts) = { };
-        DTO_FIELD(Vector<Int32>, face_vertex_indices) = { };
+        DTO_FIELD(Vector<Float32>, vertices);
+        DTO_FIELD(Vector<Int32>, face_vertex_counts);
+        DTO_FIELD(Vector<Int32>, face_vertex_indices);
         DTO_FIELD(Vector<Float32>, normals);
         DTO_FIELD(Vector<Float32>, colors);
         DTO_FIELD(Vector<Float32>, uvs);
@@ -44,10 +44,10 @@ class WEB_SERVER_OATPP_API PointsDataDto : public GeometryDataDto {
     class WEB_SERVER_OATPP_API PointsDto : public oatpp::DTO {
         DTO_INIT(PointsDto, DTO)
 
-        DTO_FIELD(Vector<Float32>, vertices) = { };
-        DTO_FIELD(Vector<Float32>, normals) = { };
-        DTO_FIELD(Vector<Float32>, colors) = { };
-        DTO_FIELD(Vector<Float32>, widths) = { };
+        DTO_FIELD(Vector<Float32>, vertices);
+        DTO_FIELD(Vector<Float32>, normals);
+        DTO_FIELD(Vector<Float32>, colors);
+        DTO_FIELD(Vector<Float32>, widths);
     };
 
     DTO_FIELD(Object<PointsDto>, points_data) = nullptr;
@@ -59,11 +59,11 @@ class WEB_SERVER_OATPP_API CurveDataDto : public GeometryDataDto {
     class WEB_SERVER_OATPP_API CurveDto : public oatpp::DTO {
         DTO_INIT(CurveDto, DTO)
 
-        DTO_FIELD(Vector<Float32>, vertices) = { };
-        DTO_FIELD(Vector<Int32>, vert_count) = { };
-        DTO_FIELD(Vector<Float32>, colors) = { };
-        DTO_FIELD(Vector<Float32>, widths) = { };
-        DTO_FIELD(Vector<Float32>, normals) = { };
+        DTO_FIELD(Vector<Float32>, vertices);
+        DTO_FIELD(Vector<Int32>, vert_count);
+        DTO_FIELD(Vector<Float32>, colors);
+        DTO_FIELD(Vector<Float32>, widths);
+        DTO_FIELD(Vector<Float32>, normals);
         DTO_FIELD(Boolean, periodic) = false;
     };
 
