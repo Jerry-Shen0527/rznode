@@ -1,17 +1,18 @@
 #pragma once
 
-#include <cstddef>
 #include <memory>
 
+#include "nodes//web_server_oatpp/wslistener.hpp"
 #include "nodes/web_server_oatpp/api.h"
 #include "nodes/web_server_oatpp/dto.hpp"
 #include "nodes/web_server_oatpp/util.hpp"
-#include "oatpp/json/ObjectMapper.hpp"
+#include "oatpp-websocket/ConnectionHandler.hpp"
+#include "oatpp-websocket/Handshaker.hpp"
 #include "oatpp/macro/codegen.hpp"
-#include "oatpp/macro/component.hpp"
 #include "oatpp/web/mime/ContentMappers.hpp"
 #include "oatpp/web/server/api/ApiController.hpp"
 #include "spdlog/spdlog.h"
+
 
 #include OATPP_CODEGEN_BEGIN(ApiController)  //<- Begin Codegen
 
@@ -34,6 +35,10 @@ class WEB_SERVER_OATPP_API ApiController
     {
         static_files_manager_ = std::make_unique<StaticFilesManager>();
         node_system_component_ = std::make_unique<NodeSystemComponent>();
+        websocket_connection_handler =
+            oatpp::websocket::ConnectionHandler::createShared();
+        websocket_connection_handler->setSocketInstanceListener(
+            std::make_shared<WSInstanceListener>());
     }
 
     void set_node_system(std::shared_ptr<NodeSystem> node_system)
@@ -46,14 +51,33 @@ class WEB_SERVER_OATPP_API ApiController
         return node_system_component_->node_system_attached();
     }
 
+    std::shared_ptr<oatpp::websocket::ConnectionHandler>
+    get_websocket_connection_handler() const
+    {
+        return websocket_connection_handler;
+    }
+
    private:
     // 静态文件管理器，用于提供前端文件
     std::unique_ptr<StaticFilesManager> static_files_manager_ = nullptr;
     // NodeSystem 组件
     std::unique_ptr<NodeSystemComponent> node_system_component_ = nullptr;
+    // WebSocket 连接处理器
+    std::shared_ptr<oatpp::websocket::ConnectionHandler>
+        websocket_connection_handler = nullptr;
 
    public:
-    // TODO: Add other APIs here
+    // 测试websocket接口
+    ENDPOINT(
+        "GET",
+        "ws",
+        ws,
+        REQUEST(std::shared_ptr<IncomingRequest>, request))
+    {
+        return oatpp::websocket::Handshaker::serversideHandshake(
+            request->getHeaders(), websocket_connection_handler);
+    };
+
     ENDPOINT_INFO(GetStatus)
     {
         info->summary = "Get server status";
@@ -63,7 +87,6 @@ class WEB_SERVER_OATPP_API ApiController
     }
     ENDPOINT("GET", "/api/status", GetStatus)
     {
-        // TODO: Implement status logic
         auto status_dto = StatusDto::createShared();
         status_dto->status = "running";
         if (node_system_component_->node_system_attached()) {
@@ -95,8 +118,6 @@ class WEB_SERVER_OATPP_API ApiController
     }
     ENDPOINT("GET", "/api/value-types", GetValueTypes)
     {
-        // TODO: Implement value types logic
-
         // 检查节点系统是否初始化
         if (!node_system_component_->node_system_attached()) {
             auto message_dto = MessageDto::createShared();
@@ -148,8 +169,6 @@ class WEB_SERVER_OATPP_API ApiController
     }
     ENDPOINT("GET", "/api/node-types", GetNodeTypes)
     {
-        // TODO: Implement node types logic
-
         // 检查节点系统是否初始化
         if (!node_system_component_->node_system_attached()) {
             auto message_dto = MessageDto::createShared();
@@ -206,8 +225,6 @@ class WEB_SERVER_OATPP_API ApiController
         ExecuteTree,
         BODY_DTO(Object<NodeTreeDto>, node_tree_dto))
     {
-        // TODO: Implement execute tree logic
-
         // 检查节点系统是否初始化
         if (!node_system_component_->node_system_attached()) {
             auto message_dto = MessageDto::createShared();
@@ -262,8 +279,6 @@ class WEB_SERVER_OATPP_API ApiController
         ValidateTree,
         BODY_DTO(Object<NodeTreeDto>, node_tree_dto))
     {
-        // TODO: Implement validate tree logic
-
         // 检查节点系统是否初始化
         if (!node_system_component_->node_system_attached()) {
             auto message_dto = MessageDto::createShared();

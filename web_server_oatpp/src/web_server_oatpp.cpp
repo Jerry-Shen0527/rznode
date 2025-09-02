@@ -46,7 +46,7 @@ bool WebServerOatpp::initialize(int port)
     router_->addController(api_controller_);
 
     // Create ConnectionHandler
-    connection_handler_ =
+    http_connection_handler_ =
         oatpp::web::server::HttpConnectionHandler::createShared(router_);
 
     // Create ConnectionProvider
@@ -58,7 +58,7 @@ bool WebServerOatpp::initialize(int port)
 
     // Create Server
     server_ = std::make_shared<oatpp::network::Server>(
-        server_connection_provider_, connection_handler_);
+        server_connection_provider_, http_connection_handler_);
 
     spdlog::info("WebServerOatpp: Web server initialized on port {}", port_);
     return true;

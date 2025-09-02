@@ -98,6 +98,11 @@ if(NODE_WEB_SERVER_ENABLED)
     set(OATPP_LINK_TEST_LIBRARY OFF CACHE BOOL "Disable linking test library for oatpp")
     set(BUILD_SHARED_LIBS OFF)  # Build oatpp as static library
     add_subdirectory(ext/oatpp)
+
+    set(OATPP_MODULES_LOCATION "CUSTOM" CACHE STRING "Set custom location for oatpp modules")
+    set(OATPP_DIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/ext/oatpp/" CACHE PATH "oatpp source directory")
+    set(OATPP_DIR_LIB "${CMAKE_CURRENT_BINARY_DIR}/ext/oatpp/" CACHE PATH "oatpp build directory")
+    add_subdirectory(ext/oatpp-websocket)
     set(BUILD_SHARED_LIBS ON)
 
     add_subdirectory(web_server_oatpp)
