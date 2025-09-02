@@ -28,6 +28,11 @@ class NODES_UI_IMGUI_API NodeEditorWidgetBase : public IWidget {
     {
         return true;
     }
+
+   protected:
+    bool Begin() override;
+
+   public:
     bool BuildUI() override;
 
    protected:

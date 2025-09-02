@@ -328,6 +328,20 @@ std::vector<Node*> NodeWidget::add_node(const std::string& id_name)
     return nodes;
 }
 
+bool NodeWidget::BuildUI()
+{
+    if (first_draw) {
+        first_draw = false;
+        return true;
+    }
+
+    //if (ed::GetSelectedObjectCount() > 0) {
+    //    Splitter(true, 4.0f, &leftPaneWidth, &rightPaneWidth, 50.0f, 50.0f);
+    //    ShowLeftPane(leftPaneWidth - 4.0f);
+    //    ImGui::SameLine(0.0f, 12.0f);
+    //}
+    return NodeEditorWidgetBase::BuildUI();
+}
 void NodeWidget::ShowLeftPane(float paneWidth)
 {
     auto& io = ImGui::GetIO();
@@ -441,7 +455,7 @@ void NodeWidget::ShowLeftPane(float paneWidth)
         ImGui::Text("Outputs:");
         ImGui::Indent();
         for (auto& out : output) {
-            auto output_value = *executor->FindPtr(out);
+            auto& output_value = *executor->FindPtr(out);
             ShowInputOrOutput(*out, output_value);
         }
         ImGui::Unindent();

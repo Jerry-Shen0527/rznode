@@ -53,6 +53,10 @@ class NodeWidget : public NodeEditorWidgetBase {
         }
     }
 
+   public:
+    bool BuildUI() override;
+
+   protected:
     void ShowLeftPane(float paneWidth);
 
     float GetTouchProgress(NodeId id);

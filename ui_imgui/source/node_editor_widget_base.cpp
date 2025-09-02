@@ -36,24 +36,21 @@ NodeEditorWidgetBase::NodeEditorWidgetBase(const NodeWidgetSettings& desc)
     NodeEditorWidgetBase::initialize();
 }
 
+bool NodeEditorWidgetBase::Begin()
+{
+    auto res = IWidget::Begin();
+    if (res) {
+        auto& io = ImGui::GetIO();
+
+        io.ConfigFlags =
+            ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
+        ed::SetCurrentEditor(m_Editor);
+    }
+
+    return res;
+}
 bool NodeEditorWidgetBase::BuildUI()
 {
-    if (first_draw) {
-        first_draw = false;
-        return true;
-    }
-    auto& io = ImGui::GetIO();
-
-    io.ConfigFlags =
-        ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
-    ed::SetCurrentEditor(m_Editor);
-
-    // if (ed::GetSelectedObjectCount() > 0) {
-    //     Splitter(true, 4.0f, &leftPaneWidth,
-    //     &rightPaneWidth, 50.0f, 50.0f); ShowLeftPane(leftPaneWidth
-    //     - 4.0f); ImGui::SameLine(0.0f, 12.0f);
-    // }
-
     execute_tree(nullptr);
 
     ed::Begin(GetWindowUniqueName().c_str(), ImGui::GetContentRegionAvail());
