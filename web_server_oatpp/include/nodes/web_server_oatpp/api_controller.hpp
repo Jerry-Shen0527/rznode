@@ -1,5 +1,8 @@
 #pragma once
 
+#include "GCore/GOP.h"
+#include "nodes/web_server_oatpp/geom_dto.hpp"
+#include "oatpp/Types.hpp"
 #ifdef GEOM_EXTENSION
 #include "nodes//web_server_oatpp/geom_ws_listener.hpp"
 #endif
@@ -39,10 +42,12 @@ class WEB_SERVER_OATPP_API ApiController
         node_system_component_ = std::make_unique<NodeSystemComponent>();
 
 #ifdef GEOM_EXTENSION
-        geometry_ws_connection_handler =
+        geometry_ws_connection_handler_ =
             oatpp::websocket::ConnectionHandler::createShared();
-        geometry_ws_connection_handler->setSocketInstanceListener(
-            std::make_shared<GeometryWSInstanceListener>());
+        geometry_ws_instance_listener_ =
+            std::make_shared<GeometryWSInstanceListener>();
+        geometry_ws_connection_handler_->setSocketInstanceListener(
+            geometry_ws_instance_listener_);
 #endif
     }
 
@@ -56,6 +61,13 @@ class WEB_SERVER_OATPP_API ApiController
         return node_system_component_->node_system_attached();
     }
 
+#ifdef GEOM_EXTENSION
+    bool send_message_via_ws(const std::string& message) const
+    {
+        return geometry_ws_instance_listener_->send_message_via_ws(message);
+    }
+#endif
+
    private:
     // 静态文件管理器，用于提供前端文件
     std::unique_ptr<StaticFilesManager> static_files_manager_ = nullptr;
@@ -65,7 +77,9 @@ class WEB_SERVER_OATPP_API ApiController
 #ifdef GEOM_EXTENSION
     // 用于处理 Geometry Visualizer 相关的 WebSocket 连接
     std::shared_ptr<oatpp::websocket::ConnectionHandler>
-        geometry_ws_connection_handler = nullptr;
+        geometry_ws_connection_handler_ = nullptr;
+    std::shared_ptr<GeometryWSInstanceListener> geometry_ws_instance_listener_ =
+        nullptr;
 #endif
 
    public:
@@ -78,8 +92,9 @@ class WEB_SERVER_OATPP_API ApiController
         REQUEST(std::shared_ptr<IncomingRequest>, request))
     {
         return oatpp::websocket::Handshaker::serversideHandshake(
-            request->getHeaders(), geometry_ws_connection_handler);
+            request->getHeaders(), geometry_ws_connection_handler_);
     };
+    ADD_CORS(GeometryWS, "*", "GET, OPTIONS")
 #endif
 
     ENDPOINT_INFO(GetStatus)
@@ -109,6 +124,7 @@ class WEB_SERVER_OATPP_API ApiController
         spdlog::debug("WebServer: Status request handled");
         return createDtoResponse(Status::CODE_200, message_dto);
     }
+    ADD_CORS(GetStatus, "*", "GET, OPTIONS")
 
     ENDPOINT_INFO(GetValueTypes)
     {
@@ -160,6 +176,7 @@ class WEB_SERVER_OATPP_API ApiController
             value_types_dto->value_types->size());
         return createDtoResponse(Status::CODE_200, message_dto);
     }
+    ADD_CORS(GetValueTypes, "*", "GET, OPTIONS")
 
     ENDPOINT_INFO(GetNodeTypes)
     {
@@ -211,6 +228,7 @@ class WEB_SERVER_OATPP_API ApiController
             node_types_dto->node_types->size());
         return createDtoResponse(Status::CODE_200, message_dto);
     }
+    ADD_CORS(GetNodeTypes, "*", "GET, OPTIONS")
 
     ENDPOINT_INFO(ExecuteTree)
     {
@@ -252,6 +270,9 @@ class WEB_SERVER_OATPP_API ApiController
             result_dto->success = false;
             result_dto->error = e.what();
             result_dto->execution_time = 0.0;
+            spdlog::error(
+                "WebServer: Execute tree request failed - exception: {}",
+                e.what());
         }
 
         auto message_dto = MessageDto::createShared();
@@ -265,6 +286,7 @@ class WEB_SERVER_OATPP_API ApiController
             *result_dto->execution_time);
         return createDtoResponse(Status::CODE_200, message_dto);
     }
+    ADD_CORS(ExecuteTree, "*", "POST, OPTIONS")
 
     ENDPOINT_INFO(ValidateTree)
     {
@@ -325,6 +347,17 @@ class WEB_SERVER_OATPP_API ApiController
             *validation_result_dto->valid);
         return createDtoResponse(Status::CODE_200, message_dto);
     }
+    ADD_CORS(ValidateTree, "*", "POST, OPTIONS")
+
+    ENDPOINT("GET", "/test", Test)
+    {
+        auto geometry_dto = MeshDto::createShared();
+        geometry_dto->vertices = { 1.0f, 2.0f, 3.0f };
+        geometry_dto->face_vertex_counts = { 3 };
+        geometry_dto->face_vertex_indices = { 0, 1, 2 };
+
+        return createDtoResponse(Status::CODE_200, geometry_dto);
+    }
 
     ENDPOINT("GET", "/", Root)
     {
@@ -334,6 +367,7 @@ class WEB_SERVER_OATPP_API ApiController
         res->putHeader("Content-Type", "text/html");
         return res;
     }
+    ADD_CORS(Root, "*", "GET, OPTIONS")
 
     ENDPOINT(
         "GET",
@@ -352,6 +386,7 @@ class WEB_SERVER_OATPP_API ApiController
         res->putHeader("Content-Type", mime_type);
         return res;
     }
+    ADD_CORS(GetStaticFiles, "*", "GET, OPTIONS")
 };
 
 USTC_CG_NAMESPACE_CLOSE_SCOPE

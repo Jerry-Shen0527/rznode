@@ -8,7 +8,7 @@
 #include "nodes/web_server_oatpp/web_server_oatpp.hpp"
 
 // 全局变量用于信号处理（放在全局命名空间）
-std::unique_ptr<USTC_CG::WebServerOatpp> g_web_server;
+std::shared_ptr<USTC_CG::WebServerOatpp> g_web_server;
 
 // 信号处理函数，用于优雅地关闭服务器
 void signal_handler(int signal)
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
 
         // 尝试加载节点配置
         try {
-            node_system->load_configuration("test_nodes.json");
+            node_system->load_configuration("web_test_nodes.json");
             std::cout << "节点配置加载成功" << std::endl;
         }
         catch (const std::exception& e) {
@@ -74,6 +74,10 @@ int main(int argc, char* argv[])
             std::cout << "服务器将以基本模式运行" << std::endl;
         }
         node_system->init();
+
+        USTC_CG::WebServerPrams params;
+        params.web_server = g_web_server;
+        node_system->set_global_params<USTC_CG::WebServerPrams>(params);
 
         g_web_server->set_node_system(node_system);
 
