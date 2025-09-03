@@ -262,6 +262,70 @@ oatpp::Vector<oatpp::Float32> GeometryUtils::convertMatrixToDto(
     return matrix_dto;
 }
 
+// 模板偏特化实现
+template<>
+oatpp::Object<MeshDataDto> GeometryUtils::convertGeometryToDto<MeshDataDto>(
+    const std::shared_ptr<Geometry>& geometry,
+    const std::string& geom_id)
+{
+    if (!geometry)
+        return nullptr;
+
+    auto mesh = geometry->get_component<MeshComponent>();
+    if (!mesh)
+        return nullptr;  // 类型不匹配返回空
+
+    auto dto = MeshDataDto::createShared();
+    dto->id = geom_id;
+    dto->type = "mesh";
+    dto->mesh_data = convertMeshToDto(mesh);
+    dto->transform =
+        convertMatrixToDto(geometry->get_component<XformComponent>());
+    return dto;
+}
+
+template<>
+oatpp::Object<PointsDataDto> GeometryUtils::convertGeometryToDto<PointsDataDto>(
+    const std::shared_ptr<Geometry>& geometry,
+    const std::string& geom_id)
+{
+    if (!geometry)
+        return nullptr;
+
+    auto points = geometry->get_component<PointsComponent>();
+    if (!points)
+        return nullptr;  // 类型不匹配返回空
+
+    auto dto = PointsDataDto::createShared();
+    dto->id = geom_id;
+    dto->type = "points";
+    dto->points_data = convertPointsToDto(points);
+    dto->transform =
+        convertMatrixToDto(geometry->get_component<XformComponent>());
+    return dto;
+}
+
+template<>
+oatpp::Object<CurveDataDto> GeometryUtils::convertGeometryToDto<CurveDataDto>(
+    const std::shared_ptr<Geometry>& geometry,
+    const std::string& geom_id)
+{
+    if (!geometry)
+        return nullptr;
+
+    auto curve = geometry->get_component<CurveComponent>();
+    if (!curve)
+        return nullptr;  // 类型不匹配返回空
+
+    auto dto = CurveDataDto::createShared();
+    dto->id = geom_id;
+    dto->type = "curve";
+    dto->curve_data = convertCurveToDto(curve);
+    dto->transform =
+        convertMatrixToDto(geometry->get_component<XformComponent>());
+    return dto;
+}
+
 USTC_CG_NAMESPACE_CLOSE_SCOPE
 
 #endif
