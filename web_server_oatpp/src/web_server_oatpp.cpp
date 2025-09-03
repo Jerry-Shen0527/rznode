@@ -110,6 +110,42 @@ bool WebServerOatpp::is_running() const
     return is_running_;
 }
 
+int WebServerOatpp::get_port() const
+{
+    return port_;
+}
+
+bool WebServerOatpp::send_message_via_ws(const oatpp::Void& dto) const
+{
+    if (!dto) {
+        spdlog::warn("WebServerOatpp: Cannot send null dto via WebSocket");
+        return false;
+    }
+
+    auto object_mapper = api_content_mappers_->getDefaultMapper();
+    if (!object_mapper) {
+        spdlog::error(
+            "WebServerOatpp: Default ObjectMapper is not set in "
+            "ContentMappers");
+        return false;
+    }
+    auto json_str = object_mapper->writeToString(dto);
+    if (!json_str) {
+        spdlog::error("WebServerOatpp: Failed to serialize dto to JSON");
+        return false;
+    }
+
+    spdlog::debug("WebServerOatpp: Sending dto via WebSocket: {}", *json_str);
+
+    // return api_controller_->send_message_via_ws(*json_str);
+    return true;
+}
+
+bool WebServerOatpp::send_message_via_ws(const std::string& message) const
+{
+    return api_controller_->send_message_via_ws(message);
+}
+
 std::unique_ptr<WebServerOatpp> create_web_server_oatpp()
 {
     return std::make_unique<WebServerOatpp>();

@@ -8,6 +8,13 @@ UCG_ADD_APP(
     LIBS web_server_oatpp nodes_system oatpp
 )
 
+add_nodes(
+    SRC_DIRS web_test_nodes 
+    TARGET_NAME web_test_nodes
+    DEP_LIBS web_server_oatpp geometry
+)
+add_dependencies(run_server.cpp web_test_nodes)
+
 # 设置路径
 set(WEB_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/web")
 set(WEB_DEST_DIR "${OUT_BINARY_DIR}/web/dist")

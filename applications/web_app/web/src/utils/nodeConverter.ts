@@ -216,9 +216,9 @@ export function createBaklavaNodeClass(
             } else {
                 // 对于其他类型（包括未知类型）使用TextInterface
                 const genericInterface = () => {
-                    const intf = new TextInterface(
+                    const intf = new NodeInterface(
                         inputName,
-                        defaultValue || ''
+                        undefined
                     )
                     if (baklavaType) {
                         intf.use(setType, baklavaType)

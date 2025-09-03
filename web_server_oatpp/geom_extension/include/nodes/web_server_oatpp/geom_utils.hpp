@@ -18,25 +18,84 @@ USTC_CG_NAMESPACE_OPEN_SCOPE
 
 class WEB_SERVER_OATPP_API GeometryUtils {
    public:
-    // 将几何体列表转换为 DTO 列表
-    static oatpp::Vector<oatpp::Object<GeometryDataDto>> convertGeometriesToDto(
-        const std::vector<std::shared_ptr<Geometry>>& geometries,
-        const std::vector<std::string>& geom_ids);
-
     // 将单个几何体转换为对应的 DTO
-    static oatpp::Object<GeometryDataDto> convertGeometryToDto(
+    template<typename T>
+    static oatpp::Object<T> convertGeometryToDto(
         const std::shared_ptr<Geometry>& geometry,
         const std::string& geom_id);
 
-   private:
-    static oatpp::Object<MeshDataDto::MeshDto> convertMeshToDto(
+   public:
+    static oatpp::Object<MeshDto> convertMeshToDto(
         const std::shared_ptr<MeshComponent>& mesh);
-    static oatpp::Object<PointsDataDto::PointsDto> convertPointsToDto(
+    static oatpp::Object<PointsDto> convertPointsToDto(
         const std::shared_ptr<PointsComponent>& points);
-    static oatpp::Object<CurveDataDto::CurveDto> convertCurveToDto(
+    static oatpp::Object<CurveDto> convertCurveToDto(
         const std::shared_ptr<CurveComponent>& curve);
     static oatpp::Vector<oatpp::Float32> convertMatrixToDto(
         const std::shared_ptr<XformComponent>& xform);
 };
+
+template<>
+oatpp::Object<MeshDataDto> GeometryUtils::convertGeometryToDto<MeshDataDto>(
+    const std::shared_ptr<Geometry>& geometry,
+    const std::string& geom_id)
+{
+    if (!geometry)
+        return nullptr;
+
+    auto mesh = geometry->get_component<MeshComponent>();
+    if (!mesh)
+        return nullptr;  // 类型不匹配返回空
+
+    auto dto = MeshDataDto::createShared();
+    dto->id = geom_id;
+    dto->type = "mesh";
+    dto->mesh_data = convertMeshToDto(mesh);
+    dto->transform =
+        convertMatrixToDto(geometry->get_component<XformComponent>());
+    return dto;
+}
+
+template<>
+oatpp::Object<PointsDataDto> GeometryUtils::convertGeometryToDto<PointsDataDto>(
+    const std::shared_ptr<Geometry>& geometry,
+    const std::string& geom_id)
+{
+    if (!geometry)
+        return nullptr;
+
+    auto points = geometry->get_component<PointsComponent>();
+    if (!points)
+        return nullptr;  // 类型不匹配返回空
+
+    auto dto = PointsDataDto::createShared();
+    dto->id = geom_id;
+    dto->type = "points";
+    dto->points_data = convertPointsToDto(points);
+    dto->transform =
+        convertMatrixToDto(geometry->get_component<XformComponent>());
+    return dto;
+}
+
+template<>
+oatpp::Object<CurveDataDto> GeometryUtils::convertGeometryToDto<CurveDataDto>(
+    const std::shared_ptr<Geometry>& geometry,
+    const std::string& geom_id)
+{
+    if (!geometry)
+        return nullptr;
+
+    auto curve = geometry->get_component<CurveComponent>();
+    if (!curve)
+        return nullptr;  // 类型不匹配返回空
+
+    auto dto = CurveDataDto::createShared();
+    dto->id = geom_id;
+    dto->type = "curve";
+    dto->curve_data = convertCurveToDto(curve);
+    dto->transform =
+        convertMatrixToDto(geometry->get_component<XformComponent>());
+    return dto;
+}
 
 USTC_CG_NAMESPACE_CLOSE_SCOPE

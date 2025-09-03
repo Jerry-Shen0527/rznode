@@ -100,7 +100,7 @@
         <div class="info-section">
             <h3>使用说明</h3>
             <ul>
-                <li><strong>连接URL</strong>: ws://localhost:8080/ws</li>
+                <li><strong>连接URL</strong>: ws://localhost:8080/geometry/ws</li>
                 <li><strong>功能</strong>: 发送消息到服务器，服务器会回复 "Hello from oatpp!: [你的消息]"</li>
                 <li><strong>状态</strong>: 绿色=已连接，红色=未连接，黄色=连接中</li>
                 <li><strong>测试</strong>: 点击"连接到服务器"后，输入消息并发送</li>
@@ -147,10 +147,10 @@
 
                 this.isConnecting = true;
                 this.updateStatus('connecting', '连接中...');
-                this.logMessage('system', '正在连接到 ws://localhost:8080/ws...');
+                this.logMessage('system', '正在连接到 ws://localhost:8080/geometry/ws...');
 
                 try {
-                    this.websocket = new WebSocket('ws://localhost:8080/ws');
+                    this.websocket = new WebSocket('ws://localhost:8080/geometry/ws');
                     
                     this.websocket.onopen = (event) => {
                         this.isConnecting = false;

@@ -248,6 +248,9 @@ void NodeSystemComponent::update_node_tree_from_dto(
                     node->get_input_socket(socket_identifier->c_str());
                 if (input_socket && input_socket->dataField.value) {
                     try {
+                        spdlog::debug(
+                            "Type of input value: {}",
+                            any_type_value.getStoredType()->classId.name);
                         // 根据接口的类型，将any_type_value转换为对应类型
                         switch (input_socket->dataField.value.type().id()) {
                             case entt::type_hash<int>().value():
