@@ -41,7 +41,7 @@ oatpp::Object<MeshDto> GeometryUtils::convertMeshToDto(
 
     // 填充顶点数据
     mesh_dto->vertices = oatpp::Vector<oatpp::Float32>::createShared();
-    // mesh_dto->vertices->reserve(vertices.size());
+    mesh_dto->vertices->reserve(vertices.size());
     for (const auto& v : vertices) {
         mesh_dto->vertices->push_back(v.x);
         mesh_dto->vertices->push_back(v.y);
@@ -50,12 +50,12 @@ oatpp::Object<MeshDto> GeometryUtils::convertMeshToDto(
 
     // 填充面数据
     mesh_dto->face_vertex_counts = oatpp::Vector<oatpp::Int32>::createShared();
-    // mesh_dto->face_vertex_counts->reserve(face_vertex_counts.size());
+    mesh_dto->face_vertex_counts->reserve(face_vertex_counts.size());
     for (const auto& count : face_vertex_counts) {
         mesh_dto->face_vertex_counts->push_back(count);
     }
     mesh_dto->face_vertex_indices = oatpp::Vector<oatpp::Int32>::createShared();
-    // mesh_dto->face_vertex_indices->reserve(face_vertex_indices.size());
+    mesh_dto->face_vertex_indices->reserve(face_vertex_indices.size());
     for (const auto& index : face_vertex_indices) {
         mesh_dto->face_vertex_indices->push_back(index);
     }
@@ -63,7 +63,7 @@ oatpp::Object<MeshDto> GeometryUtils::convertMeshToDto(
     // 填充法线数据
     if (normals_available) {
         mesh_dto->normals = oatpp::Vector<oatpp::Float32>::createShared();
-        // mesh_dto->normals->reserve(normals.size() * 3);
+        mesh_dto->normals->reserve(normals.size() * 3);
         for (const auto& n : normals) {
             mesh_dto->normals->push_back(n.x);
             mesh_dto->normals->push_back(n.y);
@@ -74,7 +74,7 @@ oatpp::Object<MeshDto> GeometryUtils::convertMeshToDto(
     // 填充颜色数据
     if (colors_available) {
         mesh_dto->colors = oatpp::Vector<oatpp::Float32>::createShared();
-        // mesh_dto->colors->reserve(colors.size() * 3);
+        mesh_dto->colors->reserve(colors.size() * 3);
         for (const auto& c : colors) {
             mesh_dto->colors->push_back(c.r);
             mesh_dto->colors->push_back(c.g);
@@ -85,7 +85,7 @@ oatpp::Object<MeshDto> GeometryUtils::convertMeshToDto(
     // 填充 UV 数据
     if (uvs_available) {
         mesh_dto->uvs = oatpp::Vector<oatpp::Float32>::createShared();
-        // mesh_dto->uvs->reserve(uvs.size() * 2);
+        mesh_dto->uvs->reserve(uvs.size() * 2);
         for (const auto& uv : uvs) {
             mesh_dto->uvs->push_back(uv.x);
             mesh_dto->uvs->push_back(uv.y);
@@ -118,7 +118,7 @@ oatpp::Object<PointsDto> GeometryUtils::convertPointsToDto(
 
     // 填充顶点数据
     points_dto->vertices = oatpp::Vector<oatpp::Float32>::createShared();
-    // points_dto->vertices->reserve(vertices.size() * 3);
+    points_dto->vertices->reserve(vertices.size() * 3);
     for (const auto& v : vertices) {
         points_dto->vertices->push_back(v.x);
         points_dto->vertices->push_back(v.y);
@@ -128,7 +128,7 @@ oatpp::Object<PointsDto> GeometryUtils::convertPointsToDto(
     // 填充法线数据
     if (normals_available) {
         points_dto->normals = oatpp::Vector<oatpp::Float32>::createShared();
-        // points_dto->normals->reserve(normals.size() * 3);
+        points_dto->normals->reserve(normals.size() * 3);
         for (const auto& n : normals) {
             points_dto->normals->push_back(n.x);
             points_dto->normals->push_back(n.y);
@@ -139,7 +139,7 @@ oatpp::Object<PointsDto> GeometryUtils::convertPointsToDto(
     // 填充颜色数据
     if (colors_available) {
         points_dto->colors = oatpp::Vector<oatpp::Float32>::createShared();
-        // points_dto->colors->reserve(colors.size() * 3);
+        points_dto->colors->reserve(colors.size() * 3);
         for (const auto& c : colors) {
             points_dto->colors->push_back(c.r);
             points_dto->colors->push_back(c.g);
@@ -150,7 +150,7 @@ oatpp::Object<PointsDto> GeometryUtils::convertPointsToDto(
     // 填充宽度数据
     if (widths_available) {
         points_dto->widths = oatpp::Vector<oatpp::Float32>::createShared();
-        // points_dto->widths->reserve(widths.size());
+        points_dto->widths->reserve(widths.size());
         for (const auto& w : widths) {
             points_dto->widths->push_back(w);
         }
@@ -184,7 +184,7 @@ oatpp::Object<CurveDto> GeometryUtils::convertCurveToDto(
 
     // 填充顶点数据
     curve_dto->vertices = oatpp::Vector<oatpp::Float32>::createShared();
-    // curve_dto->vertices->reserve(vertices.size() * 3);
+    curve_dto->vertices->reserve(vertices.size() * 3);
     for (const auto& v : vertices) {
         curve_dto->vertices->push_back(v.x);
         curve_dto->vertices->push_back(v.y);
@@ -192,16 +192,16 @@ oatpp::Object<CurveDto> GeometryUtils::convertCurveToDto(
     }
 
     // 填充顶点计数数据
-    curve_dto->vert_count = oatpp::Vector<oatpp::Int32>::createShared();
-    // curve_dto->vert_count->reserve(vert_counts.size());
+    curve_dto->vertex_counts = oatpp::Vector<oatpp::Int32>::createShared();
+    curve_dto->vertex_counts->reserve(vert_counts.size());
     for (const auto& count : vert_counts) {
-        curve_dto->vert_count->push_back(count);
+        curve_dto->vertex_counts->push_back(count);
     }
 
     // 填充法线数据
     if (normals_available) {
         curve_dto->normals = oatpp::Vector<oatpp::Float32>::createShared();
-        // curve_dto->normals->reserve(normals.size() * 3);
+        curve_dto->normals->reserve(normals.size() * 3);
         for (const auto& n : normals) {
             curve_dto->normals->push_back(n.x);
             curve_dto->normals->push_back(n.y);
@@ -212,7 +212,7 @@ oatpp::Object<CurveDto> GeometryUtils::convertCurveToDto(
     // 填充颜色数据
     if (colors_available) {
         curve_dto->colors = oatpp::Vector<oatpp::Float32>::createShared();
-        // curve_dto->colors->reserve(colors.size() * 3);
+        curve_dto->colors->reserve(colors.size() * 3);
         for (const auto& c : colors) {
             curve_dto->colors->push_back(c.r);
             curve_dto->colors->push_back(c.g);
@@ -223,7 +223,7 @@ oatpp::Object<CurveDto> GeometryUtils::convertCurveToDto(
     // 填充宽度数据
     if (widths_available) {
         curve_dto->widths = oatpp::Vector<oatpp::Float32>::createShared();
-        // curve_dto->widths->reserve(widths.size());
+        curve_dto->widths->reserve(widths.size());
         for (const auto& w : widths) {
             curve_dto->widths->push_back(w);
         }
@@ -238,7 +238,7 @@ oatpp::Vector<oatpp::Float32> GeometryUtils::convertMatrixToDto(
     const std::shared_ptr<XformComponent>& xform)
 {
     auto matrix_dto = oatpp::Vector<oatpp::Float32>::createShared();
-    // matrix_dto->reserve(16);
+    matrix_dto->reserve(16);
 
     if (xform) {
         auto transform = xform->get_transform();

@@ -248,33 +248,41 @@ void NodeSystemComponent::update_node_tree_from_dto(
                     node->get_input_socket(socket_identifier->c_str());
                 if (input_socket && input_socket->dataField.value) {
                     try {
-                        spdlog::debug(
-                            "Type of input value: {}",
-                            any_type_value.getStoredType()->classId.name);
                         // 根据接口的类型，将any_type_value转换为对应类型
                         switch (input_socket->dataField.value.type().id()) {
                             case entt::type_hash<int>().value():
+                                input_socket->dataField.value = int(
+                                    *any_type_value.retrieve<oatpp::Int64>());
+                                break;
+                            case entt::type_hash<float>().value():
                                 if (any_type_value.getStoredType() ==
-                                    oatpp::UInt64::Class::getType()) {
+                                    oatpp::Float64::Class::getType()) {
                                     input_socket->dataField.value =
-                                        int(*any_type_value
-                                                 .retrieve<oatpp::UInt64>());
+                                        float(*any_type_value
+                                                   .retrieve<oatpp::Float64>());
                                 }
                                 else if (
                                     any_type_value.getStoredType() ==
                                     oatpp::Int64::Class::getType()) {
                                     input_socket->dataField.value =
-                                        int(*any_type_value
-                                                 .retrieve<oatpp::Int64>());
+                                        float(*any_type_value
+                                                   .retrieve<oatpp::Int64>());
                                 }
                                 break;
-                            case entt::type_hash<float>().value():
-                                input_socket->dataField.value = float(
-                                    *any_type_value.retrieve<oatpp::Float64>());
-                                break;
                             case entt::type_hash<double>().value():
-                                input_socket->dataField.value = double(
-                                    *any_type_value.retrieve<oatpp::Float64>());
+                                if (any_type_value.getStoredType() ==
+                                    oatpp::Float64::Class::getType()) {
+                                    input_socket->dataField.value = double(
+                                        *any_type_value
+                                             .retrieve<oatpp::Float64>());
+                                }
+                                else if (
+                                    any_type_value.getStoredType() ==
+                                    oatpp::Int64::Class::getType()) {
+                                    input_socket->dataField.value =
+                                        double(*any_type_value
+                                                    .retrieve<oatpp::Int64>());
+                                }
                                 break;
                             case entt::type_hash<bool>().value():
                                 input_socket->dataField.value = bool(
@@ -323,27 +331,38 @@ void NodeSystemComponent::update_node_tree_from_dto(
                         // 根据接口的类型，将any_type_value转换为对应类型
                         switch (input_socket->dataField.value.type().id()) {
                             case entt::type_hash<int>().value():
+                                input_socket->dataField.value = int(
+                                    *any_type_value.retrieve<oatpp::Int64>());
+                                break;
+                            case entt::type_hash<float>().value():
                                 if (any_type_value.getStoredType() ==
-                                    oatpp::UInt64::Class::getType()) {
+                                    oatpp::Float64::Class::getType()) {
                                     input_socket->dataField.value =
-                                        int(*any_type_value
-                                                 .retrieve<oatpp::UInt64>());
+                                        float(*any_type_value
+                                                   .retrieve<oatpp::Float64>());
                                 }
                                 else if (
                                     any_type_value.getStoredType() ==
                                     oatpp::Int64::Class::getType()) {
                                     input_socket->dataField.value =
-                                        int(*any_type_value
-                                                 .retrieve<oatpp::Int64>());
+                                        float(*any_type_value
+                                                   .retrieve<oatpp::Int64>());
                                 }
                                 break;
-                            case entt::type_hash<float>().value():
-                                input_socket->dataField.value = float(
-                                    *any_type_value.retrieve<oatpp::Float64>());
-                                break;
                             case entt::type_hash<double>().value():
-                                input_socket->dataField.value = double(
-                                    *any_type_value.retrieve<oatpp::Float64>());
+                                if (any_type_value.getStoredType() ==
+                                    oatpp::Float64::Class::getType()) {
+                                    input_socket->dataField.value = double(
+                                        *any_type_value
+                                             .retrieve<oatpp::Float64>());
+                                }
+                                else if (
+                                    any_type_value.getStoredType() ==
+                                    oatpp::Int64::Class::getType()) {
+                                    input_socket->dataField.value =
+                                        double(*any_type_value
+                                                    .retrieve<oatpp::Int64>());
+                                }
                                 break;
                             case entt::type_hash<bool>().value():
                                 input_socket->dataField.value = bool(

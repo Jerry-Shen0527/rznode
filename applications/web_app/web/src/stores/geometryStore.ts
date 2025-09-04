@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { GeometryWebSocketClient, type GeometryData } from '../api/geometry-websocket'
+import { GeometryMessage, GeometryWebSocketClient, type GeometryData } from '../api/geometry-websocket'
+import { logTag } from '../utils/logFormatter'
 
 export const useGeometryStore = defineStore('geometry', () => {
     // WebSocket连接状态
@@ -11,7 +12,7 @@ export const useGeometryStore = defineStore('geometry', () => {
     // 几何数据
     const geometries = ref<GeometryData[]>([])
     const selectedGeometryIds = ref<Set<string>>(new Set())
-    const sceneId = ref('')
+    const sceneId = ref('default')
 
     // 相机和视图状态
     const cameraPosition = ref({ x: 0, y: 0, z: 10 })
@@ -36,13 +37,12 @@ export const useGeometryStore = defineStore('geometry', () => {
             // 设置消息处理器
             wsClient.value.onMessage('geometry_update', handleGeometryUpdate)
             wsClient.value.onMessage('geometry_clear', handleGeometryClear)
-            wsClient.value.onMessage('scene_update', handleSceneUpdate)
 
             await wsClient.value.connect()
             isConnected.value = true
             connectionStatus.value = '已连接'
         } catch (error) {
-            console.error('WebSocket连接失败:', error)
+            console.error(logTag('ERROR'), 'WebSocket连接失败:', error)
             isConnected.value = false
             connectionStatus.value = '连接失败'
             throw error
@@ -59,24 +59,42 @@ export const useGeometryStore = defineStore('geometry', () => {
     }
 
     // 几何数据处理方法
-    const handleGeometryUpdate = (message: any) => {
-        geometries.value = message.geometries || []
-        sceneId.value = message.scene_id || ''
-        console.log(`几何数据已更新: ${geometries.value.length} 个对象`)
+    const handleGeometryUpdate = (message: GeometryMessage) => {
+        if (message.scene_id !== sceneId.value) {
+            console.debug(
+                logTag('DEBUG'), `收到的几何数据场景ID (${message.scene_id}) 与当前场景ID (${sceneId.value}) 不匹配，已忽略该消息。`
+            )
+            return
+        }
+
+        // 合并新数据
+        const newGeometries = message.geometries || []
+        const existingIds = new Set(geometries.value.map(g => g.id))
+        newGeometries.forEach(geom => {
+            if (!existingIds.has(geom.id)) {
+                geometries.value.push(geom)
+            } else {
+                // 更新已有几何体
+                const index = geometries.value.findIndex(g => g.id === geom.id)
+                if (index !== -1) {
+                    geometries.value[index] = geom
+                }
+            }
+        })
+        console.log(logTag('INFO'), `几何数据已更新: ${geometries.value.length} 个对象`)
     }
 
-    const handleGeometryClear = () => {
+    const handleGeometryClear = (message: GeometryMessage) => {
+        if (message.scene_id !== sceneId.value) {
+            console.warn(
+                logTag('DEBUG'), `收到的几何数据场景ID (${message.scene_id}) 与当前场景ID (${sceneId.value}) 不匹配，已忽略该消息。`
+            )
+            return
+        }
+
         geometries.value = []
         selectedGeometryIds.value.clear()
-        console.log('几何数据已清空')
-    }
-
-    const handleSceneUpdate = (message: any) => {
-        // 处理场景更新
-        sceneId.value = message.scene_id || ''
-        if (message.geometries) {
-            geometries.value = message.geometries
-        }
+        console.log(logTag('INFO'), '几何数据已清空')
     }
 
     // 几何选择方法

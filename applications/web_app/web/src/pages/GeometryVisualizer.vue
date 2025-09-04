@@ -98,10 +98,11 @@
                                 <span class="geometry-id">{{ geometry.id }}</span>
                             </div>
                             <div class="geometry-stats">
-                                顶点: {{ Math.floor(geometry.vertices.length / 3) }}
-                                <span v-if="geometry.indices">
-                                    | 面: {{ Math.floor(geometry.indices.length / 3) }}
+                                <span v-if="geometry.mesh_data">
+                                    顶点: {{ Math.floor(geometry.mesh_data.vertices.length / 3) }}
+                                    | 面: {{ geometry.mesh_data.face_vertex_counts.length }}
                                 </span>
+                                <!-- TODO: 补充更多信息 -->
                             </div>
                         </div>
                     </div>
@@ -142,9 +143,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useGeometryStore } from '../stores/geometryStore'
-// import { ThreeJSRenderer } from '../utils/ThreeJSRenderer'
+import { ThreeJSRenderer } from '../utils/threeJSRenderer'
+import { logTag } from '../utils/logFormatter'
 
 // 状态管理
 const geometryStore = useGeometryStore()
@@ -152,7 +154,7 @@ const geometryStore = useGeometryStore()
 // 组件状态
 const viewportRef = ref<HTMLElement>()
 const isConnecting = ref(false)
-// const renderer = ref<ThreeJSRenderer>()
+const renderer = ref<ThreeJSRenderer>()
 
 // 生命周期
 onMounted(async () => {
@@ -167,20 +169,20 @@ onUnmounted(() => {
 // 初始化3D查看器
 const initializeViewer = async () => {
     if (!viewportRef.value) {
-        console.error('视口容器未找到')
+        console.error(logTag('ERROR'), '视口容器未找到')
         return
     }
 
     try {
         // 初始化Three.js渲染器
-        // renderer.value = new ThreeJSRenderer(viewportRef.value)
+        renderer.value = new ThreeJSRenderer(viewportRef.value)
 
         // 连接WebSocket
         await connectWebSocket()
 
-        console.log('几何可视化器初始化完成')
+        console.log(logTag('INFO'), '几何可视化器初始化完成')
     } catch (error) {
-        console.error('初始化几何可视化器失败:', error)
+        console.error(logTag('ERROR'), '初始化几何可视化器失败:', error)
     }
 }
 
@@ -189,9 +191,9 @@ const connectWebSocket = async () => {
     isConnecting.value = true
     try {
         await geometryStore.connectWebSocket()
-        console.log('WebSocket连接成功')
+        console.log(logTag('INFO'), 'WebSocket连接成功')
     } catch (error) {
-        console.error('WebSocket连接失败:', error)
+        console.error(logTag('ERROR'), 'WebSocket连接失败:', error)
     } finally {
         isConnecting.value = false
     }
@@ -208,31 +210,31 @@ const toggleConnection = async () => {
 // 视图控制
 const toggleWireframe = () => {
     geometryStore.toggleWireframe()
-    // if (renderer.value) {
-    //   renderer.value.setWireframe(geometryStore.showWireframe)
-    // }
+    if (renderer.value) {
+        renderer.value.setWireframe(geometryStore.showWireframe)
+    }
 }
 
 const onBackgroundColorChange = (event: Event) => {
     const target = event.target as HTMLInputElement
     geometryStore.setBackgroundColor(target.value)
-    // if (renderer.value) {
-    //   renderer.value.setBackgroundColor(target.value)
-    // }
+    if (renderer.value) {
+        renderer.value.setBackgroundColor(target.value)
+    }
 }
 
 const resetView = () => {
     geometryStore.resetView()
-    // if (renderer.value) {
-    //   renderer.value.resetCamera()
-    // }
+    if (renderer.value) {
+        renderer.value.resetCamera()
+    }
 }
 
 const clearSelection = () => {
     geometryStore.clearSelection()
-    // if (renderer.value) {
-    //   renderer.value.clearSelection()
-    // }
+    if (renderer.value) {
+        renderer.value.clearSelection()
+    }
 }
 
 // 几何对象交互
@@ -244,339 +246,40 @@ const toggleGeometrySelection = (id: string) => {
     geometryStore.sendGeometrySelection(selectedIds)
 
     // 更新3D场景选择状态
-    // if (renderer.value) {
-    //   if (geometryStore.selectedGeometryIds.has(id)) {
-    //     renderer.value.selectObject(id)
-    //   } else {
-    //     renderer.value.deselectObject(id)
-    //   }
-    // }
+    if (renderer.value) {
+        if (geometryStore.selectedGeometryIds.has(id)) {
+            renderer.value.selectObject(id)
+        } else {
+            renderer.value.deselectObject(id)
+        }
+    }
 }
 
 const onViewportClick = (event: MouseEvent) => {
     // 处理3D场景中的点击事件
     // 可以实现射线投射来选择3D对象
-    console.log('视口点击:', event)
+    console.log(logTag('INFO'), '视口点击:', event)
 }
 
 // 清理资源
 const cleanup = () => {
     geometryStore.disconnectWebSocket()
-    // if (renderer.value) {
-    //   renderer.value.dispose()
-    // }
+    if (renderer.value) {
+        renderer.value.dispose()
+    }
 }
 
 // 监听几何数据变化
-// watch(() => geometryStore.geometries, (newGeometries) => {
-//   if (renderer.value) {
-//     renderer.value.updateGeometries(newGeometries)
-//   }
-// }, { deep: true })
+watch(() => geometryStore.geometries, (newGeometries) => {
+    if (renderer.value) {
+        renderer.value.updateGeometries(newGeometries)
+    }
+}, { deep: true })
 
 // 监听视图模式变化
-// watch(() => geometryStore.viewMode, (newMode) => {
-//   if (renderer.value) {
-//     renderer.value.setViewMode(newMode)
-//   }
-// })
+watch(() => geometryStore.viewMode, (newMode) => {
+    if (renderer.value) {
+        renderer.value.setViewMode(newMode)
+    }
+})
 </script>
-
-<style scoped>
-.geometry-visualizer {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background: #1e1e1e;
-    color: #ffffff;
-}
-
-.navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    background: #2d2d2d;
-    border-bottom: 1px solid #3d3d3d;
-}
-
-.nav-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.nav-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.title {
-    font-size: 1.2rem;
-    margin: 0;
-    color: #ffffff;
-}
-
-.nav-link {
-    text-decoration: none;
-}
-
-.connection-status {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.875rem;
-    background: #dc3545;
-    color: white;
-}
-
-.connection-status.connected {
-    background: #28a745;
-}
-
-.toolbar {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.5rem 1rem;
-    background: #2a2a2a;
-    border-bottom: 1px solid #3d3d3d;
-    flex-wrap: wrap;
-}
-
-.toolbar-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.group-label {
-    font-size: 0.875rem;
-    color: #cccccc;
-}
-
-.stats {
-    font-size: 0.875rem;
-    color: #cccccc;
-}
-
-.color-picker {
-    width: 32px;
-    height: 24px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.main-container {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-}
-
-.viewport-container {
-    flex: 1;
-    position: relative;
-    background: #1a1a1a;
-}
-
-.viewport {
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-}
-
-.viewport-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-}
-
-.no-geometry-message {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    color: #888;
-}
-
-.no-geometry-message p {
-    margin: 0.5rem 0;
-}
-
-.hint {
-    font-size: 0.875rem;
-    color: #666;
-}
-
-.viewport-info {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-}
-
-.scene-info {
-    background: rgba(0, 0, 0, 0.7);
-    padding: 0.5rem;
-    border-radius: 4px;
-    font-size: 0.875rem;
-}
-
-.sidebar {
-    width: 300px;
-    background: #2a2a2a;
-    border-left: 1px solid #3d3d3d;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.panel {
-    border-bottom: 1px solid #3d3d3d;
-    flex-shrink: 0;
-}
-
-.panel-title {
-    padding: 0.75rem 1rem;
-    margin: 0;
-    background: #353535;
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.geometry-list {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.geometry-item {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #3d3d3d;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.geometry-item:hover {
-    background: #333333;
-}
-
-.geometry-item.selected {
-    background: #0d6efd;
-}
-
-.geometry-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.25rem;
-}
-
-.geometry-type {
-    font-weight: 600;
-    color: #17a2b8;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-}
-
-.geometry-id {
-    font-size: 0.75rem;
-    color: #888;
-    font-family: monospace;
-}
-
-.geometry-stats {
-    font-size: 0.75rem;
-    color: #aaa;
-}
-
-.camera-controls {
-    padding: 1rem;
-}
-
-.control-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-}
-
-.control-row label {
-    color: #cccccc;
-}
-
-.control-row span {
-    color: #ffffff;
-    font-family: monospace;
-}
-
-/* 按钮样式 */
-.btn {
-    padding: 0.375rem 0.75rem;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    transition: all 0.2s;
-    background: #6c757d;
-    color: white;
-    text-decoration: none;
-    display: inline-block;
-}
-
-.btn:hover:not(:disabled) {
-    opacity: 0.8;
-}
-
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.btn-primary {
-    background: #0d6efd;
-    border-color: #0d6efd;
-}
-
-.btn-secondary {
-    background: #6c757d;
-    border-color: #6c757d;
-}
-
-.btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-}
-
-.btn.active {
-    background: #0d6efd;
-    border-color: #0d6efd;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-    .main-container {
-        flex-direction: column;
-    }
-
-    .sidebar {
-        width: 100%;
-        height: 300px;
-    }
-
-    .toolbar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-
-    .toolbar-group {
-        width: 100%;
-        justify-content: space-between;
-    }
-}
-</style>

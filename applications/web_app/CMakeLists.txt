@@ -5,7 +5,7 @@ UCG_ADD_APP(
 
 UCG_ADD_APP(
     SRC run_server_oatpp.cpp
-    LIBS web_server_oatpp nodes_system oatpp
+    LIBS web_server_oatpp nodes_system
 )
 
 add_nodes(

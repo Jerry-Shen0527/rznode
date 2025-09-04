@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { GeometryData } from '../api/geometry-websocket'
+import type { CurveData, GeometryData, MeshData, PointsData } from '../api/geometry-websocket'
+import { logTag } from './logFormatter'
 
 export class ThreeJSRenderer {
     private scene!: THREE.Scene
@@ -156,16 +157,28 @@ export class ThreeJSRenderer {
 
         switch (geomData.type) {
             case 'mesh':
-                geometry = this.createMeshGeometry(geomData)
+                if (!geomData.mesh_data) {
+                    console.warn(logTag('WARNING'), 'mesh_data 未定义:', geomData)
+                    return null
+                }
+                geometry = this.createMeshGeometry(geomData.mesh_data)
                 break
-            case 'line':
-                geometry = this.createLineGeometry(geomData)
+            case 'curve':
+                if (!geomData.curve_data) {
+                    console.warn(logTag('WARNING'), 'curve_data 未定义:', geomData)
+                    return null
+                }
+                geometry = this.createCurveGeometry(geomData.curve_data)
                 break
-            case 'point':
-                geometry = this.createPointGeometry(geomData)
+            case 'points':
+                if (!geomData.points_data) {
+                    console.warn(logTag('WARNING'), 'points_data 未定义:', geomData)
+                    return null
+                }
+                geometry = this.createPointsGeometry(geomData.points_data)
                 break
             default:
-                console.warn('未知的几何类型:', geomData.type)
+                console.warn(logTag('WARNING'), '未知的几何类型:', geomData.type)
                 return null
         }
 
@@ -173,10 +186,10 @@ export class ThreeJSRenderer {
 
         let object: THREE.Object3D
 
-        if (geomData.type === 'line') {
+        if (geomData.type === 'curve') {
             const material = new THREE.LineBasicMaterial({ color: 0x0066cc })
             object = new THREE.Line(geometry, material)
-        } else if (geomData.type === 'point') {
+        } else if (geomData.type === 'points') {
             const material = new THREE.PointsMaterial({ color: 0xff0000, size: 5 })
             object = new THREE.Points(geometry, material)
         } else {
@@ -196,46 +209,50 @@ export class ThreeJSRenderer {
         return object
     }
 
-    private createMeshGeometry(geomData: GeometryData): THREE.BufferGeometry {
+    private createMeshGeometry(meshData: MeshData): THREE.BufferGeometry {
         const geometry = new THREE.BufferGeometry()
 
         // 顶点数据
-        const vertices = new Float32Array(geomData.vertices)
+        const vertices = new Float32Array(meshData.vertices)
         geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
 
         // 索引数据
-        if (geomData.indices && geomData.indices.length > 0) {
-            const indices = new Uint32Array(geomData.indices)
-            geometry.setIndex(new THREE.BufferAttribute(indices, 1))
+        if (meshData.face_vertex_counts && meshData.face_vertex_counts.length > 0) {
+            // 先检查是否只包含三角形面
+            const allTriangles = meshData.face_vertex_counts.every(count => count === 3)
+            if (allTriangles && meshData.face_vertex_indices && meshData.face_vertex_indices.length > 0) {
+                const indices = new Uint32Array(meshData.face_vertex_indices)
+                geometry.setIndex(new THREE.BufferAttribute(indices, 1))
+            }
         }
 
         // 法线数据
-        if (geomData.normals && geomData.normals.length > 0) {
-            const normals = new Float32Array(geomData.normals)
+        if (meshData.normals && meshData.normals.length > 0) {
+            const normals = new Float32Array(meshData.normals)
             geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
         } else {
             geometry.computeVertexNormals()
         }
 
         // 颜色数据
-        if (geomData.colors && geomData.colors.length > 0) {
-            const colors = new Float32Array(geomData.colors)
+        if (meshData.colors && meshData.colors.length > 0) {
+            const colors = new Float32Array(meshData.colors)
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
         }
 
         return geometry
     }
 
-    private createLineGeometry(geomData: GeometryData): THREE.BufferGeometry {
+    private createCurveGeometry(curveData: CurveData): THREE.BufferGeometry {
         const geometry = new THREE.BufferGeometry()
-        const vertices = new Float32Array(geomData.vertices)
+        const vertices = new Float32Array(curveData.vertices)
         geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
         return geometry
     }
 
-    private createPointGeometry(geomData: GeometryData): THREE.BufferGeometry {
+    private createPointsGeometry(pointsData: PointsData): THREE.BufferGeometry {
         const geometry = new THREE.BufferGeometry()
-        const vertices = new Float32Array(geomData.vertices)
+        const vertices = new Float32Array(pointsData.vertices)
         geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
         return geometry
     }

@@ -67,10 +67,10 @@ class WEB_SERVER_OATPP_API CurveDto : public oatpp::DTO {
     DTO_INIT(CurveDto, DTO)
 
     DTO_FIELD(Vector<Float32>, vertices) = { };
-    DTO_FIELD(Vector<Int32>, vert_count) = { };
+    DTO_FIELD(Vector<Int32>, vertex_counts) = { };
+    DTO_FIELD(Vector<Float32>, normals) = { };
     DTO_FIELD(Vector<Float32>, colors) = { };
     DTO_FIELD(Vector<Float32>, widths) = { };
-    DTO_FIELD(Vector<Float32>, normals) = { };
     DTO_FIELD(Boolean, periodic) = false;
 };
 
@@ -83,7 +83,7 @@ class WEB_SERVER_OATPP_API CurveDataDto : public GeometryDataDto {
 class WEB_SERVER_OATPP_API GeometryMessageDto : public oatpp::DTO {
     DTO_INIT(GeometryMessageDto, DTO)
 
-    // 'geometry_update' | 'geometry_clear' | 'scene_update'
+    // 'geometry_update' | 'geometry_clear'
     DTO_FIELD(String, type);
     // 当前由于只有一棵节点树，因此只有一个场景，scene_id
     // 可固定为 "default"
