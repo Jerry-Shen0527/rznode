@@ -4,7 +4,7 @@ import chalk from 'chalk'
 /**
  * 日志类型
  */
-export type LogType = 'INFO' | 'WARNING' | 'ERROR'
+export type LogType = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR'
 
 /**
  * 获取时间戳字符串 (HH:MM:SS 格式)
@@ -29,6 +29,9 @@ export const logTag = (type: LogType): string => {
 
     let level: string
     switch (type) {
+        case 'DEBUG':
+            level = chalk.green('[DEBUG]')
+            break
         case 'INFO':
             level = chalk.blue('[INFO]')
             break

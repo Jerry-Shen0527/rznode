@@ -1,12 +1,12 @@
 #include <memory>
+#include <string>
 
 #include "GCore/GOP.h"
 #include "nodes/core/def/node_def.hpp"
 #include "nodes/web_server_oatpp/geom_dto.hpp"
 #include "nodes/web_server_oatpp/geom_utils.hpp"
 #include "nodes/web_server_oatpp/web_server_oatpp.hpp"
-#include "oatpp-websocket/WebSocket.hpp"
-#include "oatpp/Types.hpp"
+#include "spdlog/spdlog.h"
 
 NODE_DEF_OPEN_SCOPE
 
@@ -18,6 +18,7 @@ NODE_DECLARATION_UI(send_geom)
 NODE_DECLARATION_FUNCTION(send_geom)
 {
     b.add_input<Geometry>("geometry");
+    b.add_input<std::string>("geom_id");
 }
 
 NODE_EXECUTION_FUNCTION(send_geom)
@@ -29,6 +30,11 @@ NODE_EXECUTION_FUNCTION(send_geom)
     }
 
     auto geom = params.get_input<Geometry>("geometry");
+    auto geom_id = params.get_input<std::string>("geom_id");
+
+    if (geom_id.length() == 0) {
+        geom_id = "default_geom_id";
+    }
 
     // 将几何数据转换为DTO
     auto mesh = geom.get_component<MeshComponent>();
@@ -40,46 +46,50 @@ NODE_EXECUTION_FUNCTION(send_geom)
         return false;
     }
 
-    // auto mesh_dto = GeometryUtils::convertMeshToDto(mesh);
-    // web_server_params.web_server->send_message_via_ws(mesh_dto);
-
-    // auto geom_dto = GeometryDataDto::createShared();
-    // geom_dto->id = "geom_1";
-    // geom_dto->type = "mesh";
-    // geom_dto->transform = { 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-    //                         0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
-    // web_server_params.web_server->send_message_via_ws(geom_dto);
-
-    // auto mesh_data_dto = MeshDataDto::createShared();
-    // mesh_data_dto->id = "mesh_1";
-    // mesh_data_dto->type = "mesh";
-    // mesh_data_dto->mesh_data = mesh_dto;
-    // web_server_params.web_server->send_message_via_ws(mesh_data_dto);
-
-    // auto geom_dto_2 = GeometryUtils::convertGeometryToDto<MeshDataDto>(
-    //     std::make_shared<Geometry>(geom), "mesh_2");
-    // web_server_params.web_server->send_message_via_ws(geom_dto_2);
+    // 新建 GeometryMessage
+    auto geom_message_dto = GeometryMessageDto::createShared();
+    geom_message_dto->type = "geometry_update";
+    geom_message_dto->scene_id = "default";
+    geom_message_dto->timestamp = static_cast<v_int64>(std::time(nullptr));
 
     if (mesh) {
+        for (int count : mesh->get_face_vertex_counts()) {
+            if (count != 3) {
+                spdlog::error(
+                    "send_geom node: Mesh contains non-triangular faces, which "
+                    "is not supported yet");
+                return false;
+            }
+        }
+
         auto geom_dto = GeometryUtils::convertGeometryToDto<MeshDataDto>(
-            std::make_shared<Geometry>(geom), "mesh_1");
+            std::make_shared<Geometry>(geom), geom_id);
         if (geom_dto) {
-            web_server_params.web_server->send_message_via_ws(geom_dto);
+            geom_message_dto->geometries->push_back(geom_dto);
         }
     }
     if (curve) {
         auto geom_dto = GeometryUtils::convertGeometryToDto<CurveDataDto>(
-            std::make_shared<Geometry>(geom), "curve_1");
+            std::make_shared<Geometry>(geom), geom_id);
         if (geom_dto) {
-            web_server_params.web_server->send_message_via_ws(geom_dto);
+            geom_message_dto->geometries->push_back(geom_dto);
         }
     }
     if (points) {
         auto geom_dto = GeometryUtils::convertGeometryToDto<PointsDataDto>(
-            std::make_shared<Geometry>(geom), "points_1");
+            std::make_shared<Geometry>(geom), geom_id);
         if (geom_dto) {
-            web_server_params.web_server->send_message_via_ws(geom_dto);
+            geom_message_dto->geometries->push_back(geom_dto);
         }
+    }
+
+    // 发送消息
+    if (geom_message_dto->geometries->size() > 0) {
+        web_server_params.web_server->send_message_via_ws(geom_message_dto);
+    }
+    else {
+        spdlog::warn("send_geom node: No valid geometry DTO to send");
+        return false;
     }
 
     return true;

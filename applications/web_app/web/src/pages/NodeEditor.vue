@@ -1,5 +1,5 @@
 <template>
-  <div class="app">
+  <div class="node-editor">
     <!-- 标题栏 -->
     <header class="header">
       <h1 class="title">RzNode - 节点编程系统</h1>

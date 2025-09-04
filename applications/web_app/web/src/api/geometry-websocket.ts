@@ -1,18 +1,44 @@
 // WebSocket client for geometry visualization
 // 使用JSON格式传输几何数据，便于早期开发和调试
 
+import { logTag } from "../utils/logFormatter"
+
+export interface MeshData {
+    vertices: number[]
+    face_vertex_counts: number[]
+    face_vertex_indices: number[]
+    normals: number[]
+    colors: number[]
+    uvs: number[]
+}
+
+export interface PointsData {
+    vertices: number[]
+    normals: number[]
+    colors: number[]
+    widths: number[]
+}
+
+export interface CurveData {
+    vertices: number[]
+    vert_counts: number[]
+    normals: number[]
+    colors: number[]
+    widths: number[]
+    periodic: boolean
+}
+
 export interface GeometryData {
     id: string
-    type: 'mesh' | 'line' | 'point'
-    vertices: number[]
-    indices?: number[]
-    colors?: number[]
-    normals?: number[]
-    transform?: number[] // 4x4 transformation matrix
+    type: 'mesh' | 'points' | 'curve'
+    transform: number[]
+    mesh_data?: MeshData
+    points_data?: PointsData
+    curve_data?: CurveData
 }
 
 export interface GeometryMessage {
-    type: 'geometry_update' | 'geometry_clear' | 'scene_update'
+    type: 'geometry_update' | 'geometry_clear'
     geometries: GeometryData[]
     scene_id: string
     timestamp: number
@@ -32,7 +58,7 @@ export class GeometryWebSocketClient {
     private reconnectInterval = 1000
     private messageHandlers: Map<string, (data: any) => void> = new Map()
 
-    constructor(url: string = 'ws://localhost:8080/geometry') {
+    constructor(url: string = 'ws://localhost:8080/geometry/ws') {
         this.url = url
     }
 
@@ -42,7 +68,7 @@ export class GeometryWebSocketClient {
                 this.ws = new WebSocket(this.url)
 
                 this.ws.onopen = () => {
-                    console.log('几何可视化WebSocket连接已建立')
+                    console.log(logTag('INFO'), '几何可视化WebSocket连接已建立')
                     this.reconnectAttempts = 0
                     resolve()
                 }
@@ -53,17 +79,17 @@ export class GeometryWebSocketClient {
                         const message: GeometryMessage = JSON.parse(event.data)
                         this.handleMessage(message)
                     } catch (error) {
-                        console.error('解析WebSocket消息失败:', error)
+                        console.error(logTag('ERROR'), '解析WebSocket消息失败:', error)
                     }
                 }
 
                 this.ws.onclose = () => {
-                    console.log('几何可视化WebSocket连接已关闭')
+                    console.log(logTag('INFO'), '几何可视化WebSocket连接已关闭')
                     this.handleReconnect()
                 }
 
                 this.ws.onerror = (error) => {
-                    console.error('几何可视化WebSocket错误:', error)
+                    console.error(logTag('ERROR'), '几何可视化WebSocket错误:', error)
                     reject(error)
                 }
             } catch (error) {
@@ -89,11 +115,11 @@ export class GeometryWebSocketClient {
     private handleReconnect(): void {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++
-            console.log(`尝试重连WebSocket (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+            console.log(logTag('INFO'), `尝试重连WebSocket (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
 
             setTimeout(() => {
                 this.connect().catch(() => {
-                    console.error('WebSocket重连失败')
+                    console.error(logTag('ERROR'), 'WebSocket重连失败')
                 })
             }, this.reconnectInterval * this.reconnectAttempts)
         }
@@ -107,7 +133,7 @@ export class GeometryWebSocketClient {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(message))
         } else {
-            console.warn('WebSocket未连接，无法发送消息')
+            console.warn(logTag('WARNING'), 'WebSocket未连接，无法发送消息')
         }
     }
 

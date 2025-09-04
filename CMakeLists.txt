@@ -4,6 +4,10 @@ project(rznode VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(WIN32)
+set(WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
+
 
 set(RZNODES_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "RZNodes directory" FORCE)
 message(STATUS "RZNODES_DIR: ${RZNODES_DIR}")
@@ -99,21 +103,21 @@ if(NODE_WEB_SERVER_ENABLED)
     set(OATPP_INSTALL OFF CACHE BOOL "Disable installation of oatpp")
     set(OATPP_BUILD_TESTS OFF CACHE BOOL "Disable building tests for oatpp")
     set(OATPP_LINK_TEST_LIBRARY OFF CACHE BOOL "Disable linking test library for oatpp")
-    set(BUILD_SHARED_LIBS OFF)  # Build oatpp as static library
+    # set(BUILD_SHARED_LIBS OFF)  # Build oatpp as static library
     add_subdirectory(ext/oatpp)
 
     set(OATPP_MODULES_LOCATION "CUSTOM" CACHE STRING "Set custom location for oatpp modules")
     set(OATPP_DIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/ext/oatpp/" CACHE PATH "oatpp source directory")
     set(OATPP_DIR_LIB "${CMAKE_CURRENT_BINARY_DIR}/ext/oatpp/" CACHE PATH "oatpp build directory")
     add_subdirectory(ext/oatpp-websocket)
-    set(BUILD_SHARED_LIBS ON)
+    # set(BUILD_SHARED_LIBS ON)
 
     add_subdirectory(web_server_oatpp)
     if(GEOM_EXTENSION_ENABLED)
         add_subdirectory(ext/GCore)
         target_link_libraries(web_server_oatpp PUBLIC geometry)
         target_include_directories(web_server_oatpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/web_server_oatpp/geom_extension/include)
-        target_compile_definitions(web_server_oatpp PUBLIC GEOM_EXTENSION=1)
+        target_compile_definitions(web_server_oatpp PRIVATE GEOM_EXTENSION=1)
     endif()
 
 endif()
