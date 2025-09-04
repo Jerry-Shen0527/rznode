@@ -337,6 +337,10 @@ bool NodeTree::is_pin_linked(SocketID id) const
 {
     return !find_pin(id)->directly_linked_links.empty();
 }
+bool NodeTree::is_pin_linked(NodeSocket* socket) const
+{
+    return !socket->directly_linked_links.empty();
+}
 
 Node* NodeTree::add_node(const char* idname)
 {

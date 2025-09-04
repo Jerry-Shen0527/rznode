@@ -16,6 +16,8 @@
 #include "blueprints/images.inl"
 #include "blueprints/imgui_node_editor.h"
 #include "blueprints/widgets.h"
+#include "glm/vec2.hpp"
+#include "glm/vec3.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "nodes/core/node_link.hpp"
@@ -335,11 +337,11 @@ bool NodeWidget::BuildUI()
         return true;
     }
 
-    //if (ed::GetSelectedObjectCount() > 0) {
-    //    Splitter(true, 4.0f, &leftPaneWidth, &rightPaneWidth, 50.0f, 50.0f);
-    //    ShowLeftPane(leftPaneWidth - 4.0f);
-    //    ImGui::SameLine(0.0f, 12.0f);
-    //}
+    // if (ed::GetSelectedObjectCount() > 0) {
+    //     Splitter(true, 4.0f, &leftPaneWidth, &rightPaneWidth, 50.0f, 50.0f);
+    //     ShowLeftPane(leftPaneWidth - 4.0f);
+    //     ImGui::SameLine(0.0f, 12.0f);
+    // }
     return NodeEditorWidgetBase::BuildUI();
 }
 void NodeWidget::ShowLeftPane(float paneWidth)
@@ -495,12 +497,21 @@ float NodeWidget::GetTouchProgress(NodeId id)
     else
         return 0.0f;
 }
-
 bool NodeWidget::draw_socket_controllers(NodeSocket* input)
 {
     if (input->socket_group) {
         return false;
     }
+
+    // Pre-format the identifier once to avoid repeated string operations
+    thread_local char widget_id[128];
+    snprintf(
+        widget_id,
+        sizeof(widget_id),
+        "%s##%u",
+        input->ui_name,
+        input->ID.Get());
+
     bool changed = false;
     switch (input->type_info.id()) {
         default:
@@ -509,8 +520,7 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
             break;
         case entt::type_hash<int>().value():
             changed |= ImGui::SliderInt(
-                (input->ui_name + ("##" + std::to_string(input->ID.Get())))
-                    .c_str(),
+                widget_id,
                 &input->dataField.value.cast<int&>(),
                 input->dataField.min.cast<int>(),
                 input->dataField.max.cast<int>());
@@ -518,8 +528,7 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
 
         case entt::type_hash<float>().value():
             changed |= ImGui::SliderFloat(
-                (input->ui_name + ("##" + std::to_string(input->ID.Get())))
-                    .c_str(),
+                widget_id,
                 &input->dataField.value.cast<float&>(),
                 input->dataField.min.cast<float>(),
                 input->dataField.max.cast<float>());
@@ -528,31 +537,28 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
         case entt::type_hash<std::string>().value():
             input->dataField.value.cast<std::string&>().resize(255);
             changed |= ImGui::InputText(
-                (input->ui_name + ("##" + std::to_string(input->ID.Get())))
-                    .c_str(),
+                widget_id,
                 input->dataField.value.cast<std::string&>().data(),
                 255);
             break;
         case entt::type_hash<bool>().value():
             changed |= ImGui::Checkbox(
-                (input->ui_name + ("##" + std::to_string(input->ID.Get())))
-                    .c_str(),
-                &input->dataField.value.cast<bool&>());
+                widget_id, &input->dataField.value.cast<bool&>());
             break;
         case entt::type_hash<pxr::GfVec2f>().value(): {
             auto& vec = input->dataField.value.cast<pxr::GfVec2f&>();
             auto min_vec = input->dataField.min.cast<pxr::GfVec2f>();
             auto max_vec = input->dataField.max.cast<pxr::GfVec2f>();
-            changed |= ImGui::SliderFloat(
-                ("##" + std::to_string(input->ID.Get()) + "_x").c_str(),
-                &vec[0],
-                min_vec[0],
-                max_vec[0]);
-            changed |= ImGui::SliderFloat(
-                ("##" + std::to_string(input->ID.Get()) + "_y").c_str(),
-                &vec[1],
-                min_vec[1],
-                max_vec[1]);
+
+            thread_local char x_id[128], y_id[128];
+            auto id_val = input->ID.Get();
+            snprintf(x_id, sizeof(x_id), "##%u_x", id_val);
+            snprintf(y_id, sizeof(y_id), "##%u_y", id_val);
+
+            changed |=
+                ImGui::SliderFloat(x_id, &vec[0], min_vec[0], max_vec[0]);
+            changed |=
+                ImGui::SliderFloat(y_id, &vec[1], min_vec[1], max_vec[1]);
             ImGui::Text("%s", input->ui_name);
             break;
         }
@@ -560,22 +566,56 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
             auto& vec = input->dataField.value.cast<pxr::GfVec3f&>();
             auto min_vec = input->dataField.min.cast<pxr::GfVec3f>();
             auto max_vec = input->dataField.max.cast<pxr::GfVec3f>();
-            changed |= ImGui::SliderFloat(
-                ("##" + std::to_string(input->ID.Get()) + "_x").c_str(),
-                &vec[0],
-                min_vec[0],
-                max_vec[0]);
-            changed |= ImGui::SliderFloat(
-                ("##" + std::to_string(input->ID.Get()) + "_y").c_str(),
-                &vec[1],
-                min_vec[1],
-                max_vec[1]);
-            changed |= ImGui::SliderFloat(
-                ("##" + std::to_string(input->ID.Get()) + "_z").c_str(),
-                &vec[2],
-                min_vec[2],
-                max_vec[2]);
 
+            thread_local char x_id[128], y_id[128], z_id[128];
+            auto id_val = input->ID.Get();
+            snprintf(x_id, sizeof(x_id), "##%u_x", id_val);
+            snprintf(y_id, sizeof(y_id), "##%u_y", id_val);
+            snprintf(z_id, sizeof(z_id), "##%u_z", id_val);
+
+            changed |=
+                ImGui::SliderFloat(x_id, &vec[0], min_vec[0], max_vec[0]);
+            changed |=
+                ImGui::SliderFloat(y_id, &vec[1], min_vec[1], max_vec[1]);
+            changed |=
+                ImGui::SliderFloat(z_id, &vec[2], min_vec[2], max_vec[2]);
+            ImGui::Text("%s", input->ui_name);
+            break;
+        }
+        case entt::type_hash<glm::vec2>().value(): {
+            auto& vec = input->dataField.value.cast<glm::vec2&>();
+            auto min_vec = input->dataField.min.cast<glm::vec2>();
+            auto max_vec = input->dataField.max.cast<glm::vec2>();
+
+            thread_local char x_id[128], y_id[128];
+            auto id_val = input->ID.Get();
+            snprintf(x_id, sizeof(x_id), "##%u_x", id_val);
+            snprintf(y_id, sizeof(y_id), "##%u_y", id_val);
+
+            changed |=
+                ImGui::SliderFloat(x_id, &vec[0], min_vec[0], max_vec[0]);
+            changed |=
+                ImGui::SliderFloat(y_id, &vec[1], min_vec[1], max_vec[1]);
+            ImGui::Text("%s", input->ui_name);
+            break;
+        }
+        case entt::type_hash<glm::vec3>().value(): {
+            auto& vec = input->dataField.value.cast<glm::vec3&>();
+            auto min_vec = input->dataField.min.cast<glm::vec3>();
+            auto max_vec = input->dataField.max.cast<glm::vec3>();
+
+            thread_local char x_id[128], y_id[128], z_id[128];
+            auto id_val = input->ID.Get();
+            snprintf(x_id, sizeof(x_id), "##%u_x", id_val);
+            snprintf(y_id, sizeof(y_id), "##%u_y", id_val);
+            snprintf(z_id, sizeof(z_id), "##%u_z", id_val);
+
+            changed |=
+                ImGui::SliderFloat(x_id, &vec[0], min_vec[0], max_vec[0]);
+            changed |=
+                ImGui::SliderFloat(y_id, &vec[1], min_vec[1], max_vec[1]);
+            changed |=
+                ImGui::SliderFloat(z_id, &vec[2], min_vec[2], max_vec[2]);
             ImGui::Text("%s", input->ui_name);
             break;
         }

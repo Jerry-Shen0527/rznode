@@ -107,11 +107,11 @@ bool NodeEditorWidgetBase::BuildUI()
 
                 DrawPinIcon(
                     *input,
-                    tree_->is_pin_linked(input->ID),
+                    tree_->is_pin_linked(input),
                     (int)(alpha * 255));
                 ImGui::Spring(0);
 
-                if (tree_->is_pin_linked(input->ID)) {
+                if (tree_->is_pin_linked(input)) {
                     ImGui::TextUnformatted(input->ui_name);
                     ImGui::Spring(0);
                 }
@@ -141,7 +141,7 @@ bool NodeEditorWidgetBase::BuildUI()
                 ImGui::Spring(0);
                 DrawPinIcon(
                     *output,
-                    tree_->is_pin_linked(output->ID),
+                    tree_->is_pin_linked(output),
                     (int)(alpha * 255));
                 ImGui::PopStyleVar();
 
@@ -381,67 +381,62 @@ void NodeEditorWidgetBase::connectLinks()
 
 ImColor NodeEditorWidgetBase::GetIconColor(SocketType type)
 {
-    // Compute a hash for the hue based on type name.
-    auto hashHSVComponent = [](const std::string& prefix,
-                               const std::string& typeName) {
-        return static_cast<unsigned int>(
-            entt::hashed_string{ (prefix + typeName).c_str() }.value());
-    };
+    // Use a simple hash of the type pointer for faster computation
+    uint32_t hash = type.info().hash();
 
-    const std::string typeName = get_type_name(type);
-    unsigned int hashHue = hashHSVComponent("h", typeName);
-    // Map the hash to a hue in [0, 360)
-    float hue = static_cast<float>(hashHue % 360);
-    // Set saturation and value to ensure colors are bright and not too dark.
-    float saturation = 0.8f;
-    float value = 0.9f;
+    // Map hash to hue [0, 360)
+    float hue = static_cast<float>(hash % 360);
 
-    // Lambda to convert HSV (h in degrees, s and v in [0, 1]) to RGB in [0,
-    // 255]
-    auto hsv2rgb = [](float h, float s, float v) -> std::tuple<int, int, int> {
-        float C = v * s;
-        float X = C * (1 - fabs(fmod(h / 60.0f, 2) - 1));
-        float m = v - C;
-        float r1 = 0, g1 = 0, b1 = 0;
+    // Pre-calculated HSV to RGB conversion for common hue ranges
+    // Using fixed saturation=0.8, value=0.9
+    constexpr float s = 0.8f;
+    constexpr float v = 0.9f;
+    constexpr float c = v * s;  // 0.72f
+    constexpr float m = v - c;  // 0.18f
 
-        if (h < 60) {
-            r1 = C;
-            g1 = X;
+    float h_prime = hue / 60.0f;
+    int h_int = static_cast<int>(h_prime);
+    float f = h_prime - h_int;
+    float x = c * (1.0f - fabsf(fmodf(h_prime, 2.0f) - 1.0f));
+
+    float r1, g1, b1;
+    switch (h_int) {
+        case 0:
+            r1 = c;
+            g1 = x;
             b1 = 0;
-        }
-        else if (h < 120) {
-            r1 = X;
-            g1 = C;
+            break;
+        case 1:
+            r1 = x;
+            g1 = c;
             b1 = 0;
-        }
-        else if (h < 180) {
+            break;
+        case 2:
             r1 = 0;
-            g1 = C;
-            b1 = X;
-        }
-        else if (h < 240) {
+            g1 = c;
+            b1 = x;
+            break;
+        case 3:
             r1 = 0;
-            g1 = X;
-            b1 = C;
-        }
-        else if (h < 300) {
-            r1 = X;
+            g1 = x;
+            b1 = c;
+            break;
+        case 4:
+            r1 = x;
             g1 = 0;
-            b1 = C;
-        }
-        else {
-            r1 = C;
+            b1 = c;
+            break;
+        default:
+            r1 = c;
             g1 = 0;
-            b1 = X;
-        }
+            b1 = x;
+            break;
+    }
 
-        int r = static_cast<int>((r1 + m) * 255);
-        int g = static_cast<int>((g1 + m) * 255);
-        int b = static_cast<int>((b1 + m) * 255);
-        return { r, g, b };
-    };
+    int r = static_cast<int>((r1 + m) * 255.0f);
+    int g = static_cast<int>((g1 + m) * 255.0f);
+    int b = static_cast<int>((b1 + m) * 255.0f);
 
-    auto [r, g, b] = hsv2rgb(hue, saturation, value);
     return ImColor(r, g, b);
 }
 

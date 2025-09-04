@@ -25,6 +25,9 @@ static bool is_vec2(const SocketType& type)
     if (type.info().name() == "class " PXR_NAMESPACE "::GfVec2f") {
         return true;
     }
+    if (type.info().name() == "struct glm::vec<2,float,0>") {
+        return true;
+    }
     return false;
 }
 
@@ -33,12 +36,18 @@ static bool is_vec3(const SocketType& type)
     if (type.info().name() == "class " PXR_NAMESPACE "::GfVec3f") {
         return true;
     }
+    if (type.info().name() == "struct glm::vec<3,float,0>") {
+        return true;
+    }
     return false;
 }
 
 static bool is_vec4(const SocketType& type)
 {
     if (type.info().name() == "class " PXR_NAMESPACE "::GfVec4f") {
+        return true;
+    }
+    if (type.info().name() == "struct glm::vec<4,float,0>") {
         return true;
     }
     return false;

@@ -134,6 +134,7 @@ class NODES_CORE_API NodeTree {
     NodeLink* find_link(LinkId id) const;
 
     bool is_pin_linked(SocketID id) const;
+    bool is_pin_linked(NodeSocket* socket) const;
 
     virtual Node* add_node(const char* str);
 
