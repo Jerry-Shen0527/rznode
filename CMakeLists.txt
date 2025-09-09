@@ -4,9 +4,6 @@ project(rznode VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-if(WIN32)
-set(WINDOWS_EXPORT_ALL_SYMBOLS ON)
-endif()
 
 
 set(RZNODES_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "RZNodes directory" FORCE)
@@ -100,17 +97,19 @@ if(NODE_WEB_SERVER_ENABLED)
     add_subdirectory(web_server)
 
     # oatpp version
+    set(BUILD_SHARED_LIBS OFF)  # 将 OATPP 构建为静态库
     set(OATPP_INSTALL OFF CACHE BOOL "Disable installation of oatpp")
     set(OATPP_BUILD_TESTS OFF CACHE BOOL "Disable building tests for oatpp")
     set(OATPP_LINK_TEST_LIBRARY OFF CACHE BOOL "Disable linking test library for oatpp")
-    # set(BUILD_SHARED_LIBS OFF)  # Build oatpp as static library
     add_subdirectory(ext/oatpp)
+    set_target_properties(oatpp PROPERTIES ${OUTPUT_DIR})
 
     set(OATPP_MODULES_LOCATION "CUSTOM" CACHE STRING "Set custom location for oatpp modules")
     set(OATPP_DIR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/ext/oatpp/" CACHE PATH "oatpp source directory")
     set(OATPP_DIR_LIB "${CMAKE_CURRENT_BINARY_DIR}/ext/oatpp/" CACHE PATH "oatpp build directory")
     add_subdirectory(ext/oatpp-websocket)
-    # set(BUILD_SHARED_LIBS ON)
+    set_target_properties(oatpp-websocket PROPERTIES ${OUTPUT_DIR})
+    set(BUILD_SHARED_LIBS ON)  # 恢复 BUILD_SHARED_LIBS 选项
 
     add_subdirectory(web_server_oatpp)
     if(GEOM_EXTENSION_ENABLED)

@@ -32,9 +32,7 @@ export interface GeometryData {
     id: string
     type: 'mesh' | 'points' | 'curve'
     transform: number[]
-    mesh_data?: MeshData
-    points_data?: PointsData
-    curve_data?: CurveData
+    geometry_data: MeshData | PointsData | CurveData
 }
 
 export interface GeometryMessage {
@@ -52,6 +50,7 @@ export interface VisualizerMessage {
 
 export class GeometryWebSocketClient {
     private ws: WebSocket | null = null
+    private state: 'disconnected' | 'connecting' | 'connected' = 'disconnected'
     private url: string
     private reconnectAttempts = 0
     private maxReconnectAttempts = 5
@@ -70,6 +69,7 @@ export class GeometryWebSocketClient {
                 this.ws.onopen = () => {
                     console.log(logTag('INFO'), '几何可视化WebSocket连接已建立')
                     this.reconnectAttempts = 0
+                    this.state = 'connected'
                     resolve()
                 }
 
@@ -77,6 +77,7 @@ export class GeometryWebSocketClient {
                     try {
                         // 使用JSON格式处理消息
                         const message: GeometryMessage = JSON.parse(event.data)
+                        console.log(logTag('DEBUG'), '收到WebSocket消息:', message)
                         this.handleMessage(message)
                     } catch (error) {
                         console.error(logTag('ERROR'), '解析WebSocket消息失败:', error)
@@ -84,11 +85,14 @@ export class GeometryWebSocketClient {
                 }
 
                 this.ws.onclose = () => {
+                    this.ws?.close()
+                    this.ws = null
+                    this.state = 'disconnected'
                     console.log(logTag('INFO'), '几何可视化WebSocket连接已关闭')
-                    this.handleReconnect()
                 }
 
                 this.ws.onerror = (error) => {
+                    this.state = 'disconnected'
                     console.error(logTag('ERROR'), '几何可视化WebSocket错误:', error)
                     reject(error)
                 }
@@ -102,6 +106,7 @@ export class GeometryWebSocketClient {
         if (this.ws) {
             this.ws.close()
             this.ws = null
+            this.state = 'disconnected'
         }
     }
 
@@ -109,19 +114,6 @@ export class GeometryWebSocketClient {
         const handler = this.messageHandlers.get(message.type)
         if (handler) {
             handler(message)
-        }
-    }
-
-    private handleReconnect(): void {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++
-            console.log(logTag('INFO'), `尝试重连WebSocket (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
-
-            setTimeout(() => {
-                this.connect().catch(() => {
-                    console.error(logTag('ERROR'), 'WebSocket重连失败')
-                })
-            }, this.reconnectInterval * this.reconnectAttempts)
         }
     }
 
@@ -137,7 +129,7 @@ export class GeometryWebSocketClient {
         }
     }
 
-    get isConnected(): boolean {
-        return this.ws !== null && this.ws.readyState === WebSocket.OPEN
+    get connectionState(): 'disconnected' | 'connecting' | 'connected' {
+        return this.state
     }
 }

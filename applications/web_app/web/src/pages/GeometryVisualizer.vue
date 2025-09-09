@@ -11,7 +11,7 @@
 
             <div class="nav-right">
                 <div class="connection-status" :class="{ 'connected': geometryStore.isConnected }">
-                    {{ geometryStore.connectionStatus }}
+                    {{ geometryStore.isConnected ? '已连接' : '未连接' }}
                 </div>
                 <button class="btn btn-primary" @click="toggleConnection" :disabled="isConnecting">
                     {{ isConnecting ? '连接中...' : (geometryStore.isConnected ? '断开连接' : '连接WebSocket') }}
@@ -38,8 +38,7 @@
                 <button class="btn btn-sm" :class="{ 'active': geometryStore.showWireframe }" @click="toggleWireframe">
                     线框
                 </button>
-                <button class="btn btn-sm" :class="{ 'active': geometryStore.showNormals }"
-                    @click="geometryStore.toggleNormals()">
+                <button class="btn btn-sm" :class="{ 'active': geometryStore.showNormals }" @click="toggleNormals">
                     法线
                 </button>
             </div>
@@ -98,9 +97,15 @@
                                 <span class="geometry-id">{{ geometry.id }}</span>
                             </div>
                             <div class="geometry-stats">
-                                <span v-if="geometry.mesh_data">
-                                    顶点: {{ Math.floor(geometry.mesh_data.vertices.length / 3) }}
-                                    | 面: {{ geometry.mesh_data.face_vertex_counts.length }}
+                                <span v-if="geometry.type === 'mesh' && geometry.geometry_data">
+                                    顶点: {{ Math.floor((geometry.geometry_data as any).vertices.length / 3) }}
+                                    | 面: {{ (geometry.geometry_data as any).face_vertex_counts.length }}
+                                </span>
+                                <span v-else-if="geometry.type === 'points' && geometry.geometry_data">
+                                    点: {{ Math.floor((geometry.geometry_data as any).points.length / 3) }}
+                                </span>
+                                <span v-else-if="geometry.type === 'curve' && geometry.geometry_data">
+                                    控制点: {{ Math.floor((geometry.geometry_data as any).control_points.length / 3) }}
                                 </span>
                                 <!-- TODO: 补充更多信息 -->
                             </div>
@@ -215,6 +220,14 @@ const toggleWireframe = () => {
     }
 }
 
+const toggleNormals = () => {
+    geometryStore.toggleNormals()
+    if (renderer.value) {
+        // TODO
+        // renderer.value.setShowNormals(geometryStore.showNormals)
+    }
+}
+
 const onBackgroundColorChange = (event: Event) => {
     const target = event.target as HTMLInputElement
     geometryStore.setBackgroundColor(target.value)
@@ -256,6 +269,7 @@ const toggleGeometrySelection = (id: string) => {
 }
 
 const onViewportClick = (event: MouseEvent) => {
+    // TODO
     // 处理3D场景中的点击事件
     // 可以实现射线投射来选择3D对象
     console.log(logTag('INFO'), '视口点击:', event)

@@ -96,6 +96,7 @@ export class ThreeJSRenderer {
 
     private initMaterials(): void {
         this.defaultMaterial = new THREE.MeshStandardMaterial({
+            vertexColors: true,
             color: 0x888888,
             metalness: 0.1,
             roughness: 0.7
@@ -139,11 +140,22 @@ export class ThreeJSRenderer {
 
     // 几何数据更新方法
     updateGeometries(geometries: GeometryData[]): void {
-        // 清除现有几何体
-        this.clearGeometries()
+        const newIds = new Set(geometries.map(g => g.id));
 
-        // 添加新几何体
+        // 删除不存在的对象
+        this.geometryObjects.forEach((obj, id) => {
+            if (!newIds.has(id)) {
+                this.removeGeometry(id)
+            }
+        });
+
+        // 更新/添加新几何体
         geometries.forEach(geomData => {
+            // 如果对象已存在，先删除再添加（简化处理）
+            if (this.geometryObjects.has(geomData.id)) {
+                this.removeGeometry(geomData.id)
+            }
+
             const object = this.createGeometryObject(geomData)
             if (object) {
                 this.scene.add(object)
@@ -153,60 +165,66 @@ export class ThreeJSRenderer {
     }
 
     private createGeometryObject(geomData: GeometryData): THREE.Object3D | null {
-        let geometry: THREE.BufferGeometry | null = null
+        try {
+            let geometry: THREE.BufferGeometry | null = null
 
-        switch (geomData.type) {
-            case 'mesh':
-                if (!geomData.mesh_data) {
-                    console.warn(logTag('WARNING'), 'mesh_data 未定义:', geomData)
+            switch (geomData.type) {
+                case 'mesh':
+                    if (!geomData.geometry_data) {
+                        console.warn(logTag('WARNING'), 'geometry_data 未定义:', geomData)
+                        return null
+                    }
+                    geometry = this.createMeshGeometry(geomData.geometry_data as MeshData)
+                    break
+                case 'curve':
+                    if (!geomData.geometry_data) {
+                        console.warn(logTag('WARNING'), 'geometry_data 未定义:', geomData)
+                        return null
+                    }
+                    geometry = this.createCurveGeometry(geomData.geometry_data as CurveData)
+                    break
+                case 'points':
+                    if (!geomData.geometry_data) {
+                        console.warn(logTag('WARNING'), 'geometry_data 未定义:', geomData)
+                        return null
+                    }
+                    geometry = this.createPointsGeometry(geomData.geometry_data as PointsData)
+                    break
+                default:
+                    console.warn(logTag('WARNING'), '未知的几何类型:', geomData.type)
                     return null
-                }
-                geometry = this.createMeshGeometry(geomData.mesh_data)
-                break
-            case 'curve':
-                if (!geomData.curve_data) {
-                    console.warn(logTag('WARNING'), 'curve_data 未定义:', geomData)
-                    return null
-                }
-                geometry = this.createCurveGeometry(geomData.curve_data)
-                break
-            case 'points':
-                if (!geomData.points_data) {
-                    console.warn(logTag('WARNING'), 'points_data 未定义:', geomData)
-                    return null
-                }
-                geometry = this.createPointsGeometry(geomData.points_data)
-                break
-            default:
-                console.warn(logTag('WARNING'), '未知的几何类型:', geomData.type)
-                return null
+            }
+
+            if (!geometry) return null
+
+            let object: THREE.Object3D
+
+            if (geomData.type === 'curve') {
+                const material = new THREE.LineBasicMaterial({ color: 0x0066cc })
+                object = new THREE.Line(geometry, material)
+            } else if (geomData.type === 'points') {
+                const material = new THREE.PointsMaterial({ color: 0xff0000, size: 5 })
+                object = new THREE.Points(geometry, material)
+            } else {
+                object = new THREE.Mesh(geometry, this.defaultMaterial.clone())
+            }
+
+            // 应用变换矩阵
+            if (geomData.transform && geomData.transform.length === 16) {
+                const matrix = new THREE.Matrix4()
+                matrix.fromArray(geomData.transform)
+                object.applyMatrix4(matrix)
+            }
+
+            // 设置用户数据
+            object.userData = { id: geomData.id, type: geomData.type }
+
+            return object
         }
-
-        if (!geometry) return null
-
-        let object: THREE.Object3D
-
-        if (geomData.type === 'curve') {
-            const material = new THREE.LineBasicMaterial({ color: 0x0066cc })
-            object = new THREE.Line(geometry, material)
-        } else if (geomData.type === 'points') {
-            const material = new THREE.PointsMaterial({ color: 0xff0000, size: 5 })
-            object = new THREE.Points(geometry, material)
-        } else {
-            object = new THREE.Mesh(geometry, this.defaultMaterial.clone())
+        catch (error) {
+            console.error(logTag('ERROR'), '创建几何对象失败:', error, geomData)
+            return null
         }
-
-        // 应用变换矩阵
-        if (geomData.transform && geomData.transform.length === 16) {
-            const matrix = new THREE.Matrix4()
-            matrix.fromArray(geomData.transform)
-            object.applyMatrix4(matrix)
-        }
-
-        // 设置用户数据
-        object.userData = { id: geomData.id, type: geomData.type }
-
-        return object
     }
 
     private createMeshGeometry(meshData: MeshData): THREE.BufferGeometry {
@@ -257,18 +275,40 @@ export class ThreeJSRenderer {
         return geometry
     }
 
+    removeGeometry(id: string): void {
+        const object = this.geometryObjects.get(id)
+        if (object) {
+            // 递归清理几何体和材质
+            object.traverse(child => {
+                if (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.Points) {
+                    child.geometry?.dispose()
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => mat.dispose())
+                    } else {
+                        child.material?.dispose()
+                    }
+                }
+            });
+            this.scene.remove(object)
+            this.geometryObjects.delete(id)
+            this.selectedObjects.delete(id)
+        }
+    }
+
     clearGeometries(): void {
         this.geometryObjects.forEach(object => {
-            this.scene.remove(object)
-            // 清理几何体和材质
-            if (object instanceof THREE.Mesh || object instanceof THREE.Line || object instanceof THREE.Points) {
-                object.geometry.dispose()
-                if (Array.isArray(object.material)) {
-                    object.material.forEach(mat => mat.dispose())
-                } else {
-                    object.material.dispose()
+            // 递归清理几何体和材质
+            object.traverse(child => {
+                if (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.Points) {
+                    child.geometry?.dispose()
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => mat.dispose())
+                    } else {
+                        child.material?.dispose()
+                    }
                 }
-            }
+            });
+            this.scene.remove(object)
         })
         this.geometryObjects.clear()
         this.selectedObjects.clear()

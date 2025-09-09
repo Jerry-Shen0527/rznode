@@ -135,10 +135,7 @@ bool WebServerOatpp::send_message_via_ws(const oatpp::Void& dto) const
         return false;
     }
 
-    spdlog::debug("WebServerOatpp: Sending dto via WebSocket: {}", *json_str);
-
-    // return api_controller_->send_message_via_ws(*json_str);
-    return true;
+    return api_controller_->send_message_via_ws(*json_str);
 }
 
 bool WebServerOatpp::send_message_via_ws(const std::string& message) const

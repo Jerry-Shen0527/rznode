@@ -1,8 +1,5 @@
 #pragma once
 
-#include "GCore/GOP.h"
-#include "nodes/web_server_oatpp/geom_dto.hpp"
-#include "oatpp/Types.hpp"
 #ifdef GEOM_EXTENSION
 #include "nodes//web_server_oatpp/geom_ws_listener.hpp"
 #endif
@@ -348,16 +345,6 @@ class WEB_SERVER_OATPP_API ApiController
         return createDtoResponse(Status::CODE_200, message_dto);
     }
     ADD_CORS(ValidateTree, "*", "POST, OPTIONS")
-
-    ENDPOINT("GET", "/test", Test)
-    {
-        auto geometry_dto = MeshDto::createShared();
-        geometry_dto->vertices = { 1.0f, 2.0f, 3.0f };
-        geometry_dto->face_vertex_counts = { 3 };
-        geometry_dto->face_vertex_indices = { 0, 1, 2 };
-
-        return createDtoResponse(Status::CODE_200, geometry_dto);
-    }
 
     ENDPOINT("GET", "/", Root)
     {

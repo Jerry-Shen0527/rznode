@@ -15,6 +15,37 @@
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
+class WEB_SERVER_OATPP_API MeshDataDto : public oatpp::DTO {
+    DTO_INIT(MeshDataDto, DTO)
+
+    DTO_FIELD(Vector<Float32>, vertices) = { };
+    DTO_FIELD(Vector<Int32>, face_vertex_counts) = { };
+    DTO_FIELD(Vector<Int32>, face_vertex_indices) = { };
+    DTO_FIELD(Vector<Float32>, normals) = { };
+    DTO_FIELD(Vector<Float32>, colors) = { };
+    DTO_FIELD(Vector<Float32>, uvs) = { };
+};
+
+class WEB_SERVER_OATPP_API PointsDataDto : public oatpp::DTO {
+    DTO_INIT(PointsDataDto, DTO)
+
+    DTO_FIELD(Vector<Float32>, vertices) = { };
+    DTO_FIELD(Vector<Float32>, normals) = { };
+    DTO_FIELD(Vector<Float32>, colors) = { };
+    DTO_FIELD(Vector<Float32>, widths) = { };
+};
+
+class WEB_SERVER_OATPP_API CurveDataDto : public oatpp::DTO {
+    DTO_INIT(CurveDataDto, DTO)
+
+    DTO_FIELD(Vector<Float32>, vertices) = { };
+    DTO_FIELD(Vector<Int32>, vertex_counts) = { };
+    DTO_FIELD(Vector<Float32>, normals) = { };
+    DTO_FIELD(Vector<Float32>, colors) = { };
+    DTO_FIELD(Vector<Float32>, widths) = { };
+    DTO_FIELD(Boolean, periodic) = false;
+};
+
 class WEB_SERVER_OATPP_API GeometryDataDto : public oatpp::DTO {
     DTO_INIT(GeometryDataDto, DTO)
 
@@ -29,62 +60,25 @@ class WEB_SERVER_OATPP_API GeometryDataDto : public oatpp::DTO {
       0.0f, 0.0f, 1.0f, 0.0f,
       0.0f, 0.0f, 0.0f, 1.0f };
     // clang-format on
-};
 
-class WEB_SERVER_OATPP_API MeshDto : public oatpp::DTO {
-    DTO_INIT(MeshDto, DTO)
-
-    DTO_FIELD(Vector<Float32>, vertices) = { };
-    DTO_FIELD(Vector<Int32>, face_vertex_counts) = { };
-    DTO_FIELD(Vector<Int32>, face_vertex_indices) = { };
-    DTO_FIELD(Vector<Float32>, normals) = { };
-    DTO_FIELD(Vector<Float32>, colors) = { };
-    DTO_FIELD(Vector<Float32>, uvs) = { };
-};
-
-class WEB_SERVER_OATPP_API MeshDataDto : public GeometryDataDto {
-    DTO_INIT(MeshDataDto, GeometryDataDto)
-
-    DTO_FIELD(Object<MeshDto>, mesh_data) = MeshDto::createShared();
-};
-
-class WEB_SERVER_OATPP_API PointsDto : public oatpp::DTO {
-    DTO_INIT(PointsDto, DTO)
-
-    DTO_FIELD(Vector<Float32>, vertices) = { };
-    DTO_FIELD(Vector<Float32>, normals) = { };
-    DTO_FIELD(Vector<Float32>, colors) = { };
-    DTO_FIELD(Vector<Float32>, widths) = { };
-};
-
-class WEB_SERVER_OATPP_API PointsDataDto : public GeometryDataDto {
-    DTO_INIT(PointsDataDto, GeometryDataDto)
-
-    DTO_FIELD(Object<PointsDto>, points_data) = PointsDto::createShared();
-};
-
-class WEB_SERVER_OATPP_API CurveDto : public oatpp::DTO {
-    DTO_INIT(CurveDto, DTO)
-
-    DTO_FIELD(Vector<Float32>, vertices) = { };
-    DTO_FIELD(Vector<Int32>, vertex_counts) = { };
-    DTO_FIELD(Vector<Float32>, normals) = { };
-    DTO_FIELD(Vector<Float32>, colors) = { };
-    DTO_FIELD(Vector<Float32>, widths) = { };
-    DTO_FIELD(Boolean, periodic) = false;
-};
-
-class WEB_SERVER_OATPP_API CurveDataDto : public GeometryDataDto {
-    DTO_INIT(CurveDataDto, GeometryDataDto)
-
-    DTO_FIELD(Object<CurveDto>, curve_data) = CurveDto::createShared();
+    DTO_FIELD(Any, geometry_data);
+    DTO_FIELD_TYPE_SELECTOR(geometry_data)
+    {
+        if (type == "mesh")
+            return Object<MeshDataDto>::Class::getType();
+        if (type == "points")
+            return Object<PointsDataDto>::Class::getType();
+        if (type == "curve")
+            return Object<CurveDataDto>::Class::getType();
+        return Object<DTO>::Class::getType();
+    }
 };
 
 class WEB_SERVER_OATPP_API GeometryMessageDto : public oatpp::DTO {
     DTO_INIT(GeometryMessageDto, DTO)
 
     // 'geometry_update' | 'geometry_clear'
-    DTO_FIELD(String, type);
+    DTO_FIELD(String, type) = "geometry_update";
     // 当前由于只有一棵节点树，因此只有一个场景，scene_id
     // 可固定为 "default"
     DTO_FIELD(String, scene_id) = "default";

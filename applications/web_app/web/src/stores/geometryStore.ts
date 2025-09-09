@@ -5,9 +5,7 @@ import { logTag } from '../utils/logFormatter'
 
 export const useGeometryStore = defineStore('geometry', () => {
     // WebSocket连接状态
-    const wsClient = ref<GeometryWebSocketClient | null>(null)
-    const isConnected = ref(false)
-    const connectionStatus = ref('未连接')
+    const wsClient = ref<GeometryWebSocketClient>(new GeometryWebSocketClient())
 
     // 几何数据
     const geometries = ref<GeometryData[]>([])
@@ -24,27 +22,32 @@ export const useGeometryStore = defineStore('geometry', () => {
     const showNormals = ref(false)
     const backgroundColor = ref('#2a2a2a')
 
-    // 计算属性
+    // 计算属性  
+    const isConnected = computed(() => wsClient.value.connectionState === 'connected')
     const geometryCount = computed(() => geometries.value.length)
     const selectedCount = computed(() => selectedGeometryIds.value.size)
     const hasGeometry = computed(() => geometries.value.length > 0)
 
     // WebSocket连接方法
     const connectWebSocket = async (url?: string) => {
+        if (wsClient.value.connectionState === 'connected') {
+            console.warn(logTag('WARNING'), 'WebSocket已连接，无需重复连接')
+            return
+        }
+
         try {
-            wsClient.value = new GeometryWebSocketClient(url)
+            if (url) {
+                wsClient.value.disconnect()
+                wsClient.value = new GeometryWebSocketClient(url)
+            }
 
             // 设置消息处理器
             wsClient.value.onMessage('geometry_update', handleGeometryUpdate)
             wsClient.value.onMessage('geometry_clear', handleGeometryClear)
 
             await wsClient.value.connect()
-            isConnected.value = true
-            connectionStatus.value = '已连接'
         } catch (error) {
             console.error(logTag('ERROR'), 'WebSocket连接失败:', error)
-            isConnected.value = false
-            connectionStatus.value = '连接失败'
             throw error
         }
     }
@@ -52,10 +55,7 @@ export const useGeometryStore = defineStore('geometry', () => {
     const disconnectWebSocket = () => {
         if (wsClient.value) {
             wsClient.value.disconnect()
-            wsClient.value = null
         }
-        isConnected.value = false
-        connectionStatus.value = '未连接'
     }
 
     // 几何数据处理方法
@@ -120,7 +120,7 @@ export const useGeometryStore = defineStore('geometry', () => {
 
     // 用户交互方法
     const sendUserInteraction = (type: string, data: any) => {
-        if (wsClient.value && isConnected.value) {
+        if (wsClient.value) {
             wsClient.value.sendMessage({
                 type: 'user_interaction',
                 data: { interactionType: type, ...data }
@@ -129,7 +129,7 @@ export const useGeometryStore = defineStore('geometry', () => {
     }
 
     const sendGeometrySelection = (selectedIds: string[]) => {
-        if (wsClient.value && isConnected.value) {
+        if (wsClient.value) {
             wsClient.value.sendMessage({
                 type: 'geometry_selection',
                 data: { selectedIds }
@@ -141,7 +141,7 @@ export const useGeometryStore = defineStore('geometry', () => {
         cameraPosition.value = position
         cameraTarget.value = target
 
-        if (wsClient.value && isConnected.value) {
+        if (wsClient.value) {
             wsClient.value.sendMessage({
                 type: 'camera_change',
                 data: { position, target }
@@ -182,8 +182,6 @@ export const useGeometryStore = defineStore('geometry', () => {
 
     return {
         // 状态
-        isConnected,
-        connectionStatus,
         geometries,
         selectedGeometryIds,
         sceneId,
@@ -195,6 +193,7 @@ export const useGeometryStore = defineStore('geometry', () => {
         backgroundColor,
 
         // 计算属性
+        isConnected,
         geometryCount,
         selectedCount,
         hasGeometry,

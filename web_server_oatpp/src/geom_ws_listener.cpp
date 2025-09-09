@@ -1,6 +1,7 @@
+#ifdef GEOM_EXTENSION
+
 #include <memory>
 #include <string>
-#ifdef GEOM_EXTENSION
 
 /**
  * 参考资料：
@@ -33,6 +34,7 @@ void GeometryWSListener::onClose(
     v_uint16 code,
     const oatpp::String& message)
 {
+    active_ = false;
     spdlog::debug("WebSocket: onClose code={}", code);
 }
 
@@ -62,7 +64,13 @@ void GeometryWSListener::readMessage(
 
 bool GeometryWSListener::send_message_via_ws(const std::string& message) const
 {
-    socket_.sendOneFrameText(message);
+    try {
+        socket_.sendOneFrameText(message);
+    }
+    catch (const std::exception& e) {
+        spdlog::error("WebSocket: send message failed: {}", e.what());
+        return false;
+    }
     return true;
 }
 
@@ -92,6 +100,15 @@ void GeometryWSInstanceListener::onBeforeDestroy(
     const oatpp::websocket::WebSocket& socket)
 {
     SOCKETS--;
+    // Remove listener from the list
+    listeners_.erase(
+        std::remove_if(
+            listeners_.begin(),
+            listeners_.end(),
+            [](const std::shared_ptr<GeometryWSListener>& listener) {
+                return listener->isActive() == false;
+            }),
+        listeners_.end());
     spdlog::debug(
         "WebSocket: Connection closed. Connection count={}", SOCKETS.load());
 }

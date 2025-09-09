@@ -1,14 +1,14 @@
 #ifdef GEOM_EXTENSION
 #include "nodes/web_server_oatpp/geom_utils.hpp"
 
-#include <cstring>
+#include <iostream>
 #include <string>
-#include <unordered_set>
 
 #include "GCore/Components/CurveComponent.h"
 #include "GCore/Components/MeshComponent.h"
 #include "GCore/Components/PointsComponent.h"
 #include "GCore/Components/XformComponent.h"
+#include "GCore/GOP.h"
 #include "nodes/core/api.h"
 #include "nodes/web_server_oatpp/geom_dto.hpp"
 #include "oatpp/Types.hpp"
@@ -16,14 +16,101 @@
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
-oatpp::Object<MeshDto> GeometryUtils::convertMeshToDto(
+oatpp::Object<GeometryMessageDto> GeometryUtils::convertGeometryMessageToDto(
+    const std::string& type,
+    const std::string& scene_id,
+    const std::vector<Geometry>& geometries,
+    const std::vector<std::string>& geom_ids)
+{
+    if (geometries.size() != geom_ids.size()) {
+        spdlog::error(
+            "GeometryUtils::convertGeometryMessageToDto: Geometries size ("
+            "{} ) does not match geom_ids size ( {} )",
+            geometries.size(),
+            geom_ids.size());
+        return nullptr;
+    }
+
+    auto message_dto = GeometryMessageDto::createShared();
+    message_dto->type = type;
+    message_dto->scene_id = scene_id;
+    message_dto->geometries =
+        oatpp::Vector<oatpp::Object<GeometryDataDto>>::createShared();
+    message_dto->geometries->reserve(geometries.size());
+    for (int i = 0; i < geometries.size(); ++i) {
+        auto& geom = geometries[i];
+        auto& geom_id = geom_ids[i];
+        auto geom_dto = convertGeometryToDto(geom, geom_id);
+        if (geom_dto) {
+            message_dto->geometries->push_back(geom_dto);
+        }
+        else {
+            spdlog::warn(
+                "GeometryUtils::convertGeometryMessageToDto: Failed to convert "
+                "geometry with geom_id '{}'",
+                geom_id);
+        }
+    }
+    message_dto->timestamp = static_cast<v_int64>(time(nullptr));
+
+    return message_dto;
+}
+
+oatpp::Object<GeometryDataDto> GeometryUtils::convertGeometryToDto(
+    const Geometry& geometry,
+    const std::string& geom_id)
+{
+    auto geom_dto = GeometryDataDto::createShared();
+    geom_dto->id = geom_id;
+
+    auto xform = geometry.get_component<XformComponent>();
+    if (xform) {
+        geom_dto->transform = convertMatrixToDto(xform);
+    }
+    else {
+        // 默认单位矩阵
+        // clang-format off
+        geom_dto->transform = { 1.0f, 0.0f, 0.0f, 0.0f,
+                              0.0f, 1.0f, 0.0f, 0.0f,
+                              0.0f, 0.0f, 1.0f, 0.0f,
+                              0.0f, 0.0f, 0.0f, 1.0f };
+        // clang-format on
+    }
+
+    auto mesh = geometry.get_component<MeshComponent>();
+    auto points = geometry.get_component<PointsComponent>();
+    auto curve = geometry.get_component<CurveComponent>();
+
+    if (mesh) {
+        geom_dto->type = "mesh";
+        geom_dto->geometry_data = convertMeshToDto(mesh);
+    }
+    else if (points) {
+        geom_dto->type = "points";
+        geom_dto->geometry_data = convertPointsToDto(points);
+    }
+    else if (curve) {
+        geom_dto->type = "curve";
+        geom_dto->geometry_data = convertCurveToDto(curve);
+    }
+    else {
+        spdlog::warn(
+            "GeometryUtils::convertGeometryToDto: Geometry with geom_id '{}' "
+            "has no supported component",
+            geom_id);
+        return nullptr;
+    }
+    return geom_dto;
+}
+
+oatpp::Object<MeshDataDto> GeometryUtils::convertMeshToDto(
     const std::shared_ptr<MeshComponent>& mesh)
 {
     if (!mesh) {
         return nullptr;
     }
 
-    auto mesh_dto = MeshDto::createShared();
+    auto mesh_dto = MeshDataDto::createShared();
 
     auto vertices = mesh->get_vertices();
     auto face_vertex_counts = mesh->get_face_vertex_counts();
@@ -95,14 +182,14 @@ oatpp::Object<MeshDto> GeometryUtils::convertMeshToDto(
     return mesh_dto;
 }
 
-oatpp::Object<PointsDto> GeometryUtils::convertPointsToDto(
+oatpp::Object<PointsDataDto> GeometryUtils::convertPointsToDto(
     const std::shared_ptr<PointsComponent>& points)
 {
     if (!points) {
         return nullptr;
     }
 
-    auto points_dto = PointsDto::createShared();
+    auto points_dto = PointsDataDto::createShared();
 
     auto vertices = points->get_vertices();
     auto normals = points->get_normals();
@@ -159,14 +246,14 @@ oatpp::Object<PointsDto> GeometryUtils::convertPointsToDto(
     return points_dto;
 }
 
-oatpp::Object<CurveDto> GeometryUtils::convertCurveToDto(
+oatpp::Object<CurveDataDto> GeometryUtils::convertCurveToDto(
     const std::shared_ptr<CurveComponent>& curve)
 {
     if (!curve) {
         return nullptr;
     }
 
-    auto curve_dto = CurveDto::createShared();
+    auto curve_dto = CurveDataDto::createShared();
 
     auto vertices = curve->get_vertices();
     auto vert_counts = curve->get_vert_count();
@@ -260,70 +347,6 @@ oatpp::Vector<oatpp::Float32> GeometryUtils::convertMatrixToDto(
     }
 
     return matrix_dto;
-}
-
-// 模板偏特化实现
-template<>
-oatpp::Object<MeshDataDto> GeometryUtils::convertGeometryToDto<MeshDataDto>(
-    const std::shared_ptr<Geometry>& geometry,
-    const std::string& geom_id)
-{
-    if (!geometry)
-        return nullptr;
-
-    auto mesh = geometry->get_component<MeshComponent>();
-    if (!mesh)
-        return nullptr;  // 类型不匹配返回空
-
-    auto dto = MeshDataDto::createShared();
-    dto->id = geom_id;
-    dto->type = "mesh";
-    dto->mesh_data = convertMeshToDto(mesh);
-    dto->transform =
-        convertMatrixToDto(geometry->get_component<XformComponent>());
-    return dto;
-}
-
-template<>
-oatpp::Object<PointsDataDto> GeometryUtils::convertGeometryToDto<PointsDataDto>(
-    const std::shared_ptr<Geometry>& geometry,
-    const std::string& geom_id)
-{
-    if (!geometry)
-        return nullptr;
-
-    auto points = geometry->get_component<PointsComponent>();
-    if (!points)
-        return nullptr;  // 类型不匹配返回空
-
-    auto dto = PointsDataDto::createShared();
-    dto->id = geom_id;
-    dto->type = "points";
-    dto->points_data = convertPointsToDto(points);
-    dto->transform =
-        convertMatrixToDto(geometry->get_component<XformComponent>());
-    return dto;
-}
-
-template<>
-oatpp::Object<CurveDataDto> GeometryUtils::convertGeometryToDto<CurveDataDto>(
-    const std::shared_ptr<Geometry>& geometry,
-    const std::string& geom_id)
-{
-    if (!geometry)
-        return nullptr;
-
-    auto curve = geometry->get_component<CurveComponent>();
-    if (!curve)
-        return nullptr;  // 类型不匹配返回空
-
-    auto dto = CurveDataDto::createShared();
-    dto->id = geom_id;
-    dto->type = "curve";
-    dto->curve_data = convertCurveToDto(curve);
-    dto->transform =
-        convertMatrixToDto(geometry->get_component<XformComponent>());
-    return dto;
 }
 
 USTC_CG_NAMESPACE_CLOSE_SCOPE

@@ -31,6 +31,11 @@ class GeometryWSListener : public oatpp::websocket::WebSocket::Listener {
      */
     const int id_;
 
+    /**
+     * Is active
+     */
+    bool active_ = true;
+
    public:
     GeometryWSListener(const oatpp::websocket::WebSocket& socket, const int id)
         : socket_(socket),
@@ -73,6 +78,15 @@ class GeometryWSListener : public oatpp::websocket::WebSocket::Listener {
      * @return - true on success, false on error
      */
     bool send_message_via_ws(const std::string& message) const;
+
+    /**
+     * Check if the connection is still active
+     * @return true if active, false otherwise
+     */
+    bool isActive() const
+    {
+        return active_;
+    }
 };
 
 /**
