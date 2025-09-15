@@ -1,5 +1,5 @@
 #ifdef GEOM_EXTENSION
-#include "nodes/web_server_oatpp/geom_utils.hpp"
+#include "nodes/web_server/geom_utils.hpp"
 
 #include <iostream>
 #include <string>
@@ -10,7 +10,7 @@
 #include "GCore/Components/XformComponent.h"
 #include "GCore/GOP.h"
 #include "nodes/core/api.h"
-#include "nodes/web_server_oatpp/geom_dto.hpp"
+#include "nodes/web_server/geom_dto.hpp"
 #include "oatpp/Types.hpp"
 #include "spdlog/spdlog.h"
 

@@ -4,8 +4,8 @@
 #include <string>
 
 #include "nodes/system/node_system.hpp"
-#include "nodes/web_server_oatpp/api.h"
-#include "nodes/web_server_oatpp/api_controller.hpp"
+#include "nodes/web_server/api.h"
+#include "nodes/web_server/api_controller.hpp"
 #include "oatpp/Types.hpp"
 #include "oatpp/network/Server.hpp"
 #include "oatpp/web/mime/ContentMappers.hpp"
@@ -14,7 +14,7 @@
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
 // Web服务器类
-class WEB_SERVER_OATPP_API WebServerOatpp {
+class WEB_SERVER_API WebServerOatpp {
    public:
     WebServerOatpp();
     virtual ~WebServerOatpp();
@@ -60,7 +60,7 @@ struct WebServerPrams {
 };
 
 // 工厂函数
-WEB_SERVER_OATPP_API
+WEB_SERVER_API
 std::unique_ptr<WebServerOatpp> create_web_server_oatpp();
 
 USTC_CG_NAMESPACE_CLOSE_SCOPE

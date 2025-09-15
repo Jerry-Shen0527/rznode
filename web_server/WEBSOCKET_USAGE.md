@@ -161,7 +161,7 @@ int main() {
 
 ### 方法一：使用测试页面
 
-1. 启动你的RZNode服务器：`./run_server_oatpp.cpp.exe`
+1. 启动你的RZNode服务器：`./run_server.cpp.exe`
 2. 在浏览器中打开 `websocket_test.html`
 3. 点击"连接到服务器"
 4. 输入消息并发送，观察服务器回复

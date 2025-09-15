@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "nodes/system/node_system.hpp"
-#include "nodes/web_server_oatpp/web_server_oatpp.hpp"
+#include "nodes/web_server/web_server.hpp"
 
 // 全局变量用于信号处理（放在全局命名空间）
 std::shared_ptr<USTC_CG::WebServerOatpp> g_web_server;

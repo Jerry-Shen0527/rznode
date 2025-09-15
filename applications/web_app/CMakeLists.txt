@@ -1,12 +1,12 @@
 UCG_ADD_APP(
-    SRC run_server_oatpp.cpp
-    LIBS web_server_oatpp nodes_system
+    SRC run_server.cpp
+    LIBS web_server nodes_system
 )
 
 add_nodes(
     SRC_DIRS web_test_nodes 
     TARGET_NAME web_test_nodes
-    DEP_LIBS web_server_oatpp geometry
+    DEP_LIBS web_server geometry
 )
 add_dependencies(run_server.cpp web_test_nodes)
 

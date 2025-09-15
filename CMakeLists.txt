@@ -100,12 +100,12 @@ if(NODE_WEB_SERVER_ENABLED)
     set_target_properties(oatpp-websocket PROPERTIES ${OUTPUT_DIR})
     set(BUILD_SHARED_LIBS ON)  # 恢复 BUILD_SHARED_LIBS 选项
 
-    add_subdirectory(web_server_oatpp)
+    add_subdirectory(web_server)
     if(GEOM_EXTENSION_ENABLED)
         add_subdirectory(ext/GCore)
-        target_link_libraries(web_server_oatpp PUBLIC geometry)
-        target_include_directories(web_server_oatpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/web_server_oatpp/geom_extension/include)
-        target_compile_definitions(web_server_oatpp PRIVATE GEOM_EXTENSION=1)
+        target_link_libraries(web_server PUBLIC geometry)
+        target_include_directories(web_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/web_server/geom_extension/include)
+        target_compile_definitions(web_server PRIVATE GEOM_EXTENSION=1)
     endif()
 
 endif()

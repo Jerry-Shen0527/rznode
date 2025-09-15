@@ -4,8 +4,8 @@
 
 #include "entt/meta/meta.hpp"
 #include "nodes/system/node_system.hpp"
-#include "nodes/web_server_oatpp/api.h"
-#include "nodes/web_server_oatpp/dto.hpp"
+#include "nodes/web_server/api.h"
+#include "nodes/web_server/dto.hpp"
 #include "oatpp/Types.hpp"
 #include "oatpp/concurrency/SpinLock.hpp"
 
@@ -24,7 +24,7 @@ USTC_CG_NAMESPACE_OPEN_SCOPE
  * 参考文档：
  * https://github.com/oatpp/oatpp/issues/569
  */
-class WEB_SERVER_OATPP_API StaticFilesManager {
+class WEB_SERVER_API StaticFilesManager {
    public:
     StaticFilesManager();
 
@@ -40,7 +40,7 @@ class WEB_SERVER_OATPP_API StaticFilesManager {
     std::unordered_map<oatpp::String, oatpp::String> cache_;
 };
 
-class WEB_SERVER_OATPP_API NodeSystemComponent {
+class WEB_SERVER_API NodeSystemComponent {
    public:
     void set_node_system(std::shared_ptr<NodeSystem> node_system);
     std::shared_ptr<NodeSystem> get_node_system() const;

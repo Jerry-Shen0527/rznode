@@ -1,14 +1,14 @@
 #pragma once
 
 #ifdef GEOM_EXTENSION
-#include "nodes//web_server_oatpp/geom_ws_listener.hpp"
+#include "nodes//web_server/geom_ws_listener.hpp"
 #endif
 
 #include <memory>
 
-#include "nodes/web_server_oatpp/api.h"
-#include "nodes/web_server_oatpp/dto.hpp"
-#include "nodes/web_server_oatpp/util.hpp"
+#include "nodes/web_server/api.h"
+#include "nodes/web_server/dto.hpp"
+#include "nodes/web_server/util.hpp"
 #include "oatpp-websocket/ConnectionHandler.hpp"
 #include "oatpp-websocket/Handshaker.hpp"
 #include "oatpp/macro/codegen.hpp"
@@ -28,7 +28,7 @@ USTC_CG_NAMESPACE_OPEN_SCOPE
  * https://github.com/oatpp/example-crud/blob/master/src/controller/UserController.hpp
  */
 
-class WEB_SERVER_OATPP_API ApiController
+class WEB_SERVER_API ApiController
     : public oatpp::web::server::api::ApiController {
    public:
     ApiController(

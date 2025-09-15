@@ -550,7 +550,7 @@ ws.onerror = (error) => {
 - 集成现有USD/IGL视图，保持API兼容
 - 支持顶点、索引、颜色、法向量的完整导出
 
-**WebSocket传输层** (`web_server_oatpp/`)：
+**WebSocket传输层** (`web_server/`)：
 
 - 基于oatpp实现JSON消息传输
 - 连接管理、错误处理、重连机制

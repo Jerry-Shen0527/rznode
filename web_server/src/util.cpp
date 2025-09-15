@@ -1,4 +1,4 @@
-#include "nodes/web_server_oatpp/util.hpp"
+#include "nodes/web_server/util.hpp"
 
 #include <cassert>
 #include <string>
@@ -6,7 +6,7 @@
 #include "entt/core/type_info.hpp"
 #include "nodes/core/io/json.hpp"
 #include "nodes/system/node_system.hpp"
-#include "nodes/web_server_oatpp/dto.hpp"
+#include "nodes/web_server/dto.hpp"
 #include "oatpp/Types.hpp"
 #include "oatpp/data/type/Object.hpp"
 

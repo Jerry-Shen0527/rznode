@@ -1,6 +1,6 @@
 #pragma once
 
-#include "nodes/web_server_oatpp/api.h"
+#include "nodes/web_server/api.h"
 #include "oatpp/Types.hpp"
 #include "oatpp/macro/codegen.hpp"
 
@@ -13,7 +13,7 @@
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
-class WEB_SERVER_OATPP_API StatusDto : public oatpp::DTO {
+class WEB_SERVER_API StatusDto : public oatpp::DTO {
     DTO_INIT(StatusDto, DTO)
 
     DTO_FIELD(String, status) = "running";
@@ -21,25 +21,25 @@ class WEB_SERVER_OATPP_API StatusDto : public oatpp::DTO {
     DTO_FIELD(Boolean, has_node_system);
 };
 
-class WEB_SERVER_OATPP_API ValueTypeDto : public oatpp::DTO {
+class WEB_SERVER_API ValueTypeDto : public oatpp::DTO {
     DTO_INIT(ValueTypeDto, DTO)
 
     DTO_FIELD(String, type_name);
 };
 
-class WEB_SERVER_OATPP_API ValueTypesDto : public oatpp::DTO {
+class WEB_SERVER_API ValueTypesDto : public oatpp::DTO {
     DTO_INIT(ValueTypesDto, DTO)
 
     DTO_FIELD(Vector<Object<ValueTypeDto>>, value_types) = { };
 };
 
-class WEB_SERVER_OATPP_API NodeTypeDto : public oatpp::DTO {
+class WEB_SERVER_API NodeTypeDto : public oatpp::DTO {
     DTO_INIT(NodeTypeDto, DTO)
 
     DTO_FIELD(String, id_name);
     DTO_FIELD(String, ui_name);
 
-    class WEB_SERVER_OATPP_API SocketDto : public oatpp::DTO {
+    class WEB_SERVER_API SocketDto : public oatpp::DTO {
         DTO_INIT(SocketDto, DTO)
 
         DTO_FIELD(String, name);
@@ -53,7 +53,7 @@ class WEB_SERVER_OATPP_API NodeTypeDto : public oatpp::DTO {
         DTO_FIELD(String, max_value);
     };
 
-    class WEB_SERVER_OATPP_API SocketGroupDto : public oatpp::DTO {
+    class WEB_SERVER_API SocketGroupDto : public oatpp::DTO {
         DTO_INIT(SocketGroupDto, DTO)
 
         DTO_FIELD(String, identifier);
@@ -69,13 +69,13 @@ class WEB_SERVER_OATPP_API NodeTypeDto : public oatpp::DTO {
     DTO_FIELD(Vector<Float32>, color) = { 0.3f, 0.5f, 0.7f, 1.0f };
 };
 
-class WEB_SERVER_OATPP_API NodeTypesDto : public oatpp::DTO {
+class WEB_SERVER_API NodeTypesDto : public oatpp::DTO {
     DTO_INIT(NodeTypesDto, DTO)
 
     DTO_FIELD(Vector<Object<NodeTypeDto>>, node_types) = { };
 };
 
-class WEB_SERVER_OATPP_API NodeInstanceDto : public oatpp::DTO {
+class WEB_SERVER_API NodeInstanceDto : public oatpp::DTO {
     DTO_INIT(NodeInstanceDto, DTO)
 
     DTO_FIELD(String, id);
@@ -85,7 +85,7 @@ class WEB_SERVER_OATPP_API NodeInstanceDto : public oatpp::DTO {
     DTO_FIELD(Fields<Any>, input_values) = { };
 };
 
-class WEB_SERVER_OATPP_API NodeLinkDto : public oatpp::DTO {
+class WEB_SERVER_API NodeLinkDto : public oatpp::DTO {
     DTO_INIT(NodeLinkDto, DTO)
 
     DTO_FIELD(String, id);
@@ -95,14 +95,14 @@ class WEB_SERVER_OATPP_API NodeLinkDto : public oatpp::DTO {
     DTO_FIELD(String, to_socket);
 };
 
-class WEB_SERVER_OATPP_API NodeTreeDto : public oatpp::DTO {
+class WEB_SERVER_API NodeTreeDto : public oatpp::DTO {
     DTO_INIT(NodeTreeDto, DTO)
 
     DTO_FIELD(Vector<Object<NodeInstanceDto>>, nodes) = { };
     DTO_FIELD(Vector<Object<NodeLinkDto>>, links) = { };
 };
 
-class WEB_SERVER_OATPP_API ExecutionResultDto : public oatpp::DTO {
+class WEB_SERVER_API ExecutionResultDto : public oatpp::DTO {
     DTO_INIT(ExecutionResultDto, DTO)
 
     DTO_FIELD(Boolean, success) = false;       // 执行是否成功
@@ -111,14 +111,14 @@ class WEB_SERVER_OATPP_API ExecutionResultDto : public oatpp::DTO {
     // TODO: 添加执行完成后，各节点输出值、执行状态、颜色等
 };
 
-class WEB_SERVER_OATPP_API ValidationResultDto : public oatpp::DTO {
+class WEB_SERVER_API ValidationResultDto : public oatpp::DTO {
     DTO_INIT(ValidationResultDto, DTO)
 
     DTO_FIELD(Boolean, valid) = false;  // 是否有效
     DTO_FIELD(String, error) = "";      // 错误信息（如果有的话）
 };
 
-class WEB_SERVER_OATPP_API MessageDto : public oatpp::DTO {
+class WEB_SERVER_API MessageDto : public oatpp::DTO {
     DTO_INIT(MessageDto, DTO)
 
     DTO_FIELD(Int32, code);

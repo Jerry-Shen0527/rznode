@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "nodes/web_server_oatpp/api.h"
+#include "nodes/web_server/api.h"
 #include "oatpp/Types.hpp"
 #include "oatpp/macro/codegen.hpp"
 
@@ -15,7 +15,7 @@
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
-class WEB_SERVER_OATPP_API MeshDataDto : public oatpp::DTO {
+class WEB_SERVER_API MeshDataDto : public oatpp::DTO {
     DTO_INIT(MeshDataDto, DTO)
 
     DTO_FIELD(Vector<Float32>, vertices) = { };
@@ -26,7 +26,7 @@ class WEB_SERVER_OATPP_API MeshDataDto : public oatpp::DTO {
     DTO_FIELD(Vector<Float32>, uvs) = { };
 };
 
-class WEB_SERVER_OATPP_API PointsDataDto : public oatpp::DTO {
+class WEB_SERVER_API PointsDataDto : public oatpp::DTO {
     DTO_INIT(PointsDataDto, DTO)
 
     DTO_FIELD(Vector<Float32>, vertices) = { };
@@ -35,7 +35,7 @@ class WEB_SERVER_OATPP_API PointsDataDto : public oatpp::DTO {
     DTO_FIELD(Vector<Float32>, widths) = { };
 };
 
-class WEB_SERVER_OATPP_API CurveDataDto : public oatpp::DTO {
+class WEB_SERVER_API CurveDataDto : public oatpp::DTO {
     DTO_INIT(CurveDataDto, DTO)
 
     DTO_FIELD(Vector<Float32>, vertices) = { };
@@ -46,7 +46,7 @@ class WEB_SERVER_OATPP_API CurveDataDto : public oatpp::DTO {
     DTO_FIELD(Boolean, periodic) = false;
 };
 
-class WEB_SERVER_OATPP_API GeometryDataDto : public oatpp::DTO {
+class WEB_SERVER_API GeometryDataDto : public oatpp::DTO {
     DTO_INIT(GeometryDataDto, DTO)
 
     // 几何体ID
@@ -74,7 +74,7 @@ class WEB_SERVER_OATPP_API GeometryDataDto : public oatpp::DTO {
     }
 };
 
-class WEB_SERVER_OATPP_API GeometryMessageDto : public oatpp::DTO {
+class WEB_SERVER_API GeometryMessageDto : public oatpp::DTO {
     DTO_INIT(GeometryMessageDto, DTO)
 
     // 'geometry_update' | 'geometry_clear'

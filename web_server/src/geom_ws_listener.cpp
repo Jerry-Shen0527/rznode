@@ -8,7 +8,7 @@
  * https://github.com/oatpp/example-websocket/blob/master/server/src/websocket/WSListener.cpp
  */
 
-#include "nodes/web_server_oatpp/geom_ws_listener.hpp"
+#include "nodes/web_server/geom_ws_listener.hpp"
 #include "spdlog/spdlog.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

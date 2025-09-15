@@ -11,8 +11,8 @@
 #include "GCore/Components/PointsComponent.h"
 #include "GCore/Components/XformComponent.h"
 #include "GCore/GOP.h"
-#include "nodes/web_server_oatpp/api.h"
-#include "nodes/web_server_oatpp/geom_dto.hpp"
+#include "nodes/web_server/api.h"
+#include "nodes/web_server/geom_dto.hpp"
 #include "oatpp/Types.hpp"
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
@@ -21,7 +21,7 @@ USTC_CG_NAMESPACE_OPEN_SCOPE
  * 需求：一个几何信息转换器，提供由几何信息到DTO的转换功能
  */
 
-class WEB_SERVER_OATPP_API GeometryUtils {
+class WEB_SERVER_API GeometryUtils {
    public:
     // 将几何体DTO转换为几何消息
     static oatpp::Object<GeometryMessageDto> convertGeometryMessageToDto(
