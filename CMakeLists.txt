@@ -85,17 +85,6 @@ endif()
 option(NODE_WEB_SERVER_ENABLED "Enable Web Server with BaklavaJS integration" ON)
 option(GEOM_EXTENSION_ENABLED "Enable GCore geometry extension for web server" ON)
 if(NODE_WEB_SERVER_ENABLED)
-    set(HTTPLIB_INSTALL OFF CACHE BOOL "Disable installation of cpp-httplib")
-    set(HTTPLIB_COMPILE ON CACHE BOOL "Use the compiled version of cpp-httplib")
-
-    add_subdirectory(ext/cpp-httplib)
-    
-    if(HTTPLIB_COMPILE)
-        target_precompile_headers(httplib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ext/cpp-httplib/httplib.h")
-    endif()
-
-    add_subdirectory(web_server)
-
     # oatpp version
     set(BUILD_SHARED_LIBS OFF)  # 将 OATPP 构建为静态库
     set(OATPP_INSTALL OFF CACHE BOOL "Disable installation of oatpp")

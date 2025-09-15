@@ -1,9 +1,4 @@
 UCG_ADD_APP(
-    SRC run_server.cpp
-    LIBS web_server nodes_system httplib::httplib
-)
-
-UCG_ADD_APP(
     SRC run_server_oatpp.cpp
     LIBS web_server_oatpp nodes_system
 )
