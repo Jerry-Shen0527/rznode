@@ -4,7 +4,6 @@
 #include <string>
 
 #include "api.hpp"
-#include "entt/core/type_info.hpp"
 #include "entt/meta/meta.hpp"
 #include "id.hpp"
 #include "io/json_fwd.hpp"

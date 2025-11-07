@@ -75,22 +75,4 @@ class NODES_CORE_API EagerNodeTreeExecutor : public NodeTreeExecutor {
     std::map<std::string, entt::meta_any> storage;
 };
 
-//
-// struct RenderGlobalParams;
-//
-
-//
-// class EagerNodeTreeExecutorGeom : public EagerNodeTreeExecutor {
-//   protected:
-//    GeomNodeGlobalParams* global_param = nullptr;
-//    ExeParams prepare_params(NodeTree* tree, Node* node) override;
-//
-//   public:
-//    void set_global_param(GeomNodeGlobalParams* param);
-//};
-//
-// std::unique_ptr<EagerNodeTreeExecutor> CreateEagerNodeTreeExecutorRender();
-// std::unique_ptr<EagerNodeTreeExecutor> CreateEagerNodeTreeExecutor();
-// std::unique_ptr<EagerNodeTreeExecutor> CreateEagerNodeTreeExecutorGeom();
-
 USTC_CG_NAMESPACE_CLOSE_SCOPE
