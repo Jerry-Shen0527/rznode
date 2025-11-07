@@ -16,11 +16,13 @@ struct RuntimeInputState {
     bool is_forwarded = false;
     bool is_last_used = false;
     bool keep_alive = false;
+    bool is_cached = false;  // Cache validity flag
 };
 
 struct RuntimeOutputState {
     entt::meta_any value;
     bool is_last_used = false;
+    bool is_cached = false;  // Cache validity flag
 };
 
 // Provide single threaded execution. The aim of this executor is simplicity and
@@ -41,6 +43,16 @@ class NODES_CORE_API EagerNodeTreeExecutor : public NodeTreeExecutor {
         override;
 
     std::shared_ptr<NodeTreeExecutor> clone_empty() const override;
+    
+    // Override base class notification methods
+    void notify_node_dirty(Node* node) override;
+    void notify_socket_dirty(NodeSocket* socket) override;
+    entt::meta_any* get_socket_value(NodeSocket* socket) override;
+    
+    // Dirty tracking and cache management
+    void mark_node_dirty(Node* node);
+    void mark_socket_dirty(NodeSocket* socket);
+    void mark_tree_structure_changed();  // Call when links added/removed
 
    protected:
     virtual ExeParams prepare_params(NodeTree* tree, Node* node);
@@ -48,6 +60,13 @@ class NODES_CORE_API EagerNodeTreeExecutor : public NodeTreeExecutor {
     virtual void remove_storage(const std::set<std::string>::value_type& key);
     void forward_output_to_input(Node* node);
     void clear();
+    
+    // Cache management
+    void propagate_dirty_downstream(Node* node, NodeTree* tree);
+    void collect_required_upstream(Node* node);
+    bool is_node_dirty(Node* node) const;
+    void invalidate_cache_for_node(Node* node);
+    void mark_node_clean(Node* node);
 
     std::vector<RuntimeInputState> input_states;
     std::vector<RuntimeOutputState> output_states;
@@ -56,6 +75,10 @@ class NODES_CORE_API EagerNodeTreeExecutor : public NodeTreeExecutor {
     std::vector<NodeSocket*> input_of_nodes_to_execute;
     std::vector<NodeSocket*> output_of_nodes_to_execute;
     ptrdiff_t nodes_to_execute_count = 0;
+    
+    // Dirty tracking
+    std::set<Node*> dirty_nodes;
+    std::map<Node*, bool> node_dirty_cache;  // Cache dirty state per node
 
     // Storage related
     virtual void refresh_storage();

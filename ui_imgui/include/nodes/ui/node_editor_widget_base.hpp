@@ -16,6 +16,7 @@
 #include "nvrhi/nvrhi.h"
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
+struct NodeTreeExecutor;
 namespace ed = ax::NodeEditor;
 namespace util = ax::NodeEditor::Utilities;
 using namespace ax;
@@ -54,6 +55,11 @@ class NODES_UI_IMGUI_API NodeEditorWidgetBase : public IWidget {
 
     virtual void create_new_node(ImVec2 openPopupPosition)
     {  // Do nothing if base class
+    }
+
+    virtual NodeTreeExecutor* get_executor()
+    {
+        return nullptr;  // Override in derived class
     }
 
     void connectLinks();

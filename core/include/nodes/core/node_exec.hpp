@@ -241,6 +241,24 @@ struct NODES_CORE_API NodeTreeExecutor {
         entt::meta_any& data)
     {
     }
+    
+    // Notify executor that a node or socket has been modified
+    virtual void notify_node_dirty(Node* node)
+    {
+        // Default: do nothing (for executors without caching)
+    }
+    
+    virtual void notify_socket_dirty(NodeSocket* socket)
+    {
+        // Default: do nothing (for executors without caching)
+    }
+    
+    // Get runtime value of a socket (for debugging/visualization)
+    virtual entt::meta_any* get_socket_value(NodeSocket* socket)
+    {
+        return nullptr;  // Default: not supported
+    }
+    
     void execute(NodeTree* tree, Node* required_node = nullptr)
     {
         prepare_tree(tree, required_node);

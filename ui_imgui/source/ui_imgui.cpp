@@ -2,7 +2,6 @@
 
 #include "entt/core/type_info.hpp"
 #include "entt/meta/meta.hpp"
-#include "nodes/core/node_exec_eager.hpp"
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui_internal.h>
 #include <pxr/base/gf/vec2f.h>
@@ -440,8 +439,7 @@ void NodeWidget::ShowLeftPane(float paneWidth)
     ImGui::TextUnformatted("Selection");
 
     ImGui::Indent();
-    EagerNodeTreeExecutor* executor =
-        dynamic_cast<EagerNodeTreeExecutor*>(system_->get_node_tree_executor());
+    auto* executor = system_->get_node_tree_executor();
     for (int i = 0; i < nodeCount; ++i) {
         ImGui::Text("Node (%p)", selectedNodes[i].AsPointer());
         auto node = tree_->find_node(selectedNodes[i]);
@@ -450,15 +448,21 @@ void NodeWidget::ShowLeftPane(float paneWidth)
         ImGui::Text("Inputs:");
         ImGui::Indent();
         for (auto& in : input) {
-            auto input_value = *executor->FindPtr(in);
-            ShowInputOrOutput(*in, input_value);
+            if (auto* value_ptr = executor->get_socket_value(in)) {
+                ShowInputOrOutput(*in, *value_ptr);
+            } else {
+                ShowInputOrOutput(*in, entt::meta_any{});
+            }
         }
         ImGui::Unindent();
         ImGui::Text("Outputs:");
         ImGui::Indent();
         for (auto& out : output) {
-            auto& output_value = *executor->FindPtr(out);
-            ShowInputOrOutput(*out, output_value);
+            if (auto* value_ptr = executor->get_socket_value(out)) {
+                ShowInputOrOutput(*out, *value_ptr);
+            } else {
+                ShowInputOrOutput(*out, entt::meta_any{});
+            }
         }
         ImGui::Unindent();
         if (node->override_left_pane_info)

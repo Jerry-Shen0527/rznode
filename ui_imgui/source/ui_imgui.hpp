@@ -53,6 +53,11 @@ class NodeWidget : public NodeEditorWidgetBase {
         }
     }
 
+    NodeTreeExecutor* get_executor() override
+    {
+        return system_->get_node_tree_executor();
+    }
+
    public:
     bool BuildUI() override;
 

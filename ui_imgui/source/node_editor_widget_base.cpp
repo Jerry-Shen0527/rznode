@@ -2,7 +2,6 @@
 
 #include "entt/core/type_info.hpp"
 #include "entt/meta/meta.hpp"
-#include "nodes/core/node_exec_eager.hpp"
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui_internal.h>
 
@@ -117,8 +116,13 @@ bool NodeEditorWidgetBase::BuildUI()
                 }
                 else {
                     ImGui::PushItemWidth(120.0f);
-                    if (draw_socket_controllers(input))
+                    if (draw_socket_controllers(input)) {
                         tree_->SetDirty();
+                        // Notify executor that socket value changed
+                        if (auto* executor = get_executor()) {
+                            executor->notify_socket_dirty(input);
+                        }
+                    }
                     ImGui::PopItemWidth();
                     ImGui::Spring(0);
                 }

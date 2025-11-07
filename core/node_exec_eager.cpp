@@ -10,6 +10,145 @@
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
+void EagerNodeTreeExecutor::mark_node_dirty(Node* node)
+{
+    dirty_nodes.insert(node);
+    node_dirty_cache[node] = true;
+}
+
+void EagerNodeTreeExecutor::mark_socket_dirty(NodeSocket* socket)
+{
+    mark_node_dirty(socket->node);
+}
+
+void EagerNodeTreeExecutor::notify_node_dirty(Node* node)
+{
+    mark_node_dirty(node);
+}
+
+void EagerNodeTreeExecutor::notify_socket_dirty(NodeSocket* socket)
+{
+    mark_node_dirty(socket->node);
+    invalidate_cache_for_node(socket->node);
+    
+    // Propagate dirty to all downstream nodes
+    std::vector<Node*> to_visit;
+    for (auto* output : socket->node->get_outputs()) {
+        for (auto* linked_socket : output->directly_linked_sockets) {
+            to_visit.push_back(linked_socket->node);
+        }
+    }
+    
+    while (!to_visit.empty()) {
+        Node* current = to_visit.back();
+        to_visit.pop_back();
+        
+        if (is_node_dirty(current)) {
+            continue;  // Already marked
+        }
+        
+        mark_node_dirty(current);
+        invalidate_cache_for_node(current);
+        
+        // Add downstream nodes
+        for (auto* output : current->get_outputs()) {
+            for (auto* linked_socket : output->directly_linked_sockets) {
+                to_visit.push_back(linked_socket->node);
+            }
+        }
+    }
+}
+
+entt::meta_any* EagerNodeTreeExecutor::get_socket_value(NodeSocket* socket)
+{
+    return FindPtr(socket);
+}
+
+void EagerNodeTreeExecutor::mark_tree_structure_changed()
+{
+    // When tree structure changes, invalidate index cache and mark all as dirty
+    // This forces a full recompilation
+    index_cache.clear();
+    for (auto& state : input_states) {
+        state.is_cached = false;
+    }
+    for (auto& state : output_states) {
+        state.is_cached = false;
+    }
+    node_dirty_cache.clear();
+    dirty_nodes.clear();
+}
+
+bool EagerNodeTreeExecutor::is_node_dirty(Node* node) const
+{
+    auto it = node_dirty_cache.find(node);
+    return it != node_dirty_cache.end() && it->second;
+}
+
+void EagerNodeTreeExecutor::mark_node_clean(Node* node)
+{
+    node_dirty_cache[node] = false;
+}
+
+void EagerNodeTreeExecutor::invalidate_cache_for_node(Node* node)
+{
+    for (auto* input : node->get_inputs()) {
+        if (index_cache.find(input) != index_cache.end()) {
+            auto& state = input_states[index_cache[input]];
+            state.is_cached = false;
+            // Don't reset is_forwarded here - it will be reset in clear()
+            // Resetting it here prevents upstream cached nodes from forwarding data
+        }
+    }
+    for (auto* output : node->get_outputs()) {
+        if (index_cache.find(output) != index_cache.end()) {
+            output_states[index_cache[output]].is_cached = false;
+        }
+    }
+}
+
+void EagerNodeTreeExecutor::propagate_dirty_downstream(Node* node, NodeTree* tree)
+{
+    std::vector<Node*> to_visit;
+    to_visit.push_back(node);
+    
+    while (!to_visit.empty()) {
+        Node* current = to_visit.back();
+        to_visit.pop_back();
+        
+        if (is_node_dirty(current)) {
+            continue;  // Already processed
+        }
+        
+        mark_node_dirty(current);
+        invalidate_cache_for_node(current);
+        
+        // Propagate to downstream nodes
+        for (auto* output : current->get_outputs()) {
+            for (auto* linked_socket : output->directly_linked_sockets) {
+                Node* downstream = linked_socket->node;
+                if (!is_node_dirty(downstream)) {
+                    to_visit.push_back(downstream);
+                }
+            }
+        }
+    }
+}
+
+void EagerNodeTreeExecutor::collect_required_upstream(Node* node)
+{
+    // Mark upstream nodes as required
+    for (auto* input : node->get_inputs()) {
+        for (auto* linked_socket : input->directly_linked_sockets) {
+            Node* upstream = linked_socket->node;
+            if (!upstream->REQUIRED) {
+                upstream->REQUIRED = true;
+                collect_required_upstream(upstream);
+            }
+        }
+    }
+}
+
 ExeParams EagerNodeTreeExecutor::prepare_params(NodeTree* tree, Node* node)
 {
     node->MISSING_INPUT = false;
@@ -173,13 +312,22 @@ void EagerNodeTreeExecutor::forward_output_to_input(Node* node)
 
 void EagerNodeTreeExecutor::clear()
 {
-    input_states.clear();
-    output_states.clear();
-    index_cache.clear();
+    // Don't clear cache data, only reset execution state
     nodes_to_execute.clear();
     nodes_to_execute_count = 0;
     input_of_nodes_to_execute.clear();
     output_of_nodes_to_execute.clear();
+    
+    // Reset forwarding and last_used flags, but keep cached values
+    for (auto& state : input_states) {
+        state.is_forwarded = false;
+        state.is_last_used = false;
+        state.keep_alive = false;
+    }
+    
+    for (auto& state : output_states) {
+        state.is_last_used = false;
+    }
 }
 
 void EagerNodeTreeExecutor::compile(NodeTree* tree, Node* required_node)
@@ -190,13 +338,16 @@ void EagerNodeTreeExecutor::compile(NodeTree* tree, Node* required_node)
 
     nodes_to_execute = tree->get_toposort_left_to_right();
 
+    // Reset REQUIRED flags
     for (auto node : nodes_to_execute) {
         node->REQUIRED = false;
     }
 
+    // Mark required nodes and propagate upstream
     for (int i = nodes_to_execute.size() - 1; i >= 0; i--) {
         auto node = nodes_to_execute[i];
 
+        // Check if node is required
         if (required_node == nullptr) {
             if (node->typeinfo->ALWAYS_REQUIRED) {
                 node->REQUIRED = true;
@@ -208,27 +359,57 @@ void EagerNodeTreeExecutor::compile(NodeTree* tree, Node* required_node)
             }
         }
 
+        // Propagate requirement upstream
         if (node->REQUIRED) {
-            for (auto input : node->get_inputs()) {
-                assert(input->directly_linked_sockets.size() <= 1);
-                for (auto directly_linked_socket :
-                     input->directly_linked_sockets) {
-                    directly_linked_socket->node->REQUIRED = true;
-                }
-            }
+            collect_required_upstream(node);
         }
     }
 
+    // For dirty nodes, also mark them and downstream as required if they feed into required nodes
+    for (auto* dirty_node : dirty_nodes) {
+        bool feeds_into_required = false;
+        
+        // Check if this dirty node or its downstream affect any required node
+        std::vector<Node*> to_check = { dirty_node };
+        std::set<Node*> visited;
+        
+        while (!to_check.empty()) {
+            Node* current = to_check.back();
+            to_check.pop_back();
+            
+            if (visited.find(current) != visited.end()) {
+                continue;
+            }
+            visited.insert(current);
+            
+            if (current->REQUIRED) {
+                feeds_into_required = true;
+                break;
+            }
+            
+            // Check downstream
+            for (auto* output : current->get_outputs()) {
+                for (auto* linked_socket : output->directly_linked_sockets) {
+                    to_check.push_back(linked_socket->node);
+                }
+            }
+        }
+        
+        if (feeds_into_required) {
+            dirty_node->REQUIRED = true;
+            collect_required_upstream(dirty_node);
+        }
+    }
+
+    // Partition into required and not-required
     auto split = std::stable_partition(
         nodes_to_execute.begin(), nodes_to_execute.end(), [](Node* node) {
             return node->REQUIRED;
         });
 
-    // Now the nodes is split into two parts, and the topology sequence is
-    // correct.
-
     nodes_to_execute_count = std::distance(nodes_to_execute.begin(), split);
 
+    // Collect sockets for required nodes only
     for (int i = 0; i < nodes_to_execute_count; ++i) {
         input_of_nodes_to_execute.insert(
             input_of_nodes_to_execute.end(),
@@ -244,21 +425,60 @@ void EagerNodeTreeExecutor::compile(NodeTree* tree, Node* required_node)
 
 void EagerNodeTreeExecutor::prepare_memory()
 {
-    for (int i = 0; i < input_states.size(); ++i) {
-        index_cache[input_of_nodes_to_execute[i]] = i;
-        auto type = input_of_nodes_to_execute[i]->type_info;
-        if (type) {
-            input_states[i].value = type.construct();
+    // Build new index mapping - we need to handle cache preservation carefully
+    std::map<NodeSocket*, size_t> new_index_cache;
+    std::vector<RuntimeInputState> new_input_states;
+    std::vector<RuntimeOutputState> new_output_states;
+    
+    new_input_states.resize(input_of_nodes_to_execute.size());
+    new_output_states.resize(output_of_nodes_to_execute.size());
+    
+    // Map inputs and preserve cached data
+    for (int i = 0; i < input_of_nodes_to_execute.size(); ++i) {
+        auto* socket = input_of_nodes_to_execute[i];
+        new_index_cache[socket] = i;
+        
+        // Check if this socket existed in old cache
+        auto old_it = index_cache.find(socket);
+        if (old_it != index_cache.end() && old_it->second < input_states.size()) {
+            // Preserve old cached state
+            new_input_states[i] = std::move(input_states[old_it->second]);
+        }
+        else {
+            // New socket, initialize
+            auto type = socket->type_info;
+            if (type) {
+                new_input_states[i].value = type.construct();
+            }
+            new_input_states[i].is_cached = false;
         }
     }
-
-    for (int i = 0; i < output_states.size(); ++i) {
-        index_cache[output_of_nodes_to_execute[i]] = i;
-        auto type = output_of_nodes_to_execute[i]->type_info;
-        if (type) {
-            output_states[i].value = type.construct();
+    
+    // Map outputs and preserve cached data
+    for (int i = 0; i < output_of_nodes_to_execute.size(); ++i) {
+        auto* socket = output_of_nodes_to_execute[i];
+        new_index_cache[socket] = i;
+        
+        // Check if this socket existed in old cache
+        auto old_it = index_cache.find(socket);
+        if (old_it != index_cache.end() && old_it->second < output_states.size()) {
+            // Preserve old cached state
+            new_output_states[i] = std::move(output_states[old_it->second]);
+        }
+        else {
+            // New socket, initialize
+            auto type = socket->type_info;
+            if (type) {
+                new_output_states[i].value = type.construct();
+            }
+            new_output_states[i].is_cached = false;
         }
     }
+    
+    // Replace old state with new state
+    index_cache = std::move(new_index_cache);
+    input_states = std::move(new_input_states);
+    output_states = std::move(new_output_states);
 }
 
 void EagerNodeTreeExecutor::remove_storage(
@@ -379,36 +599,77 @@ EagerNodeTreeExecutor::~EagerNodeTreeExecutor()
 
 void EagerNodeTreeExecutor::prepare_tree(NodeTree* tree, Node* required_node)
 {
-    // auto gilState = PyGILState_Ensure();
-
     tree->ensure_topology_cache();
+    
+    // Only clear execution state, not cache
     clear();
 
     compile(tree, required_node);
 
-    input_states.resize(input_of_nodes_to_execute.size());
-    output_states.resize(output_of_nodes_to_execute.size());
-
+    // prepare_memory will now handle resizing and cache preservation
     prepare_memory();
 
     refresh_storage();
-    // PyGILState_Release(gilState);
 }
 
 void EagerNodeTreeExecutor::execute_tree(NodeTree* tree)
 {
-    // auto gilState = PyGILState_Ensure();
-
     for (int i = 0; i < nodes_to_execute_count; ++i) {
         auto node = nodes_to_execute[i];
+        
+        // Skip execution if node is clean and has valid cache
+        if (!is_node_dirty(node)) {
+            bool all_inputs_cached = true;
+            for (auto* input : node->get_inputs()) {
+                if (index_cache.find(input) != index_cache.end()) {
+                    if (!input_states[index_cache[input]].is_cached) {
+                        all_inputs_cached = false;
+                        break;
+                    }
+                }
+            }
+            
+            bool all_outputs_cached = true;
+            for (auto* output : node->get_outputs()) {
+                if (index_cache.find(output) != index_cache.end()) {
+                    if (!output_states[index_cache[output]].is_cached) {
+                        all_outputs_cached = false;
+                        break;
+                    }
+                }
+            }
+            
+            if (all_inputs_cached && all_outputs_cached) {
+                // Node is clean and cached, forward cached outputs
+                forward_output_to_input(node);
+                continue;
+            }
+        }
+        
+        // Execute node
         auto result = execute_node(tree, node);
         if (result) {
             forward_output_to_input(node);
+            
+            // Mark node as clean and cache as valid
+            mark_node_clean(node);
+            for (auto* input : node->get_inputs()) {
+                if (index_cache.find(input) != index_cache.end()) {
+                    input_states[index_cache[input]].is_cached = true;
+                }
+            }
+            for (auto* output : node->get_outputs()) {
+                if (index_cache.find(output) != index_cache.end()) {
+                    output_states[index_cache[output]].is_cached = true;
+                }
+            }
         }
     }
+    
     try_storage();
-
-    // PyGILState_Release(gilState);
+    
+    // Clean up dirty nodes that were executed
+    dirty_nodes.clear();
 }
 
 entt::meta_any* EagerNodeTreeExecutor::FindPtr(NodeSocket* socket)
@@ -437,6 +698,10 @@ void EagerNodeTreeExecutor::sync_node_from_external_storage(
 {
     if (index_cache.find(socket) != index_cache.end()) {
         entt::meta_any* ptr = FindPtr(socket);
+        
+        // Check if data actually changed
+        bool data_changed = !(*ptr) || (*ptr).type() != data.type() || *ptr != data;
+        
         *ptr = data;
 
         // if it has dataField, fill it
@@ -445,6 +710,42 @@ void EagerNodeTreeExecutor::sync_node_from_external_storage(
                 socket->dataField.value = data;
             }
             input_states[index_cache[socket]].is_forwarded = true;
+            input_states[index_cache[socket]].is_cached = false;
+            
+            // Mark node and downstream nodes dirty if data changed
+            if (data_changed) {
+                mark_node_dirty(socket->node);
+                invalidate_cache_for_node(socket->node);
+                
+                // Propagate dirty to downstream nodes
+                for (auto* output : socket->node->get_outputs()) {
+                    for (auto* linked_socket : output->directly_linked_sockets) {
+                        Node* downstream = linked_socket->node;
+                        if (!is_node_dirty(downstream)) {
+                            mark_node_dirty(downstream);
+                            invalidate_cache_for_node(downstream);
+                            
+                            // Recursively propagate downstream
+                            std::vector<Node*> to_visit = { downstream };
+                            while (!to_visit.empty()) {
+                                Node* current = to_visit.back();
+                                to_visit.pop_back();
+                                
+                                for (auto* out : current->get_outputs()) {
+                                    for (auto* linked : out->directly_linked_sockets) {
+                                        Node* next = linked->node;
+                                        if (!is_node_dirty(next)) {
+                                            mark_node_dirty(next);
+                                            invalidate_cache_for_node(next);
+                                            to_visit.push_back(next);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
