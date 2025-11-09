@@ -6,6 +6,7 @@
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_tree.hpp"
 #include "nodes/core/node_exec_eager.hpp"
+#include "nodes/core/node_link.hpp"
 
 using namespace USTC_CG;
 
@@ -285,4 +286,101 @@ TEST_F(NodeExecTest, UISocketDirtyPropagation)
     executor->sync_node_to_external_storage(
         node1->get_output_socket("result"), result);
     ASSERT_EQ(result.cast<int>(), 13);  // (10+2)+1=13
+}
+
+TEST_F(NodeExecTest, LinkChangeOnlyAffectsDownstream)
+{
+    NodeTreeExecutorDesc desc;
+    desc.policy = NodeTreeExecutorDesc::Policy::Eager;
+    auto executor_ptr = create_node_tree_executor(desc);
+    auto executor = dynamic_cast<EagerNodeTreeExecutor*>(executor_ptr.get());
+    
+    // Create chain: node0 -> node1 -> node2
+    auto node0 = tree->add_node("add");
+    auto node1 = tree->add_node("add");
+    auto node2 = tree->add_node("add");
+    
+    tree->add_link(
+        node0->get_output_socket("result"),
+        node1->get_input_socket("a"));
+    tree->add_link(
+        node1->get_output_socket("result"),
+        node2->get_input_socket("a"));
+
+    // First execution
+    std::cout << "\n=== First Execution ===" << std::endl;
+    executor->prepare_tree(tree.get());
+    executor->sync_node_from_external_storage(node0->get_input_socket("a"), 5);
+    executor->sync_node_from_external_storage(node0->get_input_socket("b"), 5);
+    executor->execute_tree(tree.get());
+
+    entt::meta_any result;
+    executor->sync_node_to_external_storage(
+        node2->get_output_socket("result"), result);
+    ASSERT_EQ(result.cast<int>(), 12);  // 5+5=10, 10+1=11, 11+1=12
+    
+    std::cout << "After first execution:" << std::endl;
+    std::cout << "  node0 dirty: " << executor->is_node_dirty(node0) << std::endl;
+    std::cout << "  node1 dirty: " << executor->is_node_dirty(node1) << std::endl;
+    std::cout << "  node2 dirty: " << executor->is_node_dirty(node2) << std::endl;
+
+    // Delete link between node0 and node1
+    std::cout << "\n=== Deleting Link ===" << std::endl;
+    NodeLink* link_to_delete = nullptr;
+    for (auto& link : tree->links) {
+        if (link->from_node == node0 && link->to_node == node1) {
+            link_to_delete = link.get();
+            break;
+        }
+    }
+    ASSERT_NE(link_to_delete, nullptr);
+    
+    auto input_socket = link_to_delete->to_sock;
+    tree->delete_link(link_to_delete->ID);
+    
+    // Simulate the notification that would come from UI
+    executor->notify_socket_dirty(input_socket);
+    
+    std::cout << "After deleting link:" << std::endl;
+    std::cout << "  node0 dirty: " << executor->is_node_dirty(node0) << std::endl;
+    std::cout << "  node1 dirty: " << executor->is_node_dirty(node1) << std::endl;
+    std::cout << "  node2 dirty: " << executor->is_node_dirty(node2) << std::endl;
+    
+    // node0 should be clean (upstream), node1 and node2 should be dirty (downstream)
+    ASSERT_FALSE(executor->is_node_dirty(node0));
+    ASSERT_TRUE(executor->is_node_dirty(node1));
+    ASSERT_TRUE(executor->is_node_dirty(node2));
+    
+    // Re-add the same link
+    std::cout << "\n=== Re-adding Link ===" << std::endl;
+    tree->add_link(
+        node0->get_output_socket("result"),
+        node1->get_input_socket("a"));
+    
+    // Simulate notification from UI
+    executor->notify_socket_dirty(node1->get_input_socket("a"));
+    
+    std::cout << "After re-adding link:" << std::endl;
+    std::cout << "  node0 dirty: " << executor->is_node_dirty(node0) << std::endl;
+    std::cout << "  node1 dirty: " << executor->is_node_dirty(node1) << std::endl;
+    std::cout << "  node2 dirty: " << executor->is_node_dirty(node2) << std::endl;
+    
+    // Re-execute - should only execute node1 and node2, node0 uses cache
+    std::cout << "\n=== Re-execution ===" << std::endl;
+    executor->prepare_tree(tree.get());
+    std::cout << "After prepare_tree:" << std::endl;
+    std::cout << "  node0 dirty: " << executor->is_node_dirty(node0) << std::endl;
+    std::cout << "  node1 dirty: " << executor->is_node_dirty(node1) << std::endl;
+    std::cout << "  node2 dirty: " << executor->is_node_dirty(node2) << std::endl;
+    
+    executor->execute_tree(tree.get());
+    
+    std::cout << "After execute_tree:" << std::endl;
+    std::cout << "  node0 dirty: " << executor->is_node_dirty(node0) << std::endl;
+    std::cout << "  node1 dirty: " << executor->is_node_dirty(node1) << std::endl;
+    std::cout << "  node2 dirty: " << executor->is_node_dirty(node2) << std::endl;
+    
+    executor->sync_node_to_external_storage(
+        node2->get_output_socket("result"), result);
+    ASSERT_EQ(result.cast<int>(), 12);  // Same result, node0 used cache
 }

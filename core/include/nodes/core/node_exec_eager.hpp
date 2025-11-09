@@ -53,6 +53,7 @@ class NODES_CORE_API EagerNodeTreeExecutor : public NodeTreeExecutor {
     void mark_node_dirty(Node* node);
     void mark_socket_dirty(NodeSocket* socket);
     void mark_tree_structure_changed();  // Call when links added/removed
+    bool is_node_dirty(Node* node) const;  // For debugging/testing
 
    protected:
     virtual ExeParams prepare_params(NodeTree* tree, Node* node);
@@ -64,7 +65,6 @@ class NODES_CORE_API EagerNodeTreeExecutor : public NodeTreeExecutor {
     // Cache management
     void propagate_dirty_downstream(Node* node, NodeTree* tree);
     void collect_required_upstream(Node* node);
-    bool is_node_dirty(Node* node) const;
     void invalidate_cache_for_node(Node* node);
     void mark_node_clean(Node* node);
 
@@ -75,6 +75,10 @@ class NODES_CORE_API EagerNodeTreeExecutor : public NodeTreeExecutor {
     std::vector<NodeSocket*> input_of_nodes_to_execute;
     std::vector<NodeSocket*> output_of_nodes_to_execute;
     ptrdiff_t nodes_to_execute_count = 0;
+    
+    // Persistent cache - survives across prepare_memory() calls
+    std::map<NodeSocket*, RuntimeInputState> persistent_input_cache;
+    std::map<NodeSocket*, RuntimeOutputState> persistent_output_cache;
     
     // Dirty tracking
     std::set<Node*> dirty_nodes;

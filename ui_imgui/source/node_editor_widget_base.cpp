@@ -193,6 +193,22 @@ bool NodeEditorWidgetBase::BuildUI()
                             if (ed::AcceptNewItem(
                                     ImColor(128, 255, 128), 4.0f)) {
                                 tree_->add_link(startPinId, endPinId);
+                                
+                                // Mark the receiving node (and downstream) as dirty
+                                // The upstream nodes remain clean and can use cache
+                                if (auto* executor = get_executor()) {
+                                    // Find the input socket (receiving end)
+                                    NodeSocket* input_socket = nullptr;
+                                    if (startPin->in_out == PinKind::Input) {
+                                        input_socket = startPin;
+                                    } else if (endPin->in_out == PinKind::Input) {
+                                        input_socket = endPin;
+                                    }
+                                    
+                                    if (input_socket) {
+                                        executor->notify_socket_dirty(input_socket);
+                                    }
+                                }
                             }
                         }
                     }
@@ -238,7 +254,22 @@ bool NodeEditorWidgetBase::BuildUI()
                 LinkId linkId = 0;
                 while (ed::QueryDeletedLink(&linkId)) {
                     if (ed::AcceptDeletedItem()) {
+                        // Find the link before deleting to get the input socket
+                        auto* link = tree_->find_link(linkId);
+                        NodeSocket* input_socket = nullptr;
+                        if (link) {
+                            // The receiving end is the input socket
+                            if (link->to_sock && link->to_sock->in_out == PinKind::Input) {
+                                input_socket = link->to_sock;
+                            }
+                        }
+                        
                         tree_->delete_link(linkId);
+                        
+                        // Mark the node that lost its input connection as dirty
+                        if (input_socket && get_executor()) {
+                            get_executor()->notify_socket_dirty(input_socket);
+                        }
                     }
                 }
 
