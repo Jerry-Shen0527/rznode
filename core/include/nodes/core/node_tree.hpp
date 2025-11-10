@@ -226,6 +226,9 @@ class NODES_CORE_API NodeTree {
     void SetDirty(bool dirty = true);
 
     bool GetDirty();
+    
+    // Debug utility: Print tree structure
+    std::string print_tree_structure() const;
 
    private:
     bool dirty_ = true;

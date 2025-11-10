@@ -384,3 +384,183 @@ TEST_F(NodeExecTest, LinkChangeOnlyAffectsDownstream)
         node2->get_output_socket("result"), result);
     ASSERT_EQ(result.cast<int>(), 12);  // Same result, node0 used cache
 }
+
+// Critical test: The issue described by the user
+// up->A->B->down, then disconnect A->B and connect up->B->down
+// B should get up's data, not A's old data
+// Extended version with larger subgraphs to test dirty propagation
+TEST_F(NodeExecTest, ReconnectUsesNewUpstreamData)
+{
+    NodeTreeExecutorDesc desc;
+    desc.policy = NodeTreeExecutorDesc::Policy::Eager;
+    auto executor_ptr = create_node_tree_executor(desc);
+    auto executor = dynamic_cast<EagerNodeTreeExecutor*>(executor_ptr.get());
+    
+    // Create upstream subgraph: up1 -> up2 -> up3 (produces 100)
+    auto up1 = tree->add_node("add");
+    auto up2 = tree->add_node("add");
+    auto up3 = tree->add_node("add");
+    tree->add_link(up1->get_output_socket("result"), up2->get_input_socket("a"));
+    tree->add_link(up2->get_output_socket("result"), up3->get_input_socket("a"));
+    
+    // Create middle nodes A and B
+    auto A = tree->add_node("add");     // Will produce 200
+    auto B = tree->add_node("add");     // Will process A's or up's output
+    
+    // Create downstream subgraph: down1 -> down2 -> down3 (final result)
+    auto down1 = tree->add_node("add");
+    auto down2 = tree->add_node("add");
+    auto down3 = tree->add_node("add");
+    tree->add_link(down1->get_output_socket("result"), down2->get_input_socket("a"));
+    tree->add_link(down2->get_output_socket("result"), down3->get_input_socket("a"));
+    
+    // Initial connection: up3 -> A -> B -> down1
+    tree->add_link(up3->get_output_socket("result"), A->get_input_socket("a"));
+    tree->add_link(A->get_output_socket("result"), B->get_input_socket("a"));
+    tree->add_link(B->get_output_socket("result"), down1->get_input_socket("a"));
+    
+    std::cout << "\n=== Phase 1: Initial Execution (up3->A->B->down1) ===" << std::endl;
+    executor->prepare_tree(tree.get());
+    
+    // Set up1: 30 + 30 = 60
+    executor->sync_node_from_external_storage(up1->get_input_socket("a"), 30);
+    executor->sync_node_from_external_storage(up1->get_input_socket("b"), 30);
+    // up2: 60 + 1 = 61
+    // up3: 61 + 1 = 62
+    
+    // Set A.b: A will add 100 to whatever it receives, so A = 62 + 100 = 162
+    executor->sync_node_from_external_storage(A->get_input_socket("b"), 100);
+    
+    executor->execute_tree(tree.get());
+    
+    // Verify initial results
+    entt::meta_any result;
+    executor->sync_node_to_external_storage(up1->get_output_socket("result"), result);
+    std::cout << "up1 result: " << result.cast<int>() << std::endl;
+    ASSERT_EQ(result.cast<int>(), 60);
+    
+    executor->sync_node_to_external_storage(up2->get_output_socket("result"), result);
+    std::cout << "up2 result: " << result.cast<int>() << std::endl;
+    ASSERT_EQ(result.cast<int>(), 61);
+    
+    executor->sync_node_to_external_storage(up3->get_output_socket("result"), result);
+    int up3_result = result.cast<int>();
+    std::cout << "up3 result: " << up3_result << std::endl;
+    ASSERT_EQ(up3_result, 62);
+    
+    executor->sync_node_to_external_storage(A->get_output_socket("result"), result);
+    int A_result = result.cast<int>();
+    std::cout << "A result: " << A_result << std::endl;
+    ASSERT_EQ(A_result, 162);  // 62 + 100
+    
+    executor->sync_node_to_external_storage(B->get_output_socket("result"), result);
+    int B_result = result.cast<int>();
+    std::cout << "B result: " << B_result << std::endl;
+    ASSERT_EQ(B_result, 163);  // 162 + 1
+    
+    executor->sync_node_to_external_storage(down1->get_output_socket("result"), result);
+    std::cout << "down1 result: " << result.cast<int>() << std::endl;
+    ASSERT_EQ(result.cast<int>(), 164);  // 163 + 1
+    
+    executor->sync_node_to_external_storage(down2->get_output_socket("result"), result);
+    std::cout << "down2 result: " << result.cast<int>() << std::endl;
+    ASSERT_EQ(result.cast<int>(), 165);  // 164 + 1
+    
+    executor->sync_node_to_external_storage(down3->get_output_socket("result"), result);
+    int down3_result = result.cast<int>();
+    std::cout << "down3 result: " << down3_result << std::endl;
+    ASSERT_EQ(down3_result, 166);  // 165 + 1
+    
+    std::cout << "\n=== Phase 2: Disconnect A->B ===" << std::endl;
+    
+    // Find and delete link A->B
+    NodeLink* link_A_B = nullptr;
+    for (auto& link : tree->links) {
+        if (link->from_node == A && link->to_node == B) {
+            link_A_B = link.get();
+            break;
+        }
+    }
+    ASSERT_NE(link_A_B, nullptr);
+    tree->delete_link(link_A_B->ID);
+    
+    // Notify that B's input changed
+    executor->notify_socket_dirty(B->get_input_socket("a"));
+    
+    // Check dirty state: upstream should be clean, B and downstream should be dirty
+    std::cout << "Dirty states after disconnect:" << std::endl;
+    std::cout << "  up1 (should be clean): " << executor->is_node_dirty(up1) << std::endl;
+    std::cout << "  up2 (should be clean): " << executor->is_node_dirty(up2) << std::endl;
+    std::cout << "  up3 (should be clean): " << executor->is_node_dirty(up3) << std::endl;
+    std::cout << "  A (should be clean): " << executor->is_node_dirty(A) << std::endl;
+    std::cout << "  B (should be dirty): " << executor->is_node_dirty(B) << std::endl;
+    std::cout << "  down1 (should be dirty): " << executor->is_node_dirty(down1) << std::endl;
+    std::cout << "  down2 (should be dirty): " << executor->is_node_dirty(down2) << std::endl;
+    std::cout << "  down3 (should be dirty): " << executor->is_node_dirty(down3) << std::endl;
+    
+    ASSERT_FALSE(executor->is_node_dirty(up1));
+    ASSERT_FALSE(executor->is_node_dirty(up2));
+    ASSERT_FALSE(executor->is_node_dirty(up3));
+    ASSERT_FALSE(executor->is_node_dirty(A));
+    ASSERT_TRUE(executor->is_node_dirty(B));
+    ASSERT_TRUE(executor->is_node_dirty(down1));
+    ASSERT_TRUE(executor->is_node_dirty(down2));
+    ASSERT_TRUE(executor->is_node_dirty(down3));
+    
+    std::cout << "\n=== Phase 3: Connect up3->B->down1 ===" << std::endl;
+    // Now connect up3 directly to B
+    tree->add_link(up3->get_output_socket("result"), B->get_input_socket("a"));
+    
+    // Notify that B's input changed again
+    executor->notify_socket_dirty(B->get_input_socket("a"));
+    
+    // Check dirty state: B and downstream should still be dirty
+    std::cout << "Dirty states after reconnect:" << std::endl;
+    std::cout << "  up1 (should be clean): " << executor->is_node_dirty(up1) << std::endl;
+    std::cout << "  up2 (should be clean): " << executor->is_node_dirty(up2) << std::endl;
+    std::cout << "  up3 (should be clean): " << executor->is_node_dirty(up3) << std::endl;
+    std::cout << "  A (should be clean): " << executor->is_node_dirty(A) << std::endl;
+    std::cout << "  B (should be dirty): " << executor->is_node_dirty(B) << std::endl;
+    std::cout << "  down1 (should be dirty): " << executor->is_node_dirty(down1) << std::endl;
+    std::cout << "  down2 (should be dirty): " << executor->is_node_dirty(down2) << std::endl;
+    std::cout << "  down3 (should be dirty): " << executor->is_node_dirty(down3) << std::endl;
+    
+    std::cout << "\n=== Phase 4: Execute with new topology ===" << std::endl;
+    executor->prepare_tree(tree.get());
+    executor->execute_tree(tree.get());
+    
+    std::cout << "\n=== Phase 5: Verify Results ===" << std::endl;
+    // up chain should still be 60, 61, 62 (cached, not re-executed)
+    executor->sync_node_to_external_storage(up3->get_output_socket("result"), result);
+    up3_result = result.cast<int>();
+    std::cout << "up3 result (should be cached 62): " << up3_result << std::endl;
+    ASSERT_EQ(up3_result, 62);
+    
+    // A should still be 162 (cached, disconnected from B)
+    executor->sync_node_to_external_storage(A->get_output_socket("result"), result);
+    A_result = result.cast<int>();
+    std::cout << "A result (should be cached 162): " << A_result << std::endl;
+    ASSERT_EQ(A_result, 162);
+    
+    // B should now be 63 (up3's 62 + 1), NOT 163 (A's old 162 + 1)
+    executor->sync_node_to_external_storage(B->get_output_socket("result"), result);
+    B_result = result.cast<int>();
+    std::cout << "B result (CRITICAL: should be 63, not 163): " << B_result << std::endl;
+    ASSERT_EQ(B_result, 63) << "B should use up3's cached value (62), not A's old value (162)";
+    
+    // down chain should be 64, 65, 66 (B's 63 + 1, + 1, + 1)
+    executor->sync_node_to_external_storage(down1->get_output_socket("result"), result);
+    std::cout << "down1 result (should be 64): " << result.cast<int>() << std::endl;
+    ASSERT_EQ(result.cast<int>(), 64);
+    
+    executor->sync_node_to_external_storage(down2->get_output_socket("result"), result);
+    std::cout << "down2 result (should be 65): " << result.cast<int>() << std::endl;
+    ASSERT_EQ(result.cast<int>(), 65);
+    
+    executor->sync_node_to_external_storage(down3->get_output_socket("result"), result);
+    down3_result = result.cast<int>();
+    std::cout << "down3 result (should be 66): " << down3_result << std::endl;
+    ASSERT_EQ(down3_result, 66);
+    
+    std::cout << "\n=== Test Complete ===" << std::endl;
+}

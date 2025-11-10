@@ -92,8 +92,6 @@ void EagerNodeTreeExecutor::mark_node_clean(Node* node)
 
 void EagerNodeTreeExecutor::invalidate_cache_for_node(Node* node)
 {
-    std::cout << "[invalidate_cache] Node: " << node->typeinfo->ui_name << std::endl;
-    
     // Invalidate in current execution states
     for (auto* input : node->get_inputs()) {
         if (index_cache.find(input) != index_cache.end()) {
@@ -104,7 +102,6 @@ void EagerNodeTreeExecutor::invalidate_cache_for_node(Node* node)
         auto it = persistent_input_cache.find(input);
         if (it != persistent_input_cache.end()) {
             it->second.is_cached = false;
-            std::cout << "  -> Invalidated persistent input cache for socket" << std::endl;
         }
     }
     for (auto* output : node->get_outputs()) {
@@ -115,7 +112,6 @@ void EagerNodeTreeExecutor::invalidate_cache_for_node(Node* node)
         auto it = persistent_output_cache.find(output);
         if (it != persistent_output_cache.end()) {
             it->second.is_cached = false;
-            std::cout << "  -> Invalidated persistent output cache for socket" << std::endl;
         }
     }
 }
@@ -281,15 +277,10 @@ void EagerNodeTreeExecutor::forward_output_to_input(Node* node)
                         directly_linked_input_socket->node
                             ->execution_failed = {};
 
-                        if (is_last_target) {
-                            input_state.value = std::move(value_to_forward);
-                        }
-                        else {
-                            input_state.value = value_to_forward;
-                        }
-                        // Move is better in efficiency,
-                        // but it bothers the visualization of input and output.
-                        // input_state.value = value_to_forward;
+                        // Always copy to preserve cache validity
+                        // Move is better in efficiency, but it breaks caching
+                        // because the output value becomes empty after the move
+                        input_state.value = value_to_forward;
                         input_state.is_forwarded = true;
                         
                         // If output is cached, input should also be considered cached
@@ -443,18 +434,6 @@ void EagerNodeTreeExecutor::compile(NodeTree* tree, Node* required_node)
 
 void EagerNodeTreeExecutor::prepare_memory()
 {
-    // Debug: Check persistent cache state
-    int persistent_cached_inputs = 0, persistent_cached_outputs = 0;
-    for (const auto& [socket, state] : persistent_input_cache) {
-        if (state.is_cached) persistent_cached_inputs++;
-    }
-    for (const auto& [socket, state] : persistent_output_cache) {
-        if (state.is_cached) persistent_cached_outputs++;
-    }
-    std::cout << "[prepare_memory] Persistent cache: " 
-              << persistent_cached_inputs << "/" << persistent_input_cache.size() << " inputs, " 
-              << persistent_cached_outputs << "/" << persistent_output_cache.size() << " outputs" << std::endl;
-    
     // DON'T save current states back - they will be updated after execution
     // We only READ from persistent cache here
     
@@ -466,9 +445,6 @@ void EagerNodeTreeExecutor::prepare_memory()
     new_input_states.resize(input_of_nodes_to_execute.size());
     new_output_states.resize(output_of_nodes_to_execute.size());
     
-    int preserved_inputs = 0;
-    int preserved_outputs = 0;
-    
     // Map inputs and preserve cached data from persistent cache
     for (int i = 0; i < input_of_nodes_to_execute.size(); ++i) {
         auto* socket = input_of_nodes_to_execute[i];
@@ -479,7 +455,6 @@ void EagerNodeTreeExecutor::prepare_memory()
         if (old_it != persistent_input_cache.end()) {
             // Move from persistent cache (we'll move it back after execution)
             new_input_states[i] = std::move(old_it->second);
-            if (new_input_states[i].is_cached) preserved_inputs++;
             // Reset execution-specific flags
             new_input_states[i].is_forwarded = false;
             new_input_states[i].is_last_used = false;
@@ -505,7 +480,6 @@ void EagerNodeTreeExecutor::prepare_memory()
         if (old_it != persistent_output_cache.end()) {
             // Move from persistent cache (we'll move it back after execution)
             new_output_states[i] = std::move(old_it->second);
-            if (new_output_states[i].is_cached) preserved_outputs++;
             // Reset execution-specific flags
             new_output_states[i].is_last_used = false;
         }
@@ -523,10 +497,6 @@ void EagerNodeTreeExecutor::prepare_memory()
     index_cache = std::move(new_index_cache);
     input_states = std::move(new_input_states);
     output_states = std::move(new_output_states);
-    
-    std::cout << "[prepare_memory] Preserved " << preserved_inputs << "/" << input_of_nodes_to_execute.size() 
-              << " cached inputs, " << preserved_outputs << "/" << output_of_nodes_to_execute.size() 
-              << " cached outputs" << std::endl;
 }
 
 void EagerNodeTreeExecutor::remove_storage(
@@ -665,10 +635,6 @@ void EagerNodeTreeExecutor::execute_tree(NodeTree* tree)
     for (int i = 0; i < nodes_to_execute_count; ++i) {
         auto node = nodes_to_execute[i];
         
-        // Debug: log node execution status
-        std::cout << "[Execute] Node: " << node->typeinfo->ui_name 
-                  << " | Dirty: " << is_node_dirty(node) << std::endl;
-        
         // Skip execution if node is clean and has valid cache
         if (!is_node_dirty(node)) {
             int cached_inputs = 0, total_inputs = 0;
@@ -696,50 +662,41 @@ void EagerNodeTreeExecutor::execute_tree(NodeTree* tree)
             
             if (all_cached && total_inputs > 0 && total_outputs > 0) {
                 // Node is clean and cached, forward cached outputs
-                std::cout << "  -> SKIPPED (using cache)" << std::endl;
                 forward_output_to_input(node);
                 continue;
-            }
-            else {
-                std::cout << "  -> Cache invalid (inputs:" << cached_inputs << "/" << total_inputs 
-                          << ", outputs:" << cached_outputs << "/" << total_outputs << ")" << std::endl;
             }
         }
         
         // Execute node
-        std::cout << "  -> EXECUTING" << std::endl;
         auto result = execute_node(tree, node);
         if (result) {
             forward_output_to_input(node);
             
             // Mark node as clean and cache as valid
             mark_node_clean(node);
-            int set_inputs = 0, set_outputs = 0;
             for (auto* input : node->get_inputs()) {
                 if (index_cache.find(input) != index_cache.end()) {
                     input_states[index_cache[input]].is_cached = true;
-                    set_inputs++;
                 }
             }
             for (auto* output : node->get_outputs()) {
                 if (index_cache.find(output) != index_cache.end()) {
                     output_states[index_cache[output]].is_cached = true;
-                    set_outputs++;
                 }
             }
-            std::cout << "  -> Set cache flags: " << set_inputs << " inputs, " << set_outputs << " outputs" << std::endl;
         }
     }
     
     try_storage();
     
     // Save all current states back to persistent cache for next execution
+    // IMPORTANT: Copy, not move! We need the values to remain accessible for sync_node_to_external_storage
     for (const auto& [socket, index] : index_cache) {
         if (socket->in_out == PinKind::Input && index < input_states.size()) {
-            persistent_input_cache[socket] = std::move(input_states[index]);
+            persistent_input_cache[socket] = input_states[index];  // Copy
         }
         else if (socket->in_out == PinKind::Output && index < output_states.size()) {
-            persistent_output_cache[socket] = std::move(output_states[index]);
+            persistent_output_cache[socket] = output_states[index];  // Copy
         }
     }
     
@@ -751,18 +708,32 @@ entt::meta_any* EagerNodeTreeExecutor::FindPtr(NodeSocket* socket)
 {
     entt::meta_any* ptr;
     if (socket->in_out == PinKind::Input) {
-        if (index_cache.find(socket) == index_cache.end()) {
+        if (index_cache.find(socket) != index_cache.end()) {
+            ptr = &input_states[index_cache[socket]].value;
+        }
+        else {
+            // Check persistent cache
+            auto it = persistent_input_cache.find(socket);
+            if (it != persistent_input_cache.end()) {
+                return &it->second.value;
+            }
             static entt::meta_any default_any;
             return &default_any;
         }
-        ptr = &input_states[index_cache[socket]].value;
     }
     else {
-        if (index_cache.find(socket) == index_cache.end()) {
+        if (index_cache.find(socket) != index_cache.end()) {
+            ptr = &output_states[index_cache[socket]].value;
+        }
+        else {
+            // Check persistent cache
+            auto it = persistent_output_cache.find(socket);
+            if (it != persistent_output_cache.end()) {
+                return &it->second.value;
+            }
             static entt::meta_any default_any;
             return &default_any;
         }
-        ptr = &output_states[index_cache[socket]].value;
     }
     return ptr;
 }

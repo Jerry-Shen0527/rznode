@@ -50,8 +50,6 @@ bool NodeEditorWidgetBase::Begin()
 }
 bool NodeEditorWidgetBase::BuildUI()
 {
-    execute_tree(nullptr);
-
     ed::Begin(GetWindowUniqueName().c_str(), ImGui::GetContentRegionAvail());
     {
         auto cursorTopLeft = ImGui::GetCursorScreenPos();
@@ -105,9 +103,7 @@ bool NodeEditorWidgetBase::BuildUI()
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 
                 DrawPinIcon(
-                    *input,
-                    tree_->is_pin_linked(input),
-                    (int)(alpha * 255));
+                    *input, tree_->is_pin_linked(input), (int)(alpha * 255));
                 ImGui::Spring(0);
 
                 if (tree_->is_pin_linked(input)) {
@@ -144,9 +140,7 @@ bool NodeEditorWidgetBase::BuildUI()
                 ImGui::TextUnformatted(output->ui_name);
                 ImGui::Spring(0);
                 DrawPinIcon(
-                    *output,
-                    tree_->is_pin_linked(output),
-                    (int)(alpha * 255));
+                    *output, tree_->is_pin_linked(output), (int)(alpha * 255));
                 ImGui::PopStyleVar();
 
                 builder.EndOutput();
@@ -193,20 +187,23 @@ bool NodeEditorWidgetBase::BuildUI()
                             if (ed::AcceptNewItem(
                                     ImColor(128, 255, 128), 4.0f)) {
                                 tree_->add_link(startPinId, endPinId);
-                                
-                                // Mark the receiving node (and downstream) as dirty
-                                // The upstream nodes remain clean and can use cache
+
+                                // Mark the receiving node (and downstream) as
+                                // dirty The upstream nodes remain clean and can
+                                // use cache
                                 if (auto* executor = get_executor()) {
                                     // Find the input socket (receiving end)
                                     NodeSocket* input_socket = nullptr;
                                     if (startPin->in_out == PinKind::Input) {
                                         input_socket = startPin;
-                                    } else if (endPin->in_out == PinKind::Input) {
+                                    }
+                                    else if (endPin->in_out == PinKind::Input) {
                                         input_socket = endPin;
                                     }
-                                    
+
                                     if (input_socket) {
-                                        executor->notify_socket_dirty(input_socket);
+                                        executor->notify_socket_dirty(
+                                            input_socket);
                                     }
                                 }
                             }
@@ -259,13 +256,14 @@ bool NodeEditorWidgetBase::BuildUI()
                         NodeSocket* input_socket = nullptr;
                         if (link) {
                             // The receiving end is the input socket
-                            if (link->to_sock && link->to_sock->in_out == PinKind::Input) {
+                            if (link->to_sock &&
+                                link->to_sock->in_out == PinKind::Input) {
                                 input_socket = link->to_sock;
                             }
                         }
-                        
+
                         tree_->delete_link(linkId);
-                        
+
                         // Mark the node that lost its input connection as dirty
                         if (input_socket && get_executor()) {
                             get_executor()->notify_socket_dirty(input_socket);
@@ -387,6 +385,7 @@ bool NodeEditorWidgetBase::BuildUI()
 
     // None
     // io.ConfigFlags = ImGuiConfigFlags_None;
+    execute_tree(nullptr);
 
     return true;
 }

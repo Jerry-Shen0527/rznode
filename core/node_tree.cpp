@@ -4,6 +4,7 @@
 #include <set>
 #include <stack>
 #include <unordered_set>
+#include <sstream>
 
 #include "nodes/core/io/json.hpp"
 #include "nodes/core/node.hpp"
@@ -270,6 +271,46 @@ void NodeTree::SetDirty(bool dirty)
 bool NodeTree::GetDirty()
 {
     return dirty_;
+}
+
+std::string NodeTree::print_tree_structure() const
+{
+    std::stringstream ss;
+    ss << "\n=== Tree Structure ===" << std::endl;
+    ss << "Nodes (" << nodes.size() << "):" << std::endl;
+    for (const auto& node : nodes) {
+        ss << "  - " << node->typeinfo->ui_name 
+           << " (ID: " << node->ID.AsPointer() << ")" << std::endl;
+        
+        // Print inputs
+        for (const auto* input : node->get_inputs()) {
+            ss << "    Input: " << input->ui_name;
+            if (!input->directly_linked_sockets.empty()) {
+                ss << " <- connected to " << input->directly_linked_sockets.size() << " socket(s)";
+            }
+            ss << std::endl;
+        }
+        
+        // Print outputs
+        for (const auto* output : node->get_outputs()) {
+            ss << "    Output: " << output->ui_name;
+            if (!output->directly_linked_sockets.empty()) {
+                ss << " -> connected to " << output->directly_linked_sockets.size() << " socket(s)";
+            }
+            ss << std::endl;
+        }
+    }
+    
+    ss << "\nLinks (" << links.size() << "):" << std::endl;
+    for (const auto& link : links) {
+        ss << "  - " << link->from_node->typeinfo->ui_name 
+           << "." << link->from_sock->ui_name
+           << " -> " << link->to_node->typeinfo->ui_name
+           << "." << link->to_sock->ui_name << std::endl;
+    }
+    ss << "===================" << std::endl;
+    
+    return ss.str();
 }
 
 void NodeTree::clear()
@@ -744,6 +785,8 @@ NodeLink* NodeTree::add_link(
 
     if (socket1 && socket2)
         return add_link(socket1, socket2, false, refresh_topology);
+    
+    return nullptr;
 }
 
 void NodeTree::delete_link(
