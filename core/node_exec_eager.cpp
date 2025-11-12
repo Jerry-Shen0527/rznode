@@ -77,6 +77,9 @@ void EagerNodeTreeExecutor::mark_tree_structure_changed()
     }
     node_dirty_cache.clear();
     dirty_nodes.clear();
+
+    persistent_input_cache.clear();
+    persistent_output_cache.clear();
 }
 
 bool EagerNodeTreeExecutor::is_node_dirty(Node* node) const
@@ -371,42 +374,6 @@ void EagerNodeTreeExecutor::compile(NodeTree* tree, Node* required_node)
         // Propagate requirement upstream
         if (node->REQUIRED) {
             collect_required_upstream(node);
-        }
-    }
-
-    // For dirty nodes, also mark them and downstream as required if they feed into required nodes
-    for (auto* dirty_node : dirty_nodes) {
-        bool feeds_into_required = false;
-        
-        // Check if this dirty node or its downstream affect any required node
-        std::vector<Node*> to_check = { dirty_node };
-        std::set<Node*> visited;
-        
-        while (!to_check.empty()) {
-            Node* current = to_check.back();
-            to_check.pop_back();
-            
-            if (visited.find(current) != visited.end()) {
-                continue;
-            }
-            visited.insert(current);
-            
-            if (current->REQUIRED) {
-                feeds_into_required = true;
-                break;
-            }
-            
-            // Check downstream
-            for (auto* output : current->get_outputs()) {
-                for (auto* linked_socket : output->directly_linked_sockets) {
-                    to_check.push_back(linked_socket->node);
-                }
-            }
-        }
-        
-        if (feeds_into_required) {
-            dirty_node->REQUIRED = true;
-            collect_required_upstream(dirty_node);
         }
     }
 
@@ -825,6 +792,19 @@ void EagerNodeTreeExecutor::sync_node_to_external_storage(
 std::shared_ptr<NodeTreeExecutor> EagerNodeTreeExecutor::clone_empty() const
 {
     return std::make_shared<EagerNodeTreeExecutor>();
+}
+
+std::set<Node*> EagerNodeTreeExecutor::get_dirty_nodes() const
+{
+    return dirty_nodes;
+}
+
+void EagerNodeTreeExecutor::set_nodes_dirty(const std::set<Node*>& nodes)
+{
+    for (auto* node : nodes) {
+        mark_node_dirty(node);
+        invalidate_cache_for_node(node);
+    }
 }
 
 USTC_CG_NAMESPACE_CLOSE_SCOPE

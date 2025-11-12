@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <optional>
+#include <set>
 #include <vector>
 
 #include "entt/meta/meta.hpp"
@@ -241,24 +242,35 @@ struct NODES_CORE_API NodeTreeExecutor {
         entt::meta_any& data)
     {
     }
-    
+
     // Notify executor that a node or socket has been modified
     virtual void notify_node_dirty(Node* node)
     {
         // Default: do nothing (for executors without caching)
     }
-    
+
     virtual void notify_socket_dirty(NodeSocket* socket)
     {
         // Default: do nothing (for executors without caching)
     }
-    
+
     // Get runtime value of a socket (for debugging/visualization)
     virtual entt::meta_any* get_socket_value(NodeSocket* socket)
     {
         return nullptr;  // Default: not supported
     }
-    
+
+    // Get and set dirty nodes for simulation persistence
+    virtual std::set<Node*> get_dirty_nodes() const
+    {
+        return {};  // Default: no dirty tracking
+    }
+
+    virtual void set_nodes_dirty(const std::set<Node*>& nodes)
+    {
+        // Default: do nothing (for executors without dirty tracking)
+    }
+
     void execute(NodeTree* tree, Node* required_node = nullptr)
     {
         prepare_tree(tree, required_node);
@@ -277,6 +289,7 @@ struct NODES_CORE_API NodeTreeExecutor {
         }
         return global_payload.cast<T>();
     }
+    virtual void mark_tree_structure_changed() { };
 
    protected:
     entt::meta_any global_payload;
