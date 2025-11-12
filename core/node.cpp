@@ -59,6 +59,12 @@ NodeTypeInfo& NodeTypeInfo::set_always_required(bool always_required)
     return *this;
 }
 
+NodeTypeInfo& NodeTypeInfo::set_always_dirty(bool always_dirty)
+{
+    this->ALWAYS_DIRTY = always_dirty;
+    return *this;
+}
+
 void NodeTypeInfo::reset_declaration()
 {
     static_declaration = NodeDeclaration();

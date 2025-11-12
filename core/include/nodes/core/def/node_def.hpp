@@ -48,6 +48,12 @@
     {                                          \
         return true;                           \
     }
+
+#define NODE_DECLARATION_ALWAYS_DIRTY(name)        \
+    USTC_CG_EXPORT bool node_always_dirty_##name() \
+    {                                              \
+        return true;                               \
+    }
 #else // CGHW_STUDENT_NAME is defined!
 
 #define PASTE_HELPER(a, b) a##b 
@@ -88,6 +94,12 @@
     USTC_CG_EXPORT bool PASTE(node_required_##name##_, CGHW_STUDENT_NAME)() \
     {                                          \
         return true;                           \
+    }
+
+#define NODE_DECLARATION_ALWAYS_DIRTY(name)        \
+    USTC_CG_EXPORT bool PASTE(node_always_dirty_##name##_, CGHW_STUDENT_NAME)() \
+    {                                              \
+        return true;                               \
     }
 
 #endif

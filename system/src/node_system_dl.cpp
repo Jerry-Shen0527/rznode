@@ -130,6 +130,10 @@ bool NodeDynamicLoadingSystem::load_configuration(
                     library_map[key]->template getFunction<bool()>(
                         "node_required_" + func_name_str);
 
+                auto node_always_dirty =
+                    library_map[key]->template getFunction<bool()>(
+                        "node_always_dirty_" + func_name_str);
+
                 auto node_declare =
                     library_map[key]
                         ->template getFunction<void(NodeDeclarationBuilder&)>(
@@ -169,6 +173,14 @@ bool NodeDynamicLoadingSystem::load_configuration(
                     spdlog::info(
                         "{} is always required.", func_name_str.c_str());
                 }
+                
+                new_node.ALWAYS_DIRTY =
+                    node_always_dirty ? node_always_dirty() : false;
+                if (new_node.ALWAYS_DIRTY) {
+                    spdlog::info(
+                        "{} is always dirty.", func_name_str.c_str());
+                }
+                
                 new_node.set_declare_function(node_declare);
                 new_node.set_execution_function(node_execution);
 

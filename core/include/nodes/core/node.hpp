@@ -554,11 +554,13 @@ struct NODES_CORE_API NodeTypeInfo {
     NodeTypeInfo& set_execution_function(const ExecFunction& exec_function);
 
     NodeTypeInfo& set_always_required(bool always_required);
+    NodeTypeInfo& set_always_dirty(bool always_dirty);
 
     float color[4] = { 0.3f, 0.5f, 0.7f, 1.0f };
     ExecFunction node_execute;
 
     bool ALWAYS_REQUIRED = false;
+    bool ALWAYS_DIRTY = false;
     bool INVISIBLE = false;
 
     NodeDeclaration static_declaration;

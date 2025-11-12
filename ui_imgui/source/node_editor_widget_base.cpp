@@ -416,6 +416,8 @@ void NodeEditorWidgetBase::connectLinks()
 ImColor NodeEditorWidgetBase::GetIconColor(SocketType type)
 {
     // Use a simple hash of the type pointer for faster computation
+    if (!type)
+        return ImColor(64);
     uint32_t hash = type.info().hash();
 
     // Map hash to hue [0, 360)

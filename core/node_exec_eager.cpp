@@ -635,8 +635,11 @@ void EagerNodeTreeExecutor::execute_tree(NodeTree* tree)
     for (int i = 0; i < nodes_to_execute_count; ++i) {
         auto node = nodes_to_execute[i];
         
-        // Skip execution if node is clean and has valid cache
-        if (!is_node_dirty(node)) {
+        // ALWAYS_DIRTY nodes must always execute and propagate dirty state downstream
+        bool force_execute = node->typeinfo->ALWAYS_DIRTY;
+        
+        // Skip execution if node is clean and has valid cache (unless ALWAYS_DIRTY)
+        if (!force_execute && !is_node_dirty(node)) {
             int cached_inputs = 0, total_inputs = 0;
             int cached_outputs = 0, total_outputs = 0;
             
@@ -672,8 +675,21 @@ void EagerNodeTreeExecutor::execute_tree(NodeTree* tree)
         if (result) {
             forward_output_to_input(node);
             
-            // Mark node as clean and cache as valid
-            mark_node_clean(node);
+            // ALWAYS_DIRTY nodes should invalidate downstream nodes
+            if (node->typeinfo->ALWAYS_DIRTY) {
+                // Mark all downstream nodes as dirty
+                for (auto* output : node->get_outputs()) {
+                    for (auto* linked_socket : output->directly_linked_sockets) {
+                        mark_node_dirty(linked_socket->node);
+                        invalidate_cache_for_node(linked_socket->node);
+                    }
+                }
+            }
+            
+            // Mark node as clean and cache as valid (unless ALWAYS_DIRTY)
+            if (!node->typeinfo->ALWAYS_DIRTY) {
+                mark_node_clean(node);
+            }
             for (auto* input : node->get_inputs()) {
                 if (index_cache.find(input) != index_cache.end()) {
                     input_states[index_cache[input]].is_cached = true;
