@@ -3,6 +3,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include <entt/meta/meta.hpp>
 #include "nodes/core/node_link.hpp"
 #include "nodes/core/node_tree.hpp"
 
@@ -12,6 +13,62 @@ using namespace USTC_CG;
 
 NB_MODULE(nodes_core_py, m)
 {
+    // Bind entt::meta_any for Python interoperability
+    nb::class_<entt::meta_any>(m, "meta_any")
+        .def(nb::init<>())
+        .def(nb::init<int>())
+        .def(nb::init<float>())
+        .def(nb::init<double>())
+        .def(nb::init<bool>())
+        .def(nb::init<std::string>())
+        .def("__bool__", [](const entt::meta_any& self) { return bool(self); })
+        .def("cast_int", [](const entt::meta_any& self) { 
+            return self.cast<int>(); 
+        })
+        .def("cast_float", [](const entt::meta_any& self) { 
+            return self.cast<float>(); 
+        })
+        .def("cast_double", [](const entt::meta_any& self) { 
+            return self.cast<double>(); 
+        })
+        .def("cast_bool", [](const entt::meta_any& self) { 
+            return self.cast<bool>(); 
+        })
+        .def("cast_string", [](const entt::meta_any& self) { 
+            return self.cast<std::string>(); 
+        })
+        .def("type_name", [](const entt::meta_any& self) {
+            if (!self) return std::string("void");
+            return std::string(self.type().info().name());
+        })
+        .def("__repr__", [](const entt::meta_any& self) {
+            if (!self) return std::string("meta_any(void)");
+            std::string result = "meta_any(";
+            result += std::string(self.type().info().name());
+            result += ")";
+            return result;
+        });
+    
+    // Helper functions to create meta_any from Python values
+    m.def("to_meta_any", [](const nb::object& obj) -> entt::meta_any {
+        // Try to convert Python object to appropriate type
+        if (nb::isinstance<nb::int_>(obj)) {
+            return entt::meta_any{nb::cast<int>(obj)};
+        }
+        else if (nb::isinstance<nb::float_>(obj)) {
+            return entt::meta_any{nb::cast<double>(obj)};
+        }
+        else if (nb::isinstance<nb::bool_>(obj)) {
+            return entt::meta_any{nb::cast<bool>(obj)};
+        }
+        else if (nb::isinstance<nb::str>(obj)) {
+            return entt::meta_any{nb::cast<std::string>(obj)};
+        }
+        else {
+            throw std::runtime_error("Unsupported type for meta_any conversion");
+        }
+    });
+
     // Basic enums
     nb::enum_<PinKind>(m, "PinKind")
         .value("Input", PinKind::Input)

@@ -19,7 +19,34 @@ NB_MODULE(nodes_system_py, m)
         .def("execute", 
             static_cast<void (NodeTreeExecutor::*)(NodeTree*, Node*)>(&NodeTreeExecutor::execute),
             nb::arg("tree"), nb::arg("required_node") = nullptr,
-            "Execute the node tree with specific tree and optional required node");
+            "Execute the node tree with specific tree and optional required node")
+        .def("prepare_tree",
+            &NodeTreeExecutor::prepare_tree,
+            nb::arg("tree"),
+            nb::arg("required_node") = nullptr,
+            "Prepare the tree for execution")
+        .def("execute_tree",
+            &NodeTreeExecutor::execute_tree,
+            nb::arg("tree"),
+            "Execute the prepared tree")
+        .def("sync_node_from_external_storage",
+            &NodeTreeExecutor::sync_node_from_external_storage,
+            nb::arg("socket"),
+            nb::arg("data"),
+            "Set socket value from external data")
+        .def("sync_node_to_external_storage",
+            &NodeTreeExecutor::sync_node_to_external_storage,
+            nb::arg("socket"),
+            nb::arg("data"),
+            "Get socket value to external data")
+        .def("notify_node_dirty",
+            &NodeTreeExecutor::notify_node_dirty,
+            nb::arg("node"),
+            "Notify executor that a node has been modified")
+        .def("notify_socket_dirty",
+            &NodeTreeExecutor::notify_socket_dirty,
+            nb::arg("socket"),
+            "Notify executor that a socket has been modified");
 
     // Base NodeSystem class
     nb::class_<NodeSystem>(m, "NodeSystem")
