@@ -1,12 +1,14 @@
 
+#include <spdlog/spdlog.h>
+
 #include "../../system/tests/test_node/test_payload.hpp"
 #include "GUI/window.h"
-#include <spdlog/spdlog.h>
 #include "gtest/gtest.h"
 #include "imgui.h"
 #include "nodes/core/node_tree.hpp"
 #include "nodes/system/node_system.hpp"
 #include "nodes/ui/imgui.hpp"
+
 using namespace USTC_CG;
 
 class Widget : public IWidget {
@@ -29,7 +31,8 @@ class Widget : public IWidget {
 };
 
 class CreateWindowTest : public ::testing::Test {
-   protected:    void SetUp() override
+   protected:
+    void SetUp() override
     {
         spdlog::set_level(spdlog::level::info);
 
@@ -65,6 +68,14 @@ TEST_F(CreateWindowTest, create_window)
         std::move(create_node_imgui_widget(widget_desc));
 
     window.register_widget(std::move(node_widget));
+
+    window.register_function_after_frame([](Window* window) {
+        static int frame_count = 0;
+        frame_count++;
+        if (frame_count > 100) {
+            window->close();
+        }
+    });
     window.run();
 }
 
@@ -103,5 +114,15 @@ int main()
     });
 
     window.register_widget(std::move(node_widget));
+    // Shutdown after 100 frames
+    // window.register_function_after_frame(const std::function<void (Window *)>
+    // &callback)
+    window.register_function_after_frame([](Window* window) {
+        static int frame_count = 0;
+        frame_count++;
+        if (frame_count > 100) {
+            window->close();
+        }
+    });
     window.run();
 }
