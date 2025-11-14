@@ -169,10 +169,6 @@ bool NodeDynamicLoadingSystem::load_configuration(
 
                 new_node.ALWAYS_REQUIRED =
                     node_always_requred ? node_always_requred() : false;
-                if (new_node.ALWAYS_REQUIRED) {
-                    spdlog::info(
-                        "{} is always required.", func_name_str.c_str());
-                }
                 
                 new_node.ALWAYS_DIRTY =
                     node_always_dirty ? node_always_dirty() : false;

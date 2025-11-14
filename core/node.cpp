@@ -3,10 +3,12 @@
 #include "nodes/core/node.hpp"
 
 #include <spdlog/spdlog.h>
+
 #include "entt/meta/resolve.hpp"
 #include "nodes/core/api.h"
 #include "nodes/core/node_link.hpp"
 #include "nodes/core/node_tree.hpp"
+
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
 void NodeLink::Serialize(nlohmann::json& value)
@@ -356,8 +358,6 @@ void Node::generate_socket_groups_socket(
         if (old_socket != old_sockets.end()) {
             (*old_socket)->node = this;
             new_sockets.push_back(*old_socket);
-        }        else {
-            spdlog::info("Creating new socket in the group.");
         }
     }
 }

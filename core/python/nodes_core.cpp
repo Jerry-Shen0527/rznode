@@ -129,6 +129,18 @@ NB_MODULE(nodes_core_py, m)
             "get_output_socket",
             &Node::get_output_socket,
             nb::rv_policy::reference)
+        .def("get_sockets_batch", [](Node& n, 
+                                      const std::vector<std::pair<std::string, bool>>& requests) {
+            std::vector<NodeSocket*> result;
+            result.reserve(requests.size());
+            for (const auto& [identifier, is_input] : requests) {
+                result.push_back(is_input ? 
+                    n.get_input_socket(identifier.c_str()) : 
+                    n.get_output_socket(identifier.c_str()));
+            }
+            return result;
+        }, nb::arg("requests"), nb::rv_policy::reference, 
+           "Batch socket lookup: [(identifier, is_input), ...]")
         .def("get_input_connections", &Node::getInputConnections)
         .def("get_output_connections", &Node::getOutputConnections)
         .def("is_valid", &Node::valid)
@@ -185,6 +197,7 @@ NB_MODULE(nodes_core_py, m)
             "nodes",
             [](const NodeTree& tree) {
                 std::vector<Node*> result;
+                result.reserve(tree.nodes.size());
                 for (const auto& node : tree.nodes) {
                     result.push_back(node.get());
                 }
@@ -195,6 +208,7 @@ NB_MODULE(nodes_core_py, m)
             "links",
             [](const NodeTree& tree) {
                 std::vector<NodeLink*> result;
+                result.reserve(tree.links.size());
                 for (const auto& link : tree.links) {
                     result.push_back(link.get());
                 }
@@ -209,6 +223,14 @@ NB_MODULE(nodes_core_py, m)
             [](const NodeTree& tree) { return tree.links.size(); })
         // Core operations
         .def("add_node", &NodeTree::add_node, nb::rv_policy::reference)
+        .def("add_nodes_batch", [](NodeTree& tree, const std::vector<std::string>& node_types) {
+            std::vector<Node*> result;
+            result.reserve(node_types.size());
+            for (const auto& type : node_types) {
+                result.push_back(tree.add_node(type.c_str()));
+            }
+            return result;
+        }, nb::rv_policy::reference)
         .def(
             "find_node",
             static_cast<Node* (NodeTree::*)(NodeId) const>(
@@ -237,6 +259,18 @@ NB_MODULE(nodes_core_py, m)
             nb::arg("allow_relink_to_output") = false,
             nb::arg("refresh_topology") = true,
             nb::rv_policy::reference)
+        .def("add_links_batch", [](NodeTree& tree, 
+                                     const std::vector<std::pair<NodeSocket*, NodeSocket*>>& links,
+                                     bool refresh_topology) {
+            std::vector<NodeLink*> result;
+            result.reserve(links.size());
+            for (size_t i = 0; i < links.size(); ++i) {
+                bool should_refresh = (i == links.size() - 1) && refresh_topology;
+                auto link = tree.add_link(links[i].first, links[i].second, false, should_refresh);
+                result.push_back(link);
+            }
+            return result;
+        }, nb::arg("links"), nb::arg("refresh_topology") = true, nb::rv_policy::reference)
         .def(
             "add_link_by_name",
             static_cast<NodeLink* (

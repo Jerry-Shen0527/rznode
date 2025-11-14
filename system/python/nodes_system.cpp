@@ -39,6 +39,26 @@ NB_MODULE(nodes_system_py, m)
             nb::arg("socket"),
             nb::arg("data"),
             "Get socket value to external data")
+        .def("sync_batch_from_external", [](NodeTreeExecutor& exec,
+                                              const nb::list& data) {
+            for (size_t i = 0; i < data.size(); ++i) {
+                auto pair = nb::cast<nb::tuple>(data[i]);
+                auto* socket = nb::cast<NodeSocket*>(pair[0]);
+                auto value = nb::cast<entt::meta_any>(pair[1]);
+                exec.sync_node_from_external_storage(socket, value);
+            }
+        }, nb::arg("data"), "Batch set socket values: [(socket, meta_any), ...]")
+        .def("sync_batch_to_external", [](NodeTreeExecutor& exec,
+                                            const nb::list& sockets) {
+            nb::list results;
+            for (size_t i = 0; i < sockets.size(); ++i) {
+                auto* socket = nb::cast<NodeSocket*>(sockets[i]);
+                entt::meta_any data;
+                exec.sync_node_to_external_storage(socket, data);
+                results.append(data);
+            }
+            return results;
+        }, nb::arg("sockets"), "Batch get socket values: [socket, ...] -> [meta_any, ...]")
         .def("notify_node_dirty",
             &NodeTreeExecutor::notify_node_dirty,
             nb::arg("node"),

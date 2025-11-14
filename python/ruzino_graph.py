@@ -29,7 +29,7 @@ import nodes_system_py as system
 from typing import Any, Optional, Union, Dict, List, Tuple
 
 
-class RenderGraph:
+class RuzinoGraph:
     """
     High-level interface for node graph construction and execution.
     Provides a clean, Falcor-style API.
@@ -57,7 +57,7 @@ class RenderGraph:
                 "Graph not initialized. Call initialize() or load_configuration() first."
             )
     
-    def initialize(self, config_path: Optional[str] = None) -> 'RenderGraph':
+    def initialize(self, config_path: Optional[str] = None) -> 'RuzinoGraph':
         """
         Initialize the graph system.
         
@@ -81,7 +81,7 @@ class RenderGraph:
         
         return self
     
-    def loadConfiguration(self, config_path: str) -> 'RenderGraph':
+    def loadConfiguration(self, config_path: str) -> 'RuzinoGraph':
         """
         Load node definitions from a configuration file (alias for initialize).
         
@@ -133,7 +133,7 @@ class RenderGraph:
                 from_node: Union[core.Node, str], 
                 from_socket: str,
                 to_node: Union[core.Node, str],
-                to_socket: str) -> 'RenderGraph':
+                to_socket: str) -> 'RuzinoGraph':
         """
         Connect two nodes (Falcor-style API).
         
@@ -175,7 +175,7 @@ class RenderGraph:
         
         return self
     
-    def addPass(self, node: core.Node, name: str) -> 'RenderGraph':
+    def addPass(self, node: core.Node, name: str) -> 'RuzinoGraph':
         """
         Add a pass to the graph (Falcor compatibility method).
         In Falcor, this names the pass. Here we just rename the node.
@@ -190,7 +190,7 @@ class RenderGraph:
         node.ui_name = name
         return self
     
-    def markOutput(self, node_or_spec: Union[core.Node, str], socket_name: Optional[str] = None) -> 'RenderGraph':
+    def markOutput(self, node_or_spec: Union[core.Node, str], socket_name: Optional[str] = None) -> 'RuzinoGraph':
         """
         Mark an output for tracking (Falcor-style API).
         
@@ -222,7 +222,7 @@ class RenderGraph:
     def setInput(self, 
                  node: Union[core.Node, str], 
                  socket_name: str, 
-                 value: Any) -> 'RenderGraph':
+                 value: Any) -> 'RuzinoGraph':
         """
         Set an input value on a node.
         
@@ -251,7 +251,7 @@ class RenderGraph:
         self._executor.sync_node_from_external_storage(socket, meta_value)
         return self
     
-    def execute(self, required_node: Optional[Union[core.Node, str]] = None) -> 'RenderGraph':
+    def execute(self, required_node: Optional[Union[core.Node, str]] = None) -> 'RuzinoGraph':
         """
         Execute the graph.
         
@@ -278,7 +278,7 @@ class RenderGraph:
     
     def prepare_and_execute(self, input_values: Optional[Dict] = None, 
                            required_node: Optional[Union[core.Node, str]] = None,
-                           auto_require_outputs: bool = True) -> 'RenderGraph':
+                           auto_require_outputs: bool = True) -> 'RuzinoGraph':
         """
         Prepare the tree, set inputs, and execute - all in the correct order.
         
@@ -437,7 +437,7 @@ class RenderGraph:
         self._ensure_initialized()
         return self._tree.serialize()
     
-    def deserialize(self, json_str: str) -> 'RenderGraph':
+    def deserialize(self, json_str: str) -> 'RuzinoGraph':
         """
         Deserialize a graph from JSON.
         
@@ -451,7 +451,7 @@ class RenderGraph:
         self._tree.deserialize(json_str)
         return self
     
-    def clear(self) -> 'RenderGraph':
+    def clear(self) -> 'RuzinoGraph':
         """
         Clear all nodes and links from the graph.
         
@@ -478,23 +478,6 @@ class RenderGraph:
     
     def __repr__(self):
         if not self._initialized:
-            return f"RenderGraph('{self.name}', uninitialized)"
-        return f"RenderGraph('{self.name}', nodes={len(self.nodes)}, links={len(self.links)})"
+            return f"RuzinoGraph('{self.name}', uninitialized)"
+        return f"RuzinoGraph('{self.name}', nodes={len(self.nodes)}, links={len(self.links)})"
 
-
-# Convenience factory function (Falcor-style)
-def createPass(node_type: str, properties: Optional[dict] = None):
-    """
-    Falcor-style pass creation function (for compatibility).
-    Note: This returns a lambda that will be called with the graph context.
-    
-    In actual usage, use RenderGraph.createNode() instead.
-    """
-    # This is a placeholder for Falcor API compatibility
-    # In Falcor, createPass returns a pass object
-    # Here it's just sugar for node creation
-    return (node_type, properties)
-
-
-# Alias for convenience
-RuzinoGraph = RenderGraph
