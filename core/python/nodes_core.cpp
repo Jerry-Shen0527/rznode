@@ -56,7 +56,7 @@ NB_MODULE(nodes_core_py, m)
             return entt::meta_any{nb::cast<int>(obj)};
         }
         else if (nb::isinstance<nb::float_>(obj)) {
-            return entt::meta_any{nb::cast<double>(obj)};
+            return entt::meta_any{nb::cast<float>(obj)};  // Changed from double to float
         }
         else if (nb::isinstance<nb::bool_>(obj)) {
             return entt::meta_any{nb::cast<bool>(obj)};

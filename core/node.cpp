@@ -245,6 +245,7 @@ size_t Node::find_socket_id(const char* identifier, PinKind in_out) const
         }
         counter++;
     }
+    throw std::runtime_error("Socket not found.");
     assert(false);
     return -1;
 }

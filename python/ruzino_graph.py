@@ -464,6 +464,28 @@ class RuzinoGraph:
         self._output_marks.clear()
         return self
     
+    def setGlobalParams(self, params: Any) -> 'RuzinoGraph':
+        """
+        Set global parameters for node execution.
+        Used for passing context like USD stages, time codes, etc.
+        
+        Args:
+            params: Global parameters object (e.g., GeomPayload for geometry nodes)
+            
+        Returns:
+            self for chaining
+            
+        Example:
+            # For USD export
+            geom_payload = GeomPayload()
+            geom_payload.stage = stage
+            geom_payload.prim_path = Sdf.Path('/geom')
+            g.setGlobalParams(geom_payload)
+        """
+        self._ensure_initialized()
+        self._system.set_global_params(params)
+        return self
+    
     @property
     def nodes(self):
         """Get list of all nodes in the graph."""
