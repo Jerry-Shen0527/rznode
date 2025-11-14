@@ -100,7 +100,7 @@ class NODES_CORE_API NodeTree {
 
     std::shared_ptr<NodeTree> get_inverse_tree()
     {
-        // TODO
+        // TODO: Not implemented yet
         throw std::runtime_error("Not implemented");
     }
 

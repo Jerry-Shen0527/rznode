@@ -30,12 +30,18 @@ TEST(NodeSystem, CreateSystem)
 
 TEST(NodeSystem, LoadDyLib)
 {
+    // Suppress verbose logging during tests
+    spdlog::set_level(spdlog::level::warn);
+    
     auto dl_load_system = create_dynamic_loading_system();
 
     auto loaded = dl_load_system->load_configuration("test_nodes.json");
 
     ASSERT_TRUE(loaded);
     dl_load_system->init();
+    
+    // Restore log level
+    spdlog::set_level(spdlog::level::info);
 }
 
 TEST(NodeSystem, LoadDyLibExecution)
@@ -48,17 +54,11 @@ TEST(NodeSystem, LoadDyLibExecution)
     dl_load_system->init();
 }
 
-void print_tree_info(const NodeTree* tree)
-{
-    std::cout << "Nodes: " << tree->nodes.size() << std::endl;
-    std::cout << "Links: " << tree->links.size() << std::endl;
-    std::cout << "Sockets: " << tree->socket_count() << std::endl;
-
-    std::cout << std::endl;
-}
-
 TEST(NodeSystem, DynamicSockets)
 {
+    // Suppress verbose logging during tests
+    spdlog::set_level(spdlog::level::warn);
+    
     auto dl_load_system = create_dynamic_loading_system();
     auto loaded = dl_load_system->load_configuration("test_nodes.json");
     ASSERT_TRUE(loaded);
@@ -70,14 +70,23 @@ TEST(NodeSystem, DynamicSockets)
 
     ASSERT_TRUE(node);
 
-    print_tree_info(tree);
+    // Verify initial socket count
+    EXPECT_EQ(tree->nodes.size(), 1);
+    EXPECT_EQ(tree->links.size(), 0);
+    size_t initial_socket_count = tree->socket_count();
+    EXPECT_GT(initial_socket_count, 0);
 
     auto socket = node->group_add_socket(
         "input_group", type_name<int>().c_str(), "a", "a", PinKind::Input);
 
-    print_tree_info(tree);
+    // Verify socket added
+    EXPECT_EQ(tree->socket_count(), initial_socket_count + 1);
 
     node->group_remove_socket("input_group", "a", PinKind::Input);
 
-    print_tree_info(tree);
+    // Verify socket removed
+    EXPECT_EQ(tree->socket_count(), initial_socket_count);
+    
+    // Restore log level
+    spdlog::set_level(spdlog::level::info);
 }

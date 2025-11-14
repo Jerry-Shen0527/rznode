@@ -4,15 +4,9 @@
 """
 
 import unittest
-import sys
 import os
 
-sys.path.insert(
-    0,
-    os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "..", "..", "Binaries", "Debug"
-    ),
-)
+# conftest.py will handle path setup and working directory change
 
 try:
     import nodes_system_py as system
@@ -20,7 +14,7 @@ try:
     print("✓ Successfully imported nodes_system_py")
 except ImportError as e:
     print(f"✗ Failed to import nodes_system_py: {e}")
-    sys.exit(1)
+    raise
 
 try:
     import nodes_core_py as core
@@ -36,23 +30,14 @@ class TestRegisteredNodes(unittest.TestCase):
     """测试test_nodes.json中注册的具体节点"""
 
     def setUp(self):
+        import os
         self.system = system.create_dynamic_loading_system()
-        # 必须加载test_nodes.json才能运行这些测试
-        config_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "..",
-            "..",
-            "..",
-            "..",
-            "Binaries",
-            "Debug",
-            "test_nodes.json",
-        )
+        # Use absolute path since C++ might have different path resolution
+        config_path = os.path.join(os.getcwd(), "test_nodes.json")
         try:
             config_loaded = self.system.load_configuration(config_path)
             if not config_loaded:
-                self.fail("test_nodes.json not found or failed to load")
+                self.fail(f"test_nodes.json not found at {config_path}")
         except Exception as e:
             self.fail(f"Cannot load configuration: {e}")
 
