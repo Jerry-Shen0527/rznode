@@ -67,23 +67,28 @@ class RuzinoGraph:
         Returns:
             self for chaining
         """
-        self._system = system.create_dynamic_loading_system()
+        # Only create system if not already initialized
+        if self._system is None:
+            self._system = system.create_dynamic_loading_system()
         
         if config_path:
             loaded = self._system.load_configuration(config_path)
             if not loaded:
                 raise RuntimeError(f"Failed to load configuration from {config_path}")
         
-        self._system.init()
-        self._tree = self._system.get_node_tree()
-        self._executor = self._system.get_node_tree_executor()
-        self._initialized = True
+        # Only init once
+        if not self._initialized:
+            self._system.init()
+            self._tree = self._system.get_node_tree()
+            self._executor = self._system.get_node_tree_executor()
+            self._initialized = True
         
         return self
     
     def loadConfiguration(self, config_path: str) -> 'RuzinoGraph':
         """
-        Load node definitions from a configuration file (alias for initialize).
+        Load node definitions from a configuration file.
+        Can be called multiple times to load multiple configuration files.
         
         Args:
             config_path: Path to the configuration JSON file
@@ -91,7 +96,16 @@ class RuzinoGraph:
         Returns:
             self for method chaining
         """
-        return self.initialize(config_path)
+        # If not initialized yet, do full initialization
+        if not self._initialized:
+            return self.initialize(config_path)
+        
+        # If already initialized, just load the additional configuration
+        loaded = self._system.load_configuration(config_path)
+        if not loaded:
+            raise RuntimeError(f"Failed to load configuration from {config_path}")
+        
+        return self
     
     def createNode(self, node_type: str, properties: Optional[dict] = None, name: Optional[str] = None) -> core.Node:
         """

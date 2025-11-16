@@ -583,7 +583,12 @@ NodeTypeInfo* Node::nodeTypeFind(const char* idname)
         if (nt)
             return nt;
     }
-    throw std::runtime_error("Id name not found.");
+
+    spdlog::error("Id name not found, tried to find: {}", idname);
+    spdlog::error("Available nodes:");
+
+    throw std::runtime_error(
+        "Id name not found, tried to find: " + std::string(idname));
 }
 
 NodeGroup::NodeGroup(NodeTree* node_tree, const char* idname)
