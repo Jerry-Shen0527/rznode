@@ -422,6 +422,37 @@ void EagerNodeTreeExecutor::prepare_memory()
     // DON'T save current states back - they will be updated after execution
     // We only READ from persistent cache here
     
+    // CRITICAL: Clean up persistent cache entries for deleted sockets
+    // Socket group removes sockets when links are deleted, but persistent cache wasn't notified
+    // This causes type mismatch when new sockets are created at same group position
+    {
+        // Collect all valid socket pointers in the current tree
+        std::unordered_set<NodeSocket*> valid_sockets;
+        for (auto* socket : input_of_nodes_to_execute) {
+            valid_sockets.insert(socket);
+        }
+        for (auto* socket : output_of_nodes_to_execute) {
+            valid_sockets.insert(socket);
+        }
+        
+        // Remove persistent cache entries for sockets that no longer exist
+        for (auto it = persistent_input_cache.begin(); it != persistent_input_cache.end();) {
+            if (valid_sockets.find(it->first) == valid_sockets.end()) {
+                it = persistent_input_cache.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        
+        for (auto it = persistent_output_cache.begin(); it != persistent_output_cache.end();) {
+            if (valid_sockets.find(it->first) == valid_sockets.end()) {
+                it = persistent_output_cache.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    
     // Build NEW index cache and states for currently required nodes
     std::map<NodeSocket*, size_t> new_index_cache;
     std::vector<RuntimeInputState> new_input_states;
@@ -438,12 +469,36 @@ void EagerNodeTreeExecutor::prepare_memory()
         // Check if this socket existed in persistent cache
         auto old_it = persistent_input_cache.find(socket);
         if (old_it != persistent_input_cache.end()) {
-            // Move from persistent cache (we'll move it back after execution)
-            new_input_states[i] = std::move(old_it->second);
-            // Reset execution-specific flags
-            new_input_states[i].is_forwarded = false;
-            new_input_states[i].is_last_used = false;
-            new_input_states[i].keep_alive = false;
+            // CRITICAL: Check if cached value type matches socket's current type_info
+            // This prevents type mismatch when socket is reconnected to different type
+            auto socket_type = socket->type_info;
+            auto& cached_value = old_it->second.value;
+            
+            bool type_matches = false;
+            if (socket_type && cached_value) {
+                type_matches = (socket_type.id() == cached_value.type().id());
+            }
+            else if (!socket_type && !cached_value) {
+                // Both empty, consider as matching
+                type_matches = true;
+            }
+            
+            if (type_matches) {
+                // Type matches, safe to reuse cached value
+                new_input_states[i] = std::move(old_it->second);
+                // Reset execution-specific flags
+                new_input_states[i].is_forwarded = false;
+                new_input_states[i].is_last_used = false;
+                new_input_states[i].keep_alive = false;
+            }
+            else {
+                // Type mismatch! Discard old cached value and reinitialize
+                new_input_states[i] = RuntimeInputState{};  // Zero-initialize all fields
+                if (socket_type) {
+                    new_input_states[i].value = socket_type.construct();
+                }
+                new_input_states[i].is_cached = false;
+            }
         }
         else {
             // New socket, initialize
@@ -463,10 +518,33 @@ void EagerNodeTreeExecutor::prepare_memory()
         // Check if this socket existed in persistent cache
         auto old_it = persistent_output_cache.find(socket);
         if (old_it != persistent_output_cache.end()) {
-            // Move from persistent cache (we'll move it back after execution)
-            new_output_states[i] = std::move(old_it->second);
-            // Reset execution-specific flags
-            new_output_states[i].is_last_used = false;
+            // CRITICAL: Check if cached value type matches socket's current type_info
+            auto socket_type = socket->type_info;
+            auto& cached_value = old_it->second.value;
+            
+            bool type_matches = false;
+            if (socket_type && cached_value) {
+                type_matches = (socket_type.id() == cached_value.type().id());
+            }
+            else if (!socket_type && !cached_value) {
+                // Both empty, consider as matching
+                type_matches = true;
+            }
+            
+            if (type_matches) {
+                // Type matches, safe to reuse cached value
+                new_output_states[i] = std::move(old_it->second);
+                // Reset execution-specific flags
+                new_output_states[i].is_last_used = false;
+            }
+            else {
+                // Type mismatch! Discard old cached value and reinitialize
+                new_output_states[i] = RuntimeOutputState{};  // Zero-initialize all fields
+                if (socket_type) {
+                    new_output_states[i].value = socket_type.construct();
+                }
+                new_output_states[i].is_cached = false;
+            }
         }
         else {
             // New socket, initialize

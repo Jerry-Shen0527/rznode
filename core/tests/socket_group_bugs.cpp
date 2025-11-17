@@ -532,3 +532,132 @@ TEST_F(SocketGroupBugsTest, SocketGroupCacheMustBeInvalidatedOnLinkDelete)
     
     ASSERT_EQ(result.cast<int>(), 0) << "Merge with no inputs should return 0, not cached 100";
 }
+
+// Bug 2: Type mismatch error when reconnecting after intermediate node
+// Simplified scenario: A.sock1->C, disconnect, D.sock->C (different int value), disconnect, A.sock1->C
+// The issue is persistent cache holds wrong type/value
+TEST_F(SocketGroupBugsTest, TypeMismatchAfterIntermediateNodeWithDifferentType)
+{
+    std::cout << "\n=== TEST: TypeMismatchAfterIntermediateNodeWithDifferentType ===" << std::endl;
+    
+    NodeTreeExecutorDesc desc;
+    desc.policy = NodeTreeExecutorDesc::Policy::Eager;
+    auto executor_ptr = create_node_tree_executor(desc);
+    auto executor = dynamic_cast<EagerNodeTreeExecutor*>(executor_ptr.get());
+
+    // Step 1: Create A with two outputs, connect both to C
+    std::cout << "\n--- Step 1: A.sock1->C, A.sock2->C ---" << std::endl;
+    auto nodeA = tree->add_node("producer");
+    auto nodeC = tree->add_node("merge");
+
+    auto socketA_out = nodeA->get_output_socket("result");
+    
+    // Create first socket in C and connect
+    auto socketC_in1 = nodeC->group_add_socket(
+        "inputs", type_name<int>().c_str(), "input_0", "input_0", PinKind::Input);
+    auto link1 = tree->add_link(socketA_out, socketC_in1);
+    
+    // Create second socket in C and connect (simulating A has 2 outputs by using same output)
+    auto socketC_in2 = nodeC->group_add_socket(
+        "inputs", type_name<int>().c_str(), "input_1", "input_1", PinKind::Input);
+    auto link2 = tree->add_link(socketA_out, socketC_in2);
+
+    // Execute to populate cache with int values
+    executor->prepare_tree(tree.get());
+    executor->sync_node_from_external_storage(nodeA->get_input_socket("value"), 100);
+    executor->execute_tree(tree.get());
+    
+    entt::meta_any result1;
+    executor->sync_node_to_external_storage(nodeC->get_output_socket("result"), result1);
+    std::cout << "C result with A's two connections: " << result1.cast<int>() << std::endl;
+    ASSERT_EQ(result1.cast<int>(), 200); // 100 + 100
+
+    // Step 2: Disconnect both links
+    std::cout << "\n--- Step 2: Disconnect A.sock1->C and A.sock2->C ---" << std::endl;
+    std::cout << "Before deletion, socketC_in1 ptr: " << (void*)socketC_in1 << std::endl;
+    std::cout << "Before deletion, socketC_in2 ptr: " << (void*)socketC_in2 << std::endl;
+    tree->delete_link(link1);
+    tree->delete_link(link2);
+    executor->notify_node_dirty(nodeC);
+    
+    // Check if sockets still exist
+    std::cout << "After deletion, checking socket status..." << std::endl;
+    auto remaining_inputs = nodeC->get_inputs();
+    std::cout << "NodeC has " << remaining_inputs.size() << " input sockets remaining" << std::endl;
+    for (auto* sock : remaining_inputs) {
+        std::cout << "  Socket: " << (void*)sock << " isPlaceholder=" << sock->is_placeholder() << std::endl;
+    }
+
+    // Step 3: Create D and connect to C - create NEW socket
+    std::cout << "\n--- Step 3: Create D, D.sock->C (creating new socket) ---" << std::endl;
+    auto nodeD = tree->add_node("producer");
+    auto socketD_out = nodeD->get_output_socket("result");
+    
+    // Create a NEW socket in C for D's connection
+    auto socketC_in_new = nodeC->group_add_socket(
+        "inputs", type_name<int>().c_str(), "input_new", "input_new", PinKind::Input);
+    std::cout << "Created new socket socketC_in_new ptr: " << (void*)socketC_in_new << std::endl;
+    
+    auto linkD = tree->add_link(socketD_out, socketC_in_new);
+    
+    executor->prepare_tree(tree.get());
+    executor->sync_node_from_external_storage(nodeD->get_input_socket("value"), 999);
+    executor->execute_tree(tree.get());
+    
+    std::cout << "Node C execution_failed after D connection: '" << nodeC->execution_failed << "'" << std::endl;
+    
+    entt::meta_any result2;
+    executor->sync_node_to_external_storage(nodeC->get_output_socket("result"), result2);
+    std::cout << "C result with D connection - has value: " << (result2 ? "yes" : "no") << std::endl;
+    if (result2) {
+        std::cout << "C result with D connection: " << result2.cast<int>() << std::endl;
+        ASSERT_EQ(result2.cast<int>(), 999);
+    }
+    else {
+        std::cout << "WARNING: C has no valid result!" << std::endl;
+    }
+
+    // Step 4: Disconnect D
+    std::cout << "\n--- Step 4: Disconnect D.sock->C ---" << std::endl;
+    tree->delete_link(linkD);
+    executor->notify_node_dirty(nodeC);
+
+    // Step 5: Reconnect A to C via NEW socket (not the deleted one)
+    std::cout << "\n--- Step 5: Reconnect A.sock1->C (via new socket) ---" << std::endl;
+    
+    try {
+        std::cout << "Creating NEW socket for A->C connection..." << std::endl;
+        auto socketC_in_reconnect = nodeC->group_add_socket(
+            "inputs", type_name<int>().c_str(), "input_reconnect", "input_reconnect", PinKind::Input);
+        std::cout << "Created socketC_in_reconnect ptr: " << (void*)socketC_in_reconnect << std::endl;
+        
+        auto linkA_again = tree->add_link(socketA_out, socketC_in_reconnect);
+        std::cout << "Link created successfully!" << std::endl;
+    
+        std::cout << "Calling prepare_tree..." << std::endl;
+        executor->prepare_tree(tree.get());
+        
+        std::cout << "Calling sync_node_from_external_storage..." << std::endl;
+        executor->sync_node_from_external_storage(nodeA->get_input_socket("value"), 500);
+        
+        std::cout << "Calling execute_tree..." << std::endl;
+        executor->execute_tree(tree.get());
+        
+        std::cout << "Execution completed successfully!" << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cout << "EXCEPTION CAUGHT: " << e.what() << std::endl;
+        throw;
+    }
+    
+    std::cout << "Node C execution_failed: '" << nodeC->execution_failed << "' (should be empty)" << std::endl;
+    
+    // BUG CHECK: execution_failed should be empty
+    ASSERT_TRUE(nodeC->execution_failed.empty()) 
+        << "Node C should not have execution error, but got: " << nodeC->execution_failed;
+    
+    entt::meta_any result_final;
+    executor->sync_node_to_external_storage(nodeC->get_output_socket("result"), result_final);
+    std::cout << "C final result: " << result_final.cast<int>() << " (expected: 500)" << std::endl;
+    ASSERT_EQ(result_final.cast<int>(), 500);
+}
