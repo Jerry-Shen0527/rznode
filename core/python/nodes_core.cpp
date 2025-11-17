@@ -52,14 +52,15 @@ NB_MODULE(nodes_core_py, m)
     // Helper functions to create meta_any from Python values
     m.def("to_meta_any", [](const nb::object& obj) -> entt::meta_any {
         // Try to convert Python object to appropriate type
-        if (nb::isinstance<nb::int_>(obj)) {
+        // CRITICAL: Check bool BEFORE int, because in Python bool is a subclass of int!
+        if (nb::isinstance<nb::bool_>(obj)) {
+            return entt::meta_any{nb::cast<bool>(obj)};
+        }
+        else if (nb::isinstance<nb::int_>(obj)) {
             return entt::meta_any{nb::cast<int>(obj)};
         }
         else if (nb::isinstance<nb::float_>(obj)) {
             return entt::meta_any{nb::cast<float>(obj)};  // Changed from double to float
-        }
-        else if (nb::isinstance<nb::bool_>(obj)) {
-            return entt::meta_any{nb::cast<bool>(obj)};
         }
         else if (nb::isinstance<nb::str>(obj)) {
             return entt::meta_any{nb::cast<std::string>(obj)};

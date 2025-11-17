@@ -490,13 +490,24 @@ class RuzinoGraph:
             self for chaining
             
         Example:
-            # For USD export
-            geom_payload = GeomPayload()
-            geom_payload.stage = stage
-            geom_payload.prim_path = Sdf.Path('/geom')
-            g.setGlobalParams(geom_payload)
+            # For USD export - automatic conversion
+            from stage_py import GeomPayload, create_payload_from_stage
+            stage = stage_py.Stage(output_file)
+            geom_payload = create_payload_from_stage(stage, "/geom")
+            g.setGlobalParams(geom_payload)  # Automatically converts to meta_any
         """
         self._ensure_initialized()
+        
+        # Auto-convert GeomPayload to meta_any if needed
+        # This allows seamless usage without explicit conversion
+        try:
+            # Check if it's a GeomPayload (from stage_py module)
+            import stage_py
+            if isinstance(params, stage_py.GeomPayload):
+                params = stage_py.create_meta_any_from_payload(params)
+        except (ImportError, AttributeError):
+            # If stage_py not available or not a GeomPayload, pass as-is
+            pass
         self._system.set_global_params(params)
         return self
     

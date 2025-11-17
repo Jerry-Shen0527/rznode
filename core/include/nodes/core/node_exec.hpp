@@ -289,6 +289,13 @@ struct NODES_CORE_API NodeTreeExecutor {
         }
         return global_payload.cast<T>();
     }
+    
+    // Set global payload directly (for type-erased setting)
+    void set_global_payload(const entt::meta_any& payload)
+    {
+        global_payload = payload;
+    }
+    
     virtual void mark_tree_structure_changed() { };
 
    protected:

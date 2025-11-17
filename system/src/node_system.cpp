@@ -2,6 +2,7 @@
 
 #include "nodes/core/node_exec_eager.hpp"
 #include "nodes/system/node_system_dl.hpp"
+#include "entt/meta/meta.hpp"
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 void NodeSystem::init()
@@ -53,6 +54,14 @@ NodeTree* NodeSystem::get_node_tree() const
 NodeTreeExecutor* NodeSystem::get_node_tree_executor() const
 {
     return node_tree_executor.get();
+}
+
+void NodeSystem::set_global_params_any(const entt::meta_any& params)
+{
+    // The params meta_any already contains the actual type (e.g., GeomPayload)
+    // We need to assign it directly to the executor's global_payload
+    // Use the new setter method to avoid access protection
+    node_tree_executor->set_global_payload(params);
 }
 
 std::shared_ptr<NodeSystem> create_dynamic_loading_system()

@@ -4,6 +4,7 @@
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_tree.hpp"
 #include "nodes/system/api.h"
+#include "entt/meta/meta.hpp"
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 class NODES_SYSTEM_API NodeSystem {
@@ -18,6 +19,9 @@ class NODES_SYSTEM_API NodeSystem {
 
     template<typename T>
     void set_global_params(T global_params);
+    
+    // Type-erased version for Python bindings
+    void set_global_params_any(const entt::meta_any& params);
 
     virtual void execute(
         bool is_ui_execution = false,
