@@ -253,20 +253,22 @@ bool NodeEditorWidgetBase::BuildUI()
                     if (ed::AcceptDeletedItem()) {
                         // Find the link before deleting to get the input socket
                         auto* link = tree_->find_link(linkId);
-                        NodeSocket* input_socket = nullptr;
+                        Node* affected_node = nullptr;
                         if (link) {
                             // The receiving end is the input socket
                             if (link->to_sock &&
                                 link->to_sock->in_out == PinKind::Input) {
-                                input_socket = link->to_sock;
+                                affected_node = link->to_sock->node;
                             }
                         }
 
                         tree_->delete_link(linkId);
 
                         // Mark the node that lost its input connection as dirty
-                        if (input_socket && get_executor()) {
-                            get_executor()->notify_socket_dirty(input_socket);
+                        // We notify the node (not socket) because the socket might have been removed
+                        // from the node during delete_link if it was part of a SocketGroup
+                        if (affected_node && get_executor()) {
+                            get_executor()->notify_node_dirty(affected_node);
                         }
                     }
                 }

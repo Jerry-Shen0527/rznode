@@ -2,13 +2,14 @@
 
 #include <iostream>
 #include <set>
+#include <sstream>
 #include <stack>
 #include <unordered_set>
-#include <sstream>
 
 #include "nodes/core/io/json.hpp"
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_link.hpp"
+
 
 // Macro for Not implemented with file and line number
 #define NOT_IMPLEMENTED()                                               \
@@ -279,37 +280,39 @@ std::string NodeTree::print_tree_structure() const
     ss << "\n=== Tree Structure ===" << std::endl;
     ss << "Nodes (" << nodes.size() << "):" << std::endl;
     for (const auto& node : nodes) {
-        ss << "  - " << node->typeinfo->ui_name 
+        ss << "  - " << node->typeinfo->ui_name
            << " (ID: " << node->ID.AsPointer() << ")" << std::endl;
-        
+
         // Print inputs
         for (const auto* input : node->get_inputs()) {
             ss << "    Input: " << input->ui_name;
             if (!input->directly_linked_sockets.empty()) {
-                ss << " <- connected to " << input->directly_linked_sockets.size() << " socket(s)";
+                ss << " <- connected to "
+                   << input->directly_linked_sockets.size() << " socket(s)";
             }
             ss << std::endl;
         }
-        
+
         // Print outputs
         for (const auto* output : node->get_outputs()) {
             ss << "    Output: " << output->ui_name;
             if (!output->directly_linked_sockets.empty()) {
-                ss << " -> connected to " << output->directly_linked_sockets.size() << " socket(s)";
+                ss << " -> connected to "
+                   << output->directly_linked_sockets.size() << " socket(s)";
             }
             ss << std::endl;
         }
     }
-    
+
     ss << "\nLinks (" << links.size() << "):" << std::endl;
     for (const auto& link : links) {
-        ss << "  - " << link->from_node->typeinfo->ui_name 
-           << "." << link->from_sock->ui_name
-           << " -> " << link->to_node->typeinfo->ui_name
-           << "." << link->to_sock->ui_name << std::endl;
+        ss << "  - " << link->from_node->typeinfo->ui_name << "."
+           << link->from_sock->ui_name << " -> "
+           << link->to_node->typeinfo->ui_name << "." << link->to_sock->ui_name
+           << std::endl;
     }
     ss << "===================" << std::endl;
-    
+
     return ss.str();
 }
 
@@ -785,7 +788,7 @@ NodeLink* NodeTree::add_link(
 
     if (socket1 && socket2)
         return add_link(socket1, socket2, false, refresh_topology);
-    
+
     return nullptr;
 }
 
@@ -959,10 +962,18 @@ void NodeTree::delete_socket(SocketID socketId, bool force_group_delete)
     bool socket_in_group = (*id)->socket_group != nullptr;
 
     // Remove the links connected to the socket
-
+    // When deleting socket, we should trigger group cleanup for connected
+    // sockets
     auto& directly_connect_links = (*id)->directly_linked_links;
-    for (auto& link : directly_connect_links) {
-        delete_link(link->ID, false, false);
+
+    // Make a copy since delete_link may modify the directly_linked_links vector
+    std::vector<NodeLink*> links_to_delete(
+        directly_connect_links.begin(), directly_connect_links.end());
+
+    for (auto& link : links_to_delete) {
+        // Pass true for remove_from_group to trigger socket group cleanup on
+        // the other end
+        delete_link(link->ID, false, true);
     }
 
     if (force_group_delete || !socket_in_group)
