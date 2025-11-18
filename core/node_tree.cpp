@@ -6,6 +6,8 @@
 #include <stack>
 #include <unordered_set>
 
+#include <spdlog/spdlog.h>
+
 #include "nodes/core/io/json.hpp"
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_link.hpp"
@@ -646,40 +648,115 @@ void NodeTree::ungroup(Node* node)
 
     NodeGroup* group = static_cast<NodeGroup*>(node);
 
-    auto input_mapping = group->input_mapping_from_interface_to_internal;
-    auto ouput_mapping = group->output_mapping_from_interface_to_internal;
+    spdlog::info("Ungrouping node ID={}, group_in={}, group_out={}", 
+        node->ID.Get(),
+        group->group_in ? group->group_in->ID.Get() : 0,
+        group->group_out ? group->group_out->ID.Get() : 0);
 
-    merge(std::move(*group->sub_tree.get()));
-    // Make the rest of the links
+    // Copy the mappings before merge to avoid accessing moved data
+    auto input_mapping = group->input_mapping_from_interface_to_internal;
+    auto output_mapping = group->output_mapping_from_interface_to_internal;
+
+    spdlog::info("Input mapping size: {}, output mapping size: {}", 
+        input_mapping.size(), output_mapping.size());
+
+    // Build reconnection plan before any deletions
+    struct ReconnectionPlan {
+        NodeSocket* external_from;
+        NodeSocket* external_to;
+    };
+    std::vector<ReconnectionPlan> reconnections;
+
+    // Collect input reconnections (external -> internal)
     for (auto* input_socket : group->get_inputs()) {
         if (!input_socket->directly_linked_links.empty()) {
             auto internal_socket = input_mapping[input_socket];
-
             auto linked_outside_socket = input_socket->directly_linked_links[0]
                                              ->get_logical_from_socket();
 
             for (auto& new_tos : internal_socket->directly_linked_sockets) {
-                add_link(linked_outside_socket, new_tos, true, false);
+                reconnections.push_back({ linked_outside_socket, new_tos });
             }
         }
     }
 
+    // Collect output reconnections (internal -> external)
     for (auto* output_socket : group->get_outputs()) {
         if (!output_socket->directly_linked_links.empty()) {
-            auto internal_socket = ouput_mapping[output_socket];
+            auto internal_socket = output_mapping[output_socket];
             auto linked_outside_socket = output_socket->directly_linked_links[0]
                                              ->get_logical_to_socket();
 
             for (auto& new_froms : internal_socket->directly_linked_sockets) {
-                add_link(new_froms, linked_outside_socket, true, false);
+                reconnections.push_back({ new_froms, linked_outside_socket });
             }
         }
     }
 
-    delete_node(group->group_in);
-    delete_node(group->group_out);
+    spdlog::info("Collected {} reconnections", reconnections.size());
 
+    // Delete all links connected to the group node BEFORE merge
+    // This prevents issues with socket group cleanup during merge
+    std::vector<NodeSocket*> group_sockets;
+    for (auto* sock : group->get_inputs()) {
+        group_sockets.push_back(sock);
+    }
+    for (auto* sock : group->get_outputs()) {
+        group_sockets.push_back(sock);
+    }
+
+    for (auto* socket : group_sockets) {
+        std::vector<LinkId> links_to_delete;
+        for (auto* link : socket->directly_linked_links) {
+            links_to_delete.push_back(link->ID);
+        }
+        for (auto link_id : links_to_delete) {
+            delete_link(link_id, false, false);
+        }
+    }
+
+    spdlog::info("Deleted links from {} group sockets", group_sockets.size());
+
+    // Now merge the sub_tree into the main tree
+    spdlog::info("Before merge: main tree has {} nodes, sub_tree has {} nodes",
+        nodes.size(), group->sub_tree->nodes.size());
+    
+    merge(std::move(*group->sub_tree.get()));
+
+    spdlog::info("After merge: main tree has {} nodes", nodes.size());
+
+    // Execute the reconnection plan
+    for (auto& plan : reconnections) {
+        if (plan.external_from && plan.external_to) {
+            add_link(plan.external_from, plan.external_to, true, false);
+        }
+    }
+
+    spdlog::info("Created {} new links", reconnections.size());
+
+    // Find and delete group_in and group_out nodes (they're now in the main tree)
+    // Note: We need to find them by identifier, not by the old IDs, 
+    // because merge() changes their IDs via add_base_id()
+    Node* group_in_node = find_node(NODE_GROUP_IN_IDENTIFIER);
+    Node* group_out_node = find_node(NODE_GROUP_OUT_IDENTIFIER);
+    
+    if (group_in_node) {
+        spdlog::info("Deleting group_in node ID={}", group_in_node->ID.Get());
+        delete_node(group_in_node, true);
+    }
+    if (group_out_node) {
+        spdlog::info("Deleting group_out node ID={}", group_out_node->ID.Get());
+        delete_node(group_out_node, true);
+    }
+
+    // Finally delete the group node itself
+    spdlog::info("Deleting group node ID={}", node->ID.Get());
     delete_node(group);
+
+    spdlog::info("After ungroup: main tree has {} nodes", nodes.size());
+
+    // Refresh topology once at the end
+    ensure_topology_cache();
 }
 
 unsigned NodeTree::UniqueID()
@@ -875,12 +952,18 @@ void NodeTree::delete_node(Node* nodeId, bool allow_repeat_delete)
 
 void NodeTree::delete_node(NodeId nodeId, bool allow_repeat_delete)
 {
+    spdlog::info("delete_node called with NodeId={}, allow_repeat={}", 
+        nodeId.Get(), allow_repeat_delete);
+
     auto id = std::find_if(nodes.begin(), nodes.end(), [nodeId](auto&& node) {
         return node->ID == nodeId;
     });
 
     if (id != nodes.end()) {
         auto node = id->get();
+
+        spdlog::info("Found node to delete: ID={}, type={}", 
+            node->ID.Get(), node->typeinfo->id_name);
 
         auto paired = node->paired_node;
         if (paired)
@@ -901,12 +984,20 @@ void NodeTree::delete_node(NodeId nodeId, bool allow_repeat_delete)
 
         nodes.erase(new_iter);
 
+        spdlog::info("Node deleted successfully");
+
         if (paired) {
             delete_node(paired, true);
         }
     }
-    else if (!allow_repeat_delete)
+    else if (!allow_repeat_delete) {
+        spdlog::error("Node not found when deleting: NodeId={}", nodeId.Get());
         throw std::runtime_error("Node not found when deleting.");
+    }
+    else {
+        spdlog::warn("Node not found but allow_repeat_delete=true: NodeId={}", 
+            nodeId.Get());
+    }
 
     ensure_topology_cache();
 }
