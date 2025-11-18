@@ -9,7 +9,7 @@ import os
 
 # 设置正确的工作目录
 BINARY_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "..", "Binaries", "Debug"
+    os.path.dirname(__file__), "..", "..", "..", "..", "Binaries", "Release"
 )
 if os.path.exists(BINARY_DIR):
     os.chdir(BINARY_DIR)

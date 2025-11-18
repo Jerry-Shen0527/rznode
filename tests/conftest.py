@@ -18,7 +18,7 @@ import os
 tests_dir = os.path.dirname(os.path.abspath(__file__))
 rznode_dir = os.path.abspath(os.path.join(tests_dir, ".."))
 python_dir = os.path.join(rznode_dir, "python")
-binary_dir = os.path.join(tests_dir, "..", "..", "..", "..", "Binaries", "Debug")
+binary_dir = os.path.join(tests_dir, "..", "..", "..", "..", "Binaries", "Release")
 binary_dir = os.path.abspath(binary_dir)
 
 # Save original directory

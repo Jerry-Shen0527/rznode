@@ -7,7 +7,7 @@
 ### 关键修复
 所有测试文件现在都设置正确的工作目录：
 ```python
-BINARY_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "Binaries", "Debug")
+BINARY_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "Binaries", "Release")
 os.chdir(BINARY_DIR)  # 这是关键！
 ```
 
