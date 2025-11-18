@@ -167,7 +167,7 @@ class TestNodeSystemWithRegisteredNodes(unittest.TestCase):
             "..",
             "..",
             "Binaries",
-            "Debug",
+            "Release",
             "test_nodes.json",
         )
         try:
@@ -398,7 +398,7 @@ class TestNodeSystemIntegration(unittest.TestCase):
                 "..",
                 "..",
                 "Binaries",
-                "Debug",
+                "Release",
                 "test_nodes.json",
             )
             try:
