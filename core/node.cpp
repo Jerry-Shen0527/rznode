@@ -245,9 +245,21 @@ size_t Node::find_socket_id(const char* identifier, PinKind in_out) const
         }
         counter++;
     }
-    throw std::runtime_error("Socket not found.");
-    assert(false);
-    return -1;
+    
+    // Provide detailed error message
+    std::string error_msg = "Socket not found: identifier='" + std::string(identifier) + 
+                           "', type=" + (in_out == PinKind::Input ? "Input" : "Output") +
+                           ", node='" + ui_name + "', node_type='" + typeinfo->id_name + "'";
+    error_msg += ", available_sockets=[";
+    for (size_t i = 0; i < socket_group->size(); i++) {
+        if (i > 0) error_msg += ", ";
+        error_msg += "'";
+        error_msg += (*socket_group)[i]->identifier;
+        error_msg += "'";
+    }
+    error_msg += "]";
+    
+    throw std::runtime_error(error_msg);
 }
 
 std::vector<size_t> Node::find_socket_group_ids(
