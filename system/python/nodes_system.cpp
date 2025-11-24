@@ -67,7 +67,10 @@ NB_MODULE(nodes_system_py, m)
         .def("notify_socket_dirty",
             &NodeTreeExecutor::notify_socket_dirty,
             nb::arg("socket"),
-            "Notify executor that a socket has been modified");
+            "Notify executor that a socket has been modified")
+        .def("reset_allocator",
+            &NodeTreeExecutor::reset_allocator,
+            "Reset the resource allocator (cleanup resources before rendering)");
 
     // Base NodeSystem class
     nb::class_<NodeSystem>(m, "NodeSystem")

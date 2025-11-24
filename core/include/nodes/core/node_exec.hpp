@@ -299,6 +299,9 @@ struct NODES_CORE_API NodeTreeExecutor {
     }
     
     virtual void mark_tree_structure_changed() { };
+    
+    // Reset resource allocator (for render executors)
+    virtual void reset_allocator() { }
 
    protected:
     entt::meta_any global_payload;
