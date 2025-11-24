@@ -265,6 +265,36 @@ class RuzinoGraph:
         self._executor.sync_node_from_external_storage(socket, meta_value)
         return self
     
+    def setInputs(self, input_values: Dict[Tuple[Union[core.Node, str], str], Any]) -> 'RuzinoGraph':
+        """
+        Set multiple input values at once (batch operation).
+        
+        Args:
+            input_values: Dictionary mapping (node, socket_name) tuples to values.
+                         Example: {(add1, "a"): 5, (add1, "b"): 3, (add2, "a"): 10}
+            
+        Returns:
+            self for chaining
+            
+        Example:
+            g.setInputs({
+                (ray_gen, "Aperture"): 0.0,
+                (ray_gen, "Focus Distance"): 2.0,
+                (accumulate, "Max Samples"): 16,
+            })
+        """
+        self._ensure_initialized()
+        
+        for (node, socket_name), value in input_values.items():
+            n = self._resolve_node(node)
+            socket = n.get_input_socket(socket_name)
+            if socket is None:
+                raise ValueError(f"Socket '{socket_name}' not found on node '{n.ui_name}'")
+            meta_value = core.to_meta_any(value)
+            self._executor.sync_node_from_external_storage(socket, meta_value)
+        
+        return self
+    
     def execute(self, required_node: Optional[Union[core.Node, str]] = None) -> 'RuzinoGraph':
         """
         Execute the graph.
@@ -345,13 +375,7 @@ class RuzinoGraph:
         
         # Step 2: Set inputs AFTER preparation
         if input_values:
-            for (node, socket_name), value in input_values.items():
-                n = self._resolve_node(node)
-                socket = n.get_input_socket(socket_name)
-                if socket is None:
-                    raise ValueError(f"Socket '{socket_name}' not found on node '{n.ui_name}'")
-                meta_value = core.to_meta_any(value)
-                self._executor.sync_node_from_external_storage(socket, meta_value)
+            self.setInputs(input_values)
         
         # Step 3: Execute the tree
         self._executor.execute_tree(self._tree)
