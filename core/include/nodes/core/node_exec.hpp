@@ -124,7 +124,9 @@ struct NODES_CORE_API ExeParams {
     template<typename T>
     T get_global_payload()
     {
-        assert(global_param);
+        if(!global_param) {
+            throw std::runtime_error("Global payload is not set");
+        }
         return global_param.cast<T>();
     }
 
