@@ -65,6 +65,8 @@ class NODES_UI_IMGUI_API NodeEditorWidgetBase : public IWidget {
     void connectLinks();
     static ImColor GetIconColor(SocketType type);
     void DrawPinIcon(const NodeSocket& pin, bool connected, int alpha);
+    
+    std::shared_ptr<NodeSystem> system_;  // Keep system alive
     NodeTree* tree_;
 
     static const int m_PinIconSize = 20;

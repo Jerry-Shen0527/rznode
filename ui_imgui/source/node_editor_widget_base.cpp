@@ -27,6 +27,7 @@ USTC_CG_NAMESPACE_OPEN_SCOPE
 
 NodeEditorWidgetBase::NodeEditorWidgetBase(const NodeWidgetSettings& desc)
     : storage_(desc.create_storage()),
+      system_(desc.system),  // Keep the system alive
       tree_(desc.system->get_node_tree())
 {
     m_HeaderBackground =
