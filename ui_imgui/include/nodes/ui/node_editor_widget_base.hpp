@@ -53,6 +53,11 @@ class NODES_UI_IMGUI_API NodeEditorWidgetBase : public IWidget {
         // Do nothing if base class
     }
 
+    virtual void handle_suspended_popups()
+    {
+        // Override in derived class to handle custom popups in suspended context
+    }
+
     virtual void create_new_node(ImVec2 openPopupPosition)
     {  // Do nothing if base class
     }

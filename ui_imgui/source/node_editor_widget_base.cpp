@@ -381,6 +381,9 @@ bool NodeEditorWidgetBase::BuildUI()
 
     create_new_node(openPopupPosition);
 
+    // Allow derived classes to handle custom popups in suspended context
+    handle_suspended_popups();
+
     ImGui::PopStyleVar();
     ed::Resume();
 
