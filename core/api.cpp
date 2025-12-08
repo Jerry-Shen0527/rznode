@@ -8,7 +8,15 @@
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
-entt::meta_ctx g_entt_ctx = entt::locator<entt::meta_ctx>::value_or();
+// Create a global meta context and register it with entt::locator
+// This ensures all entt operations use the same context
+entt::meta_ctx g_entt_ctx{};
+
+// Helper to initialize the locator once
+static bool _init_locator = []() {
+    entt::locator<entt::meta_ctx>::reset(&g_entt_ctx);
+    return true;
+}();
 
 entt::meta_ctx& get_entt_ctx()
 {

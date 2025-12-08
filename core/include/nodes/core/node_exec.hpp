@@ -93,7 +93,9 @@ struct NODES_CORE_API ExeParams {
             outputs_[index]->cast<DecayT&>() = std::forward<T>(value);
         }
         else {
-            *outputs_[index] = std::forward<T>(value);
+            // CRITICAL: Use get_entt_ctx() to ensure the meta_any is created with the correct context
+            // Otherwise the context might be different and cause type mismatch errors
+            *outputs_[index] = entt::meta_any{get_entt_ctx(), std::forward<T>(value)};
         }
     }
 
