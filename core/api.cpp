@@ -8,19 +8,23 @@
 
 USTC_CG_NAMESPACE_OPEN_SCOPE
 
-// Create a global meta context and register it with entt::locator
+// Initialize the global meta context through entt::locator
 // This ensures all entt operations use the same context
-entt::meta_ctx g_entt_ctx{};
-
-// Helper to initialize the locator once
-static bool _init_locator = []() {
-    entt::locator<entt::meta_ctx>::reset(&g_entt_ctx);
-    return true;
-}();
+// The locator manages the lifetime with shared_ptr internally
+static entt::meta_ctx& init_global_ctx() {
+    static bool initialized = false;
+    if (!initialized) {
+        // Use value_or() which will create a context if none exists
+        // and store it in the locator's internal shared_ptr
+        [[maybe_unused]] auto& ctx = entt::locator<entt::meta_ctx>::value_or();
+        initialized = true;
+    }
+    return entt::locator<entt::meta_ctx>::value();
+}
 
 entt::meta_ctx& get_entt_ctx()
 {
-    return g_entt_ctx;
+    return init_global_ctx();
 }
 
 SocketType get_socket_type(const char* t)
@@ -47,7 +51,7 @@ SocketType get_socket_type<entt::meta_any>()
 
 void unregister_cpp_type()
 {
-    entt::meta_reset(g_entt_ctx);
+    entt::meta_reset(get_entt_ctx());
 }
 
 std::unique_ptr<NodeTree> create_node_tree(
