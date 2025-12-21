@@ -1,17 +1,16 @@
 #include "nodes/core/node_tree.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include <iostream>
 #include <set>
 #include <sstream>
 #include <stack>
 #include <unordered_set>
 
-#include <spdlog/spdlog.h>
-
 #include "nodes/core/io/json.hpp"
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_link.hpp"
-
 
 // Macro for Not implemented with file and line number
 #define NOT_IMPLEMENTED()                                               \
@@ -648,7 +647,8 @@ void NodeTree::ungroup(Node* node)
 
     NodeGroup* group = static_cast<NodeGroup*>(node);
 
-    spdlog::info("Ungrouping node ID={}, group_in={}, group_out={}", 
+    spdlog::info(
+        "Ungrouping node ID={}, group_in={}, group_out={}",
         node->ID.Get(),
         group->group_in ? group->group_in->ID.Get() : 0,
         group->group_out ? group->group_out->ID.Get() : 0);
@@ -657,8 +657,10 @@ void NodeTree::ungroup(Node* node)
     auto input_mapping = group->input_mapping_from_interface_to_internal;
     auto output_mapping = group->output_mapping_from_interface_to_internal;
 
-    spdlog::info("Input mapping size: {}, output mapping size: {}", 
-        input_mapping.size(), output_mapping.size());
+    spdlog::info(
+        "Input mapping size: {}, output mapping size: {}",
+        input_mapping.size(),
+        output_mapping.size());
 
     // Build reconnection plan before any deletions
     struct ReconnectionPlan {
@@ -718,9 +720,11 @@ void NodeTree::ungroup(Node* node)
     spdlog::info("Deleted links from {} group sockets", group_sockets.size());
 
     // Now merge the sub_tree into the main tree
-    spdlog::info("Before merge: main tree has {} nodes, sub_tree has {} nodes",
-        nodes.size(), group->sub_tree->nodes.size());
-    
+    spdlog::info(
+        "Before merge: main tree has {} nodes, sub_tree has {} nodes",
+        nodes.size(),
+        group->sub_tree->nodes.size());
+
     merge(std::move(*group->sub_tree.get()));
 
     spdlog::info("After merge: main tree has {} nodes", nodes.size());
@@ -734,12 +738,12 @@ void NodeTree::ungroup(Node* node)
 
     spdlog::info("Created {} new links", reconnections.size());
 
-    // Find and delete group_in and group_out nodes (they're now in the main tree)
-    // Note: We need to find them by identifier, not by the old IDs, 
+    // Find and delete group_in and group_out nodes (they're now in the main
+    // tree) Note: We need to find them by identifier, not by the old IDs,
     // because merge() changes their IDs via add_base_id()
     Node* group_in_node = find_node(NODE_GROUP_IN_IDENTIFIER);
     Node* group_out_node = find_node(NODE_GROUP_OUT_IDENTIFIER);
-    
+
     if (group_in_node) {
         spdlog::info("Deleting group_in node ID={}", group_in_node->ID.Get());
         delete_node(group_in_node, true);
@@ -952,8 +956,10 @@ void NodeTree::delete_node(Node* nodeId, bool allow_repeat_delete)
 
 void NodeTree::delete_node(NodeId nodeId, bool allow_repeat_delete)
 {
-    spdlog::info("delete_node called with NodeId={}, allow_repeat={}", 
-        nodeId.Get(), allow_repeat_delete);
+    spdlog::info(
+        "delete_node called with NodeId={}, allow_repeat={}",
+        nodeId.Get(),
+        allow_repeat_delete);
 
     auto id = std::find_if(nodes.begin(), nodes.end(), [nodeId](auto&& node) {
         return node->ID == nodeId;
@@ -962,8 +968,10 @@ void NodeTree::delete_node(NodeId nodeId, bool allow_repeat_delete)
     if (id != nodes.end()) {
         auto node = id->get();
 
-        spdlog::info("Found node to delete: ID={}, type={}", 
-            node->ID.Get(), node->typeinfo->id_name);
+        spdlog::info(
+            "Found node to delete: ID={}, type={}",
+            node->ID.Get(),
+            node->typeinfo->id_name);
 
         auto paired = node->paired_node;
         if (paired)
@@ -995,7 +1003,8 @@ void NodeTree::delete_node(NodeId nodeId, bool allow_repeat_delete)
         throw std::runtime_error("Node not found when deleting.");
     }
     else {
-        spdlog::warn("Node not found but allow_repeat_delete=true: NodeId={}", 
+        spdlog::warn(
+            "Node not found but allow_repeat_delete=true: NodeId={}",
             nodeId.Get());
     }
 
@@ -1314,11 +1323,16 @@ void NodeTree::update_toposort()
         ToposortDirection::LeftToRight,
         toposort_left_to_right,
         has_available_link_cycle);
-    update_toposort_(
-        *this,
-        ToposortDirection::RightToLeft,
-        toposort_right_to_left,
-        has_available_link_cycle);
+
+    // Replace with inverse direction
+    // update_toposort_(
+    //    *this,
+    //    ToposortDirection::RightToLeft,
+    //    toposort_right_to_left,
+    //    has_available_link_cycle);
+
+    toposort_right_to_left = std::vector(
+        toposort_left_to_right.rbegin(), toposort_left_to_right.rend());
 }
 
 std::string NodeTree::serialize() const
