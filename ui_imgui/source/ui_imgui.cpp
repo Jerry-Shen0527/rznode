@@ -514,7 +514,7 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
         sizeof(widget_id),
         "%s##%u",
         input->ui_name,
-        input->ID.Get());
+        (unsigned int)input->ID.Get());
 
     bool changed = false;
     switch (input->type_info.id()) {
@@ -556,8 +556,8 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
 
             thread_local char x_id[128], y_id[128];
             auto id_val = input->ID.Get();
-            snprintf(x_id, sizeof(x_id), "##%u_x", id_val);
-            snprintf(y_id, sizeof(y_id), "##%u_y", id_val);
+            snprintf(x_id, sizeof(x_id), "##%u_x", (unsigned int)id_val);
+            snprintf(y_id, sizeof(y_id), "##%u_y", (unsigned int)id_val);
 
             changed |=
                 ImGui::SliderFloat(x_id, &vec[0], min_vec[0], max_vec[0]);
@@ -573,9 +573,9 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
 
             thread_local char x_id[128], y_id[128], z_id[128];
             auto id_val = input->ID.Get();
-            snprintf(x_id, sizeof(x_id), "##%u_x", id_val);
-            snprintf(y_id, sizeof(y_id), "##%u_y", id_val);
-            snprintf(z_id, sizeof(z_id), "##%u_z", id_val);
+            snprintf(x_id, sizeof(x_id), "##%u_x", (unsigned int)id_val);
+            snprintf(y_id, sizeof(y_id), "##%u_y", (unsigned int)id_val);
+            snprintf(z_id, sizeof(z_id), "##%u_z", (unsigned int)id_val);
 
             changed |=
                 ImGui::SliderFloat(x_id, &vec[0], min_vec[0], max_vec[0]);
@@ -593,8 +593,8 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
 
             thread_local char x_id[128], y_id[128];
             auto id_val = input->ID.Get();
-            snprintf(x_id, sizeof(x_id), "##%u_x", id_val);
-            snprintf(y_id, sizeof(y_id), "##%u_y", id_val);
+            snprintf(x_id, sizeof(x_id), "##%u_x", (unsigned int)id_val);
+            snprintf(y_id, sizeof(y_id), "##%u_y", (unsigned int)id_val);
 
             changed |=
                 ImGui::SliderFloat(x_id, &vec[0], min_vec[0], max_vec[0]);
@@ -610,9 +610,9 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
 
             thread_local char x_id[128], y_id[128], z_id[128];
             auto id_val = input->ID.Get();
-            snprintf(x_id, sizeof(x_id), "##%u_x", id_val);
-            snprintf(y_id, sizeof(y_id), "##%u_y", id_val);
-            snprintf(z_id, sizeof(z_id), "##%u_z", id_val);
+            snprintf(x_id, sizeof(x_id), "##%u_x", (unsigned int)id_val);
+            snprintf(y_id, sizeof(y_id), "##%u_y", (unsigned int)id_val);
+            snprintf(z_id, sizeof(z_id), "##%u_z", (unsigned int)id_val);
 
             changed |=
                 ImGui::SliderFloat(x_id, &vec[0], min_vec[0], max_vec[0]);
