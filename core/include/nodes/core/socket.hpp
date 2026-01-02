@@ -6,7 +6,7 @@
 #include "io/json_fwd.hpp"
 #include "nodes/core/api.h"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 struct SocketGroup;
 struct Node;
 struct NodeLink;
@@ -147,4 +147,4 @@ struct NODES_CORE_API SocketGroup {
     friend struct Node;
 };
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

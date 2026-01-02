@@ -4,7 +4,7 @@
 #include "nodes/core/id.hpp"
 #include "nodes/core/io/json.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 struct Node;
 struct NodeSocket;
 struct NODES_CORE_API NodeLink {
@@ -57,4 +57,4 @@ struct NODES_CORE_API NodeLink {
     void Serialize(nlohmann::json& value);
 };
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

@@ -10,7 +10,7 @@
 #include "nodes/core/api.h"
 #include "socket.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 class SocketGroupDeclaration;
 struct NodeTypeInfo;
 class NodeDeclaration;
@@ -572,4 +572,4 @@ struct NODES_CORE_API NodeTypeInfo {
 
     void build_node_declaration();
 };
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

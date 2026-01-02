@@ -15,7 +15,7 @@
 #include "nodes/ui/node_editor_widget_base.hpp"
 #include "nvrhi/nvrhi.h"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 struct NodeTreeExecutor;
 namespace ed = ax::NodeEditor;
 namespace util = ax::NodeEditor::Utilities;
@@ -96,4 +96,4 @@ class NODES_UI_IMGUI_API NodeEditorWidgetBase : public IWidget {
     nvrhi::TextureHandle m_HeaderBackground = nullptr;
 };
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

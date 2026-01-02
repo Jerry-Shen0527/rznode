@@ -20,7 +20,7 @@
         std::abort();                                                   \
     } while (0)
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 struct NodeGroupStorage {
     std::shared_ptr<NodeTreeExecutor> executor = nullptr;
     static constexpr bool has_storage = false;
@@ -1415,4 +1415,4 @@ void NodeTree::deserialize(const std::string& str)
     ensure_topology_cache();
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

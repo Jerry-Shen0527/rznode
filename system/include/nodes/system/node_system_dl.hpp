@@ -13,7 +13,7 @@
 #include <dlfcn.h>
 #endif
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 
 class NODES_SYSTEM_API DynamicLibraryLoader {
    public:
@@ -68,4 +68,4 @@ class NODES_SYSTEM_API NodeDynamicLoadingSystem : public NodeSystem {
     std::shared_ptr<NodeTreeDescriptor> descriptor;
 };
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

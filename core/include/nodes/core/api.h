@@ -1,10 +1,10 @@
 
 #pragma once
 
-#ifndef USTC_CG_NAMESPACE_OPEN_SCOPE
-#define USTC_CG_NAMESPACE_OPEN_SCOPE namespace USTC_CG{
+#ifndef RUZINO_NAMESPACE_OPEN_SCOPE
+#define RUZINO_NAMESPACE_OPEN_SCOPE namespace Ruzino{
 #endif
-#define USTC_CG_NAMESPACE_CLOSE_SCOPE }
+#define RUZINO_NAMESPACE_CLOSE_SCOPE }
 
 #if defined(_MSC_VER)
 #  define NODES_CORE_EXPORT   __declspec(dllexport)

@@ -9,7 +9,7 @@
 #include "nodes/core/node_link.hpp"
 #include "nodes/core/node_tree.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 
 void NodeLink::Serialize(nlohmann::json& value)
 {
@@ -808,4 +808,4 @@ SocketGroup* SocketGroupDeclaration::build(NodeTree* ntree, Node* node) const
     return group;
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

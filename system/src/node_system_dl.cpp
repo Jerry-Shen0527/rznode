@@ -13,7 +13,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #endif
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 
 DynamicLibraryLoader::DynamicLibraryLoader(const std::string& libraryName)
 {
@@ -197,4 +197,4 @@ bool NodeDynamicLoadingSystem::load_configuration(
     return true;
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

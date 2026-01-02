@@ -7,7 +7,7 @@
 #include "nodes/core/node_exec.hpp"
 #include "nodes/core/node_tree.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 struct NodeSocket;
 struct Node;
 
@@ -107,4 +107,4 @@ class NODES_CORE_API EagerNodeTreeExecutor : public NodeTreeExecutor {
     std::map<std::string, entt::meta_any> storage;
 };
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

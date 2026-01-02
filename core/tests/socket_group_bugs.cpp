@@ -8,7 +8,7 @@
 #include "nodes/core/node_exec_eager.hpp"
 #include "nodes/core/node_link.hpp"
 
-using namespace USTC_CG;
+using namespace Ruzino;
 
 // Test fixture for socket group bugs
 class SocketGroupBugsTest : public ::testing::Test {

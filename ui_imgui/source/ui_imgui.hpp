@@ -16,7 +16,7 @@
 #include "nodes/ui/imgui.hpp"
 #include "nodes/ui/node_editor_widget_base.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 namespace ed = ax::NodeEditor;
 namespace util = ax::NodeEditor::Utilities;
 using namespace ax;
@@ -92,4 +92,4 @@ class NodeWidget : public NodeEditorWidgetBase {
     std::vector<Node*> add_node(const std::string& id_name);
 };
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

@@ -10,7 +10,7 @@
 #include "nodes/core/api.h"
 #include "socket.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 
 #define NODE_GROUP_IDENTIFIER     "node_group"
 #define NODE_GROUP_IN_IDENTIFIER  "node_group_in"
@@ -234,4 +234,4 @@ class NODES_CORE_API NodeTree {
     bool dirty_ = true;
 };
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

@@ -6,7 +6,7 @@
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_tree.hpp"
 
-using namespace USTC_CG;
+using namespace Ruzino;
 
 class NodeCoreTest : public ::testing::Test {
    protected:    void SetUp() override

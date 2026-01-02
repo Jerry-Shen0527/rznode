@@ -4,7 +4,7 @@
 
 #include "GUI/widget.h"
 #include "nodes/ui/api.h"
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 class Stage;
 
 namespace ax::NodeEditor {
@@ -70,4 +70,4 @@ struct NODES_UI_IMGUI_API NullBasedNodeWidgetSettings
 NODES_UI_IMGUI_API std::unique_ptr<IWidget> create_node_imgui_widget(
     const NodeWidgetSettings& desc);
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

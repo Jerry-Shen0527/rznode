@@ -23,7 +23,7 @@
 #include "stb_image.h"
 #include "ui_imgui.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 
 NodeEditorWidgetBase::NodeEditorWidgetBase(const NodeWidgetSettings& desc)
     : storage_(desc.create_storage()),
@@ -534,4 +534,4 @@ nvrhi::TextureHandle NodeEditorWidgetBase::LoadTexture(
         return nullptr;
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

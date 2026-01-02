@@ -11,7 +11,7 @@
 
 
 namespace nb = nanobind;
-using namespace USTC_CG;
+using namespace Ruzino;
 
 NB_MODULE(nodes_system_py, m)
 {

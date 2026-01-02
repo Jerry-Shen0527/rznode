@@ -9,7 +9,7 @@
 #include "nodes/core/api.h"
 #include "socket.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 struct NodeTreeExecutorDesc;
 class NodeTreeDescriptor;
 struct NodeTreeExecutor;
@@ -80,4 +80,4 @@ namespace io {
 NODES_CORE_API std::string serialize_node_tree(NodeTree* tree);
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

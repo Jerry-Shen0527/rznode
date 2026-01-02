@@ -8,7 +8,7 @@
 #include "nodes/core/api.h"
 #include "nodes/core/node_tree.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 
 void EagerNodeTreeExecutor::mark_node_dirty(Node* node)
 {
@@ -955,4 +955,4 @@ void EagerNodeTreeExecutor::set_nodes_dirty(const std::set<Node*>& nodes)
     }
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

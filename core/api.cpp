@@ -6,7 +6,7 @@
 #include "nodes/core/node_tree.hpp"
 #include "nodes/core/socket.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 
 // Initialize the global meta context through entt::locator
 // This ensures all entt operations use the same context
@@ -71,4 +71,4 @@ std::unique_ptr<NodeTreeExecutor> create_node_tree_executor(
     return nullptr;
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

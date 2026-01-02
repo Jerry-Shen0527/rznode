@@ -4,7 +4,7 @@
 #include "nodes/system/node_system_dl.hpp"
 #include "entt/meta/meta.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 void NodeSystem::init()
 {
     this->node_tree = create_node_tree(node_tree_descriptor());
@@ -69,4 +69,4 @@ std::shared_ptr<NodeSystem> create_dynamic_loading_system()
     return std::make_shared<NodeDynamicLoadingSystem>();
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

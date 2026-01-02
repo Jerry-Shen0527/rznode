@@ -6,7 +6,7 @@
 #include "nodes/system/api.h"
 #include "entt/meta/meta.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 class NODES_SYSTEM_API NodeSystem {
    public:
     void init();
@@ -48,4 +48,4 @@ void NodeSystem::set_global_params(T global_params)
 
 std::shared_ptr<NodeSystem> NODES_SYSTEM_API create_dynamic_loading_system();
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

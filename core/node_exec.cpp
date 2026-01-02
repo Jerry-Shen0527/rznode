@@ -5,7 +5,7 @@
 #include "nodes/core/node_link.hpp"
 #include "nodes/core/socket.hpp"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 void ExeParams::set_error(const char* str) const
 {
     node_.set_error(str);
@@ -42,4 +42,4 @@ std::unique_ptr<NodeTreeExecutor> create_executor(NodeTreeExecutorDesc& exec)
     return nullptr;
 }
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE

@@ -4,7 +4,7 @@
 
 #include "spdlog/spdlog.h"
 
-using namespace USTC_CG;
+using namespace Ruzino;
 
 class MyNodeSystem : public NodeSystem {
    public:

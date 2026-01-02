@@ -5,7 +5,7 @@
 
 #include "nodes/core/api.h"
 
-USTC_CG_NAMESPACE_OPEN_SCOPE
+RUZINO_NAMESPACE_OPEN_SCOPE
 namespace detail {
 template<typename T, typename Tag>
 struct SafeType {
@@ -102,4 +102,4 @@ struct SocketID final : detail::SafePointerType<SocketID> {
     using SafePointerType::SafePointerType;
 };
 
-USTC_CG_NAMESPACE_CLOSE_SCOPE
+RUZINO_NAMESPACE_CLOSE_SCOPE
