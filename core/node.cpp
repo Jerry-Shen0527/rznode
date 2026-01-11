@@ -571,7 +571,6 @@ bool Node::pre_init_node(const char* idname)
 {
     typeinfo = nodeTypeFind(idname);
     if (!typeinfo) {
-        assert(false);
         return false;
     }
     ui_name = typeinfo->ui_name;
@@ -599,8 +598,7 @@ NodeTypeInfo* Node::nodeTypeFind(const char* idname)
     spdlog::error("Id name not found, tried to find: {}", idname);
     spdlog::error("Available nodes:");
 
-    throw std::runtime_error(
-        "Id name not found, tried to find: " + std::string(idname));
+    return nullptr;
 }
 
 NodeGroup::NodeGroup(NodeTree* node_tree, const char* idname)

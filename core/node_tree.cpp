@@ -867,7 +867,7 @@ NodeLink* NodeTree::add_link(
     auto socket1 = find_pin(startPinId);
     auto socket2 = find_pin(endPinId);
 
-    if (socket1 && socket2)
+    if (socket1 && socket2 && socket1->node && socket2->node)
         return add_link(socket1, socket2, false, refresh_topology);
 
     return nullptr;
@@ -1386,12 +1386,13 @@ void NodeTree::deserialize(const std::string& str)
                     value["nodes_info"]["sub_trees"][node_json["subtree"]]);
             }
             else {
-                node = std::make_unique<Node>(this, id, id_name.c_str());
+                if (descriptor_->get_node_type(id_name.c_str()))
+                    node = std::make_unique<Node>(this, id, id_name.c_str());
             }
             if (!storage_info.empty())
                 node->storage_info = storage_info;
 
-            if (!node->valid())
+            if (!node || !node->valid())
                 continue;
 
             node->deserialize(node_json);
