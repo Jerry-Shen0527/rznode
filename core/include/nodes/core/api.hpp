@@ -54,7 +54,7 @@ SocketType get_socket_type()
     auto type =
         entt::resolve(get_entt_ctx(), entt::type_hash<std::decay_t<T>>());
     if (!type) {        register_cpp_type<std::decay_t<T>>();
-        spdlog::info("register type: {}", type_name<T>().data());
+        spdlog::debug("register type: {}", type_name<T>().data());
         type =
             entt::resolve(get_entt_ctx(), entt::type_hash<std::decay_t<T>>());
         assert(type);
