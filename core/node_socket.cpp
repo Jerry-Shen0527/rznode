@@ -256,9 +256,11 @@ void SocketGroup::remove_socket(
         bool can_delete = true;
         if (need_to_propagate_sync && !synchronized_groups.empty()) {
             for (auto sync_group : synchronized_groups) {
-                auto socket_in_other = sync_group->sockets[id];
-                if (!socket_in_other->directly_linked_links.empty()) {
-                    can_delete = false;
+                if (!sync_group->sockets.empty()) {
+                    auto socket_in_other = sync_group->sockets[id];
+                    if (!socket_in_other->directly_linked_links.empty()) {
+                        can_delete = false;
+                    }
                 }
             }
 
