@@ -547,6 +547,89 @@ class RuzinoGraph:
         self._ensure_initialized()
         return self._tree.links
     
+    def to_python_code(self, 
+                       required_node: Optional[Union[core.Node, str]] = None,
+                       include_imports: bool = True,
+                       include_comments: bool = True,
+                       use_graph_api: bool = True) -> str:
+        """
+        Generate executable Python code that recreates this graph.
+        
+        This method generates a Python script that:
+        - Imports necessary modules
+        - Creates all nodes with their configuration
+        - Sets up connections between nodes
+        - Provides placeholders for input values
+        - Marks outputs
+        - Executes the graph
+        - Retrieves and prints results
+        
+        Args:
+            required_node: Optional node to generate code for (and its dependencies).
+                          If None, generates code for the entire graph.
+            include_imports: Include import statements at the top
+            include_comments: Add explanatory comments
+            use_graph_api: Use RuzinoGraph API (recommended). If False, uses raw node operations.
+            
+        Returns:
+            Complete Python script as a string
+            
+        Example:
+            # Create and build a graph
+            g = RuzinoGraph("MyGraph")
+            g.loadConfiguration("config.json")
+            add1 = g.createNode("add", name="first_add")
+            add2 = g.createNode("add", name="second_add")
+            g.addEdge(add1, "value", add2, "value")
+            g.markOutput(add2, "value")
+            
+            # Generate Python code
+            code = g.to_python_code()
+            print(code)
+            
+            # Save to file
+            with open("generated_graph.py", "w") as f:
+                f.write(code)
+        """
+        self._ensure_initialized()
+        
+        req_node = None
+        if required_node is not None:
+            req_node = self._resolve_node(required_node)
+        
+        # Call C++ to_python_code_with_options through the tree binding
+        return self._tree.to_python_code_with_options(
+            include_imports, 
+            include_comments,
+            use_graph_api,
+            req_node
+        )
+    
+    def save_python_code(self, 
+                        filepath: str,
+                        required_node: Optional[Union[core.Node, str]] = None,
+                        include_imports: bool = True,
+                        include_comments: bool = True) -> 'RuzinoGraph':
+        """
+        Generate Python code and save it to a file.
+        
+        Args:
+            filepath: Path to save the generated Python code
+            required_node: Optional node to generate code for (and its dependencies)
+            include_imports: Include import statements
+            include_comments: Add explanatory comments
+            
+        Returns:
+            self for chaining
+            
+        Example:
+            g.save_python_code("my_generated_graph.py")
+        """
+        code = self.to_python_code(required_node, include_imports, include_comments)
+        with open(filepath, 'w') as f:
+            f.write(code)
+        return self
+    
     def __repr__(self):
         if not self._initialized:
             return f"RuzinoGraph('{self.name}', uninitialized)"

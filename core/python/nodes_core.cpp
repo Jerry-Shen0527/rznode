@@ -6,6 +6,7 @@
 #include <entt/meta/meta.hpp>
 #include "nodes/core/node_link.hpp"
 #include "nodes/core/node_tree.hpp"
+#include "nodes/core/node_exec_python.hpp"
 
 namespace nb = nanobind;
 
@@ -294,7 +295,59 @@ NB_MODULE(nodes_core_py, m)
         .def("clear", &NodeTree::clear)
         // Serialization
         .def("serialize", &NodeTree::serialize)
-        .def("deserialize", &NodeTree::deserialize);
+        .def("deserialize", &NodeTree::deserialize)
+        // Python code generation
+        .def("to_python_code", 
+             [](const NodeTree& tree, Node* required_node) {
+                 return to_python_code(&tree, required_node);
+             },
+             nb::arg("required_node") = nullptr,
+             "Generate Python code from this node tree")
+        .def("to_python_code_with_options",
+             [](const NodeTree& tree, 
+                bool include_imports,
+                bool include_comments,
+                bool use_graph_api,
+                Node* required_node) {
+                 PythonCodeGenerator::Options opts;
+                 opts.include_imports = include_imports;
+                 opts.include_comments = include_comments;
+                 opts.use_graph_api = use_graph_api;
+                 return to_python_code(&tree, opts, required_node);
+             },
+             nb::arg("include_imports") = true,
+             nb::arg("include_comments") = true,
+             nb::arg("use_graph_api") = true,
+             nb::arg("required_node") = nullptr,
+             "Generate Python code with custom options");
+
+    // Standalone Python code generation functions
+    m.def("to_python_code",
+          [](const NodeTree& tree, Node* required_node) {
+              return to_python_code(&tree, required_node);
+          },
+          nb::arg("tree"),
+          nb::arg("required_node") = nullptr,
+          "Generate Python code from a node tree");
+    
+    m.def("to_python_code_with_options",
+          [](const NodeTree& tree,
+             bool include_imports,
+             bool include_comments,
+             bool use_graph_api,
+             Node* required_node) {
+              PythonCodeGenerator::Options opts;
+              opts.include_imports = include_imports;
+              opts.include_comments = include_comments;
+              opts.use_graph_api = use_graph_api;
+              return to_python_code(&tree, opts, required_node);
+          },
+          nb::arg("tree"),
+          nb::arg("include_imports") = true,
+          nb::arg("include_comments") = true,
+          nb::arg("use_graph_api") = true,
+          nb::arg("required_node") = nullptr,
+          "Generate Python code with custom options");
 
     // Helper functions
     m.def("create_descriptor", []() {
