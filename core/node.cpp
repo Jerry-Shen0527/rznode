@@ -4,11 +4,10 @@
 
 #include <spdlog/spdlog.h>
 
-#include "entt/meta/resolve.hpp"
 #include "nodes/core/api.h"
+#include "nodes/core/io/json.hpp"
 #include "nodes/core/node_link.hpp"
 #include "nodes/core/node_tree.hpp"
-
 RUZINO_NAMESPACE_OPEN_SCOPE
 
 void NodeLink::Serialize(nlohmann::json& value)
@@ -245,20 +244,22 @@ size_t Node::find_socket_id(const char* identifier, PinKind in_out) const
         }
         counter++;
     }
-    
+
     // Provide detailed error message
-    std::string error_msg = "Socket not found: identifier='" + std::string(identifier) + 
-                           "', type=" + (in_out == PinKind::Input ? "Input" : "Output") +
-                           ", node='" + ui_name + "', node_type='" + typeinfo->id_name + "'";
+    std::string error_msg =
+        "Socket not found: identifier='" + std::string(identifier) +
+        "', type=" + (in_out == PinKind::Input ? "Input" : "Output") +
+        ", node='" + ui_name + "', node_type='" + typeinfo->id_name + "'";
     error_msg += ", available_sockets=[";
     for (size_t i = 0; i < socket_group->size(); i++) {
-        if (i > 0) error_msg += ", ";
+        if (i > 0)
+            error_msg += ", ";
         error_msg += "'";
         error_msg += (*socket_group)[i]->identifier;
         error_msg += "'";
     }
     error_msg += "]";
-    
+
     throw std::runtime_error(error_msg);
 }
 

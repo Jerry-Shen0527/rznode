@@ -1,10 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <memory>
-#include <string>
-
-#include <spdlog/spdlog.h>
 #include "entt/meta/factory.hpp"
 #include "nodes/core/api.h"
 #include "socket.hpp"
@@ -40,11 +35,10 @@ inline std::string type_name()
 template<typename TYPE>
 inline void register_cpp_type()
 {
-    entt::meta<TYPE>(get_entt_ctx()).type(entt::type_hash<TYPE>());    if (!entt::hashed_string{ type_name<TYPE>().data() } ==
+    entt::meta<TYPE>(get_entt_ctx()).type(entt::type_hash<TYPE>());
+    if (!entt::hashed_string{ type_name<TYPE>().data() } ==
         entt::type_hash<TYPE>()) {
-        spdlog::error("register type failed: {}", type_name<TYPE>().data());
-        std::cerr << "register type failed: " << type_name<TYPE>().data()
-                  << std::endl;
+        assert(false);
     }
 }
 
@@ -53,8 +47,8 @@ SocketType get_socket_type()
 {
     auto type =
         entt::resolve(get_entt_ctx(), entt::type_hash<std::decay_t<T>>());
-    if (!type) {        register_cpp_type<std::decay_t<T>>();
-        spdlog::debug("register type: {}", type_name<T>().data());
+    if (!type) {
+        register_cpp_type<std::decay_t<T>>();
         type =
             entt::resolve(get_entt_ctx(), entt::type_hash<std::decay_t<T>>());
         assert(type);

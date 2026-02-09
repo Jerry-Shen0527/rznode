@@ -1,18 +1,11 @@
 #pragma once
 
-#include <spdlog/spdlog.h>
-
-#include <cassert>
-#include <optional>
-#include <set>
-#include <vector>
-
 #include "entt/meta/meta.hpp"
-#include "entt/meta/resolve.hpp"
 #include "node.hpp"
 #include "nodes/core/api.h"
 
 RUZINO_NAMESPACE_OPEN_SCOPE
+struct NodeTreeExecutor;
 struct NodeSocket;
 struct Node;
 class NodeTree;
@@ -93,9 +86,11 @@ struct NODES_CORE_API ExeParams {
             outputs_[index]->cast<DecayT&>() = std::forward<T>(value);
         }
         else {
-            // CRITICAL: Use get_entt_ctx() to ensure the meta_any is created with the correct context
-            // Otherwise the context might be different and cause type mismatch errors
-            *outputs_[index] = entt::meta_any{get_entt_ctx(), std::forward<T>(value)};
+            // CRITICAL: Use get_entt_ctx() to ensure the meta_any is created
+            // with the correct context Otherwise the context might be different
+            // and cause type mismatch errors
+            *outputs_[index] =
+                entt::meta_any{ get_entt_ctx(), std::forward<T>(value) };
         }
     }
 
@@ -126,7 +121,7 @@ struct NODES_CORE_API ExeParams {
     template<typename T>
     T get_global_payload()
     {
-        if(!global_param) {
+        if (!global_param) {
             throw std::runtime_error("Global payload is not set");
         }
         return global_param.cast<T>();
@@ -287,23 +282,25 @@ struct NODES_CORE_API NodeTreeExecutor {
         if (!global_payload) {
             global_payload = get_socket_type<T>().construct();
             if (!global_payload) {
-                spdlog::error(
+                throw std::runtime_error(
                     "The global payload must be default constructable");
             }
         }
         return global_payload.cast<T>();
     }
-    
+
     // Set global payload directly (for type-erased setting)
     void set_global_payload(const entt::meta_any& payload)
     {
         global_payload = payload;
     }
-    
+
     virtual void mark_tree_structure_changed() { };
-    
+
     // Reset resource allocator (for render executors)
-    virtual void reset_allocator() { }
+    virtual void reset_allocator()
+    {
+    }
 
    protected:
     entt::meta_any global_payload;

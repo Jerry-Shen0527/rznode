@@ -5,11 +5,13 @@
 #include "nodes/core/api.hpp"
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_tree.hpp"
+#include "spdlog/spdlog.h"
 
 using namespace Ruzino;
 
 class NodeCoreTest : public ::testing::Test {
-   protected:    void SetUp() override
+   protected:
+    void SetUp() override
     {
         spdlog::set_level(spdlog::level::info);
     }
@@ -497,8 +499,5 @@ TEST_F(NodeCoreTest, Inverse_Tree)
 
     // Test that get_inverse_tree throws "Not implemented" exception
     ASSERT_THROW(
-        {
-            auto inverse_tree = tree->get_inverse_tree();
-        },
-        std::runtime_error);
+        { auto inverse_tree = tree->get_inverse_tree(); }, std::runtime_error);
 }

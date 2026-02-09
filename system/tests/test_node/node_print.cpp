@@ -1,9 +1,7 @@
-#include <spdlog/spdlog.h>
-
+#include <iostream>
 #include <sstream>
 
 #include "nodes/core/def/node_def.hpp"
-
 
 NODE_DEF_OPEN_SCOPE
 

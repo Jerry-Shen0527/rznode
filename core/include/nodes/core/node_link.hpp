@@ -2,7 +2,7 @@
 
 #include "nodes/core/api.h"
 #include "nodes/core/id.hpp"
-#include "nodes/core/io/json.hpp"
+#include "nodes/core/io/json_fwd.hpp"
 
 RUZINO_NAMESPACE_OPEN_SCOPE
 struct Node;
