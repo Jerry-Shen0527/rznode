@@ -597,7 +597,6 @@ NodeTypeInfo* Node::nodeTypeFind(const char* idname)
     }
 
     spdlog::error("Id name not found, tried to find: {}", idname);
-    spdlog::error("Available nodes:");
 
     return nullptr;
 }
