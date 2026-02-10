@@ -1,10 +1,10 @@
 #pragma once
 
+#include "entt/meta/meta.hpp"
 #include "nodes/core/api.hpp"
 #include "nodes/core/node.hpp"
 #include "nodes/core/node_tree.hpp"
 #include "nodes/system/api.h"
-#include "entt/meta/meta.hpp"
 
 RUZINO_NAMESPACE_OPEN_SCOPE
 class NODES_SYSTEM_API NodeSystem {
@@ -19,7 +19,7 @@ class NODES_SYSTEM_API NodeSystem {
 
     template<typename T>
     void set_global_params(T global_params);
-    
+
     // Type-erased version for Python bindings
     void set_global_params_any(const entt::meta_any& params);
 
@@ -30,6 +30,9 @@ class NODES_SYSTEM_API NodeSystem {
     [[nodiscard]] NodeTree* get_node_tree() const;
     [[nodiscard]] NodeTreeExecutor* get_node_tree_executor() const;
 
+    // Get list of loaded configuration files
+    [[nodiscard]] const std::vector<std::string>& get_loaded_configs() const;
+
     bool allow_ui_execution = true;
 
     virtual std::shared_ptr<NodeTreeDescriptor> node_tree_descriptor() = 0;
@@ -37,6 +40,7 @@ class NODES_SYSTEM_API NodeSystem {
    protected:
     std::unique_ptr<NodeTree> node_tree;
     std::unique_ptr<NodeTreeExecutor> node_tree_executor;
+    std::vector<std::string> loaded_config_files;  // Track loaded config files
 };
 
 template<typename T>

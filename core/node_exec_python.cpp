@@ -1,7 +1,9 @@
 #include "nodes/core/node_exec_python.hpp"
 
 #include <algorithm>
+#include <iomanip>
 #include <queue>
+#include <sstream>
 
 #include "nodes/core/node_link.hpp"
 
@@ -266,12 +268,23 @@ void PythonCodeGenerator::generate_input_assignments(const NodeTree* tree)
                 continue;
             }
 
-            // Check if socket has a default value or needs to be set
-            // For now, we'll generate placeholder comments
+            // Skip sockets with no value set
+            if (!socket->dataField.value) {
+                continue;
+            }
+
+            // Get the actual value from the socket and format it
             std::string var_name = get_node_variable_name(node);
+            std::string value_str = format_value(socket->dataField.value);
+
+            // Skip if value is None (empty meta_any or unknown type)
+            if (value_str.find("None") == 0) {
+                continue;
+            }
+
             std::ostringstream line;
-            line << "# (" << var_name << ", \"" << socket->identifier
-                 << "\"): value,";
+            line << "(" << var_name << ", \"" << socket->identifier
+                 << "\"): " << value_str << ",";
             write_line(line.str());
             has_inputs = true;
         }
@@ -449,9 +462,62 @@ std::string PythonCodeGenerator::sanitize_identifier(const std::string& name)
 
 std::string PythonCodeGenerator::format_value(const entt::meta_any& value)
 {
-    // This is a placeholder - actual implementation would need to inspect
-    // the meta_any type and format appropriately
-    return "None";
+    // Handle common types and convert to Python literals
+    if (!value) {
+        return "None";
+    }
+
+    auto type = value.type();
+
+    // Integer types
+    if (type == entt::resolve<int>()) {
+        return std::to_string(value.cast<int>());
+    }
+    if (type == entt::resolve<int64_t>()) {
+        return std::to_string(value.cast<int64_t>());
+    }
+    if (type == entt::resolve<uint32_t>()) {
+        return std::to_string(value.cast<uint32_t>());
+    }
+    if (type == entt::resolve<uint64_t>()) {
+        return std::to_string(value.cast<uint64_t>());
+    }
+
+    // Float types
+    if (type == entt::resolve<float>()) {
+        float f = value.cast<float>();
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(6) << f;
+        return oss.str();
+    }
+    if (type == entt::resolve<double>()) {
+        double d = value.cast<double>();
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(6) << d;
+        return oss.str();
+    }
+
+    // Boolean
+    if (type == entt::resolve<bool>()) {
+        return value.cast<bool>() ? "True" : "False";
+    }
+
+    // String
+    if (type == entt::resolve<std::string>()) {
+        std::string str = value.cast<std::string>();
+        // Escape quotes and backslashes
+        std::string escaped;
+        for (char c : str) {
+            if (c == '"' || c == '\\') {
+                escaped += '\\';
+            }
+            escaped += c;
+        }
+        return "\"" + escaped + "\"";
+    }
+
+    // For unknown types, return None with a comment
+    return "None  # Unknown type: " + std::string(type.info().name());
 }
 
 std::string PythonCodeGenerator::get_socket_identifier(NodeSocket* socket)

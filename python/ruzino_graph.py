@@ -598,12 +598,32 @@ class RuzinoGraph:
             req_node = self._resolve_node(required_node)
         
         # Call C++ to_python_code_with_options through the tree binding
-        return self._tree.to_python_code_with_options(
+        code = self._tree.to_python_code_with_options(
             include_imports, 
             include_comments,
             use_graph_api,
             req_node
         )
+        
+        # Post-process the generated code to replace hardcoded config with actual loaded configs
+        if self._system is not None:
+            loaded_configs = self._system.get_loaded_configs()
+            if loaded_configs:
+                # Replace the hardcoded config line with actual loaded configs
+                import re
+                # Find and replace the config loading section
+                config_pattern = r'config_path = os\.path\.join\(binary_dir, "test_nodes\.json"\)\ng\.loadConfiguration\(config_path\)'
+                
+                # Generate proper config loading code
+                config_lines = []
+                for config_file in loaded_configs:
+                    config_lines.append(f'config_path = os.path.join(binary_dir, "{config_file}")')
+                    config_lines.append('g.loadConfiguration(config_path)')
+                
+                replacement = '\n'.join(config_lines)
+                code = re.sub(config_pattern, replacement, code)
+        
+        return code
     
     def save_python_code(self, 
                         filepath: str,

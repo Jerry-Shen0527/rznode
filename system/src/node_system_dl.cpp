@@ -105,6 +105,9 @@ bool NodeDynamicLoadingSystem::load_configuration(
     config_file >> j;
     config_file.close();
 
+    // Store the config file name (just the filename, not full path)
+    loaded_config_files.push_back(config_file_path.filename().string());
+
     auto load_libraries = [&](const nlohmann::json& json_section,
                               auto& library_map,
                               const std::string& extension,
@@ -169,14 +172,13 @@ bool NodeDynamicLoadingSystem::load_configuration(
 
                 new_node.ALWAYS_REQUIRED =
                     node_always_requred ? node_always_requred() : false;
-                
+
                 new_node.ALWAYS_DIRTY =
                     node_always_dirty ? node_always_dirty() : false;
                 if (new_node.ALWAYS_DIRTY) {
-                    spdlog::info(
-                        "{} is always dirty.", func_name_str.c_str());
+                    spdlog::info("{} is always dirty.", func_name_str.c_str());
                 }
-                
+
                 new_node.set_declare_function(node_declare);
                 new_node.set_execution_function(node_execution);
 

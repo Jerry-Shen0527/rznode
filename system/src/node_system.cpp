@@ -1,8 +1,8 @@
 #include "nodes/system/node_system.hpp"
 
+#include "entt/meta/meta.hpp"
 #include "nodes/core/node_exec_eager.hpp"
 #include "nodes/system/node_system_dl.hpp"
-#include "entt/meta/meta.hpp"
 
 RUZINO_NAMESPACE_OPEN_SCOPE
 void NodeSystem::init()
@@ -54,6 +54,11 @@ NodeTree* NodeSystem::get_node_tree() const
 NodeTreeExecutor* NodeSystem::get_node_tree_executor() const
 {
     return node_tree_executor.get();
+}
+
+const std::vector<std::string>& NodeSystem::get_loaded_configs() const
+{
+    return loaded_config_files;
 }
 
 void NodeSystem::set_global_params_any(const entt::meta_any& params)
