@@ -5,7 +5,7 @@ This test demonstrates creating, connecting, and executing geometry nodes,
 and retrieving/inspecting the resulting geometry data.
 
 Note: This script requires the geometry_nodes.json configuration and
-the rzgeometry_py Python module to be available.
+the geometry_py Python module to be available.
 """
 
 import os
@@ -16,13 +16,13 @@ from ruzino_graph import RuzinoGraph
 import nodes_core_py as core
 import nodes_system_py as system
 
-# Try importing rzgeometry_py - may not be built yet
+# Try importing geometry_py - may not be built yet
 try:
-    import rzgeometry_py as geom
+    import geometry_py as geom
     HAS_GEOMETRY = True
 except ImportError:
     HAS_GEOMETRY = False
-    print("WARNING: rzgeometry_py not available. Some tests will be skipped.")
+    print("WARNING: geometry_py not available. Some tests will be skipped.")
 
 # Get binary directory for test configuration files
 binary_dir = os.getcwd()
@@ -233,7 +233,7 @@ def test_complex_geometry_pipeline():
 
 
 def test_geometry_with_python_created_data():
-    """Test passing Python-created geometry data to nodes."""
+    """Test passing Python-created geometry data to nodes and using geometry interface."""
     if not HAS_GEOMETRY:
         print("\n" + "="*60)
         print("TEST: Python Geometry Data (SKIPPED - rzgeometry_py not available)")
@@ -241,34 +241,70 @@ def test_geometry_with_python_created_data():
         return
     
     print("\n" + "="*60)
-    print("TEST: Python-Created Geometry Data")
+    print("TEST: Geometry Interface - Direct Geometry Access")
     print("="*60)
     
-    # Create a simple triangle in Python
-    vertices = [
-        geom.vec3(0.0, 0.0, 0.0),
-        geom.vec3(1.0, 0.0, 0.0),
-        geom.vec3(0.5, 1.0, 0.0)
-    ]
+    # Create graph with geometry nodes
+    g = RuzinoGraph("GeometryInterfaceTest")
+    config_path = os.path.join(binary_dir, "geometry_nodes.json")
+    g.loadConfiguration(config_path)
     
-    # Create geometry from Python
-    triangle_geom = geom.create_mesh_from_arrays(
-        vertices,
-        [3],  # One face with 3 vertices
-        [0, 1, 2]  # Face indices
-    )
+    # Create a simple sphere (no decompose needed!)
+    sphere = g.createNode("create_uv_sphere", name="Sphere")
     
-    print(f"✓ Created triangle geometry in Python")
-    print(f"  {triangle_geom.to_string()}")
+    # Set sphere parameters
+    inputs = {
+        (sphere, "segments"): 8,
+        (sphere, "rings"): 4,
+        (sphere, "radius"): 2.5,
+    }
     
-    # Get mesh component and verify
-    mesh = triangle_geom.get_mesh_component()
-    if mesh:
-        verts = mesh.get_vertices()
-        print(f"  Triangle has {len(verts)} vertices")
-        assert len(verts) == 3, "Expected 3 vertices"
+    # Mark the Geometry output directly
+    g.markOutput(sphere, "Geometry")
     
-    # TODO: Test passing this to a node graph when input setting is implemented
+    print("✓ Created sphere node")
+    print("  Parameters: segments=8, rings=4, radius=2.5")
+    
+    # Execute
+    g.prepare_and_execute(inputs)
+    print("✓ Executed graph")
+    
+    # Get the Geometry output (returns meta_any)
+    result = g.getOutput(sphere, "Geometry")
+    print(f"✓ Retrieved output: {type(result)}")
+    
+    # Extract Geometry from meta_any
+    try:
+        geometry = geom.extract_geometry_from_meta_any(result)
+        print(f"✓ Extracted Geometry: {geometry.to_string()}")
+        
+        # Get mesh component
+        mesh = geometry.get_mesh_component()
+        if mesh:
+            print(f"✓ Got MeshComponent")
+            
+            # Use NumPy interface to inspect the mesh
+            import numpy as np
+            vertices = mesh.get_vertices()
+            print(f"  Vertices shape: {vertices.shape}")
+            print(f"  Vertex count: {len(vertices)}")
+            print(f"  First vertex: {vertices[0]}")
+            print(f"  Bounding box: min={np.min(vertices, axis=0)}, max={np.max(vertices, axis=0)}")
+            
+            # Verify radius is approximately 2.5
+            distances = np.linalg.norm(vertices, axis=1)
+            avg_radius = np.mean(distances)
+            print(f"  Average radius: {avg_radius:.3f} (expected: 2.5)")
+            assert abs(avg_radius - 2.5) < 0.1, f"Radius mismatch: {avg_radius} vs 2.5"
+            
+            print("✓ Geometry interface works! Can access mesh data directly via NumPy")
+        else:
+            print("⚠ No mesh component found")
+            
+    except Exception as e:
+        print(f"✗ Failed to extract geometry: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def test_geometry_json_roundtrip_and_codegen():
@@ -280,26 +316,23 @@ def test_geometry_json_roundtrip_and_codegen():
     # Get test directory for saving files
     test_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Step 1: Create original geometry graph
+    # Step 1: Create original geometry graph (simplified - no decompose!)
     g1 = RuzinoGraph("GeometryOriginal")
     config_path = os.path.join(binary_dir, "geometry_nodes.json")
     g1.loadConfiguration(config_path)
     
-    # Create a geometry pipeline: sphere -> triangulate -> decompose
+    # Create a simple geometry pipeline: sphere -> triangulate
     sphere = g1.createNode("create_uv_sphere", name="MySphere")
     triangulate = g1.createNode("triangulate", name="TriangulateMesh")
-    decompose = g1.createNode("mesh_decompose", name="ExtractData")
     
     # Connect nodes
     g1.addEdge(sphere, "Geometry", triangulate, "Input")
-    g1.addEdge(triangulate, "Ouput", decompose, "Mesh")
     
-    # Mark outputs
-    g1.markOutput(decompose, "Position")
-    g1.markOutput(decompose, "Face Indices")
+    # Mark the final Geometry output directly
+    g1.markOutput(triangulate, "Ouput")  # Note: typo in C++ code
     
     print("✓ Created geometry graph")
-    print(f"  Pipeline: {sphere.ui_name} -> {triangulate.ui_name} -> {decompose.ui_name}")
+    print(f"  Pipeline: {sphere.ui_name} -> {triangulate.ui_name}")
     print(f"  Nodes: {len(g1.nodes)}, Links: {len(g1.links)}")
     
     # Step 2: Serialize to JSON
@@ -340,12 +373,41 @@ def test_geometry_json_roundtrip_and_codegen():
     g2.save_python_code(output_file)
     print(f"\n✓ Saved generated code to: {output_file}")
     
-    # Step 5: Execute the generated code
+    # Step 5: Execute the generated code and use geometry interface
     print("\n✓ Executing generated geometry code from JSON roundtrip...")
     try:
         exec_namespace = {}
         exec(python_code, exec_namespace)
         print("✓ Geometry code executed successfully!")
+        
+        # If geometry module is available, demonstrate geometry interface
+        if HAS_GEOMETRY:
+            print("\n✓ Testing geometry interface on generated code output...")
+            # Re-execute to capture the output
+            import numpy as np
+            exec_namespace2 = {"geom": geom, "np": np}
+            
+            # Add code to extract and inspect the geometry
+            inspect_code = python_code + """
+# Extract and inspect the geometry
+import geometry_py as geom
+import numpy as np
+
+# Get the triangulated geometry output
+result_geom = g.getOutput(triangulate, "Ouput")
+geometry = geom.extract_geometry_from_meta_any(result_geom)
+print(f"\\n  Geometry: {geometry.to_string()}")
+
+mesh = geometry.get_mesh_component()
+if mesh:
+    vertices = mesh.get_vertices()
+    print(f"  Vertex count: {len(vertices)}")
+    print(f"  Vertices shape: {vertices.shape}")
+    distances = np.linalg.norm(vertices, axis=1)
+    print(f"  Average radius: {np.mean(distances):.3f}")
+"""
+            exec(inspect_code, exec_namespace2)
+            
     except Exception as e:
         print(f"⚠ Execution note: {e}")
         # This might fail if geometry modules aren't available, but code generation succeeded

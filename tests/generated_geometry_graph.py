@@ -13,11 +13,9 @@ g.loadConfiguration(config_path)
 # Create nodes
 create_uv_sphere = g.createNode("create_uv_sphere", name="create_uv_sphere")
 triangulate = g.createNode("triangulate", name="triangulate")
-mesh_decompose = g.createNode("mesh_decompose", name="mesh_decompose")
 
 # Create connections
 g.addEdge(create_uv_sphere, "Geometry", triangulate, "Input")
-g.addEdge(triangulate, "Ouput", mesh_decompose, "Mesh")
 
 # Set input values and mark outputs
 inputs = {
@@ -27,23 +25,11 @@ inputs = {
 }
 
 # Mark output sockets
-g.markOutput(mesh_decompose, "Vertices")
-g.markOutput(mesh_decompose, "FaceVertexCounts")
-g.markOutput(mesh_decompose, "FaceVertexIndices")
-g.markOutput(mesh_decompose, "Normals")
-g.markOutput(mesh_decompose, "Texcoords")
+g.markOutput(triangulate, "Ouput")
 
 # Execute graph
 g.prepare_and_execute(inputs)
 
 # Get outputs
-mesh_decompose_Vertices = g.getOutput(mesh_decompose, "Vertices")
-print(f"mesh_decompose.Vertices = {mesh_decompose_Vertices}")
-mesh_decompose_FaceVertexCounts = g.getOutput(mesh_decompose, "FaceVertexCounts")
-print(f"mesh_decompose.FaceVertexCounts = {mesh_decompose_FaceVertexCounts}")
-mesh_decompose_FaceVertexIndices = g.getOutput(mesh_decompose, "FaceVertexIndices")
-print(f"mesh_decompose.FaceVertexIndices = {mesh_decompose_FaceVertexIndices}")
-mesh_decompose_Normals = g.getOutput(mesh_decompose, "Normals")
-print(f"mesh_decompose.Normals = {mesh_decompose_Normals}")
-mesh_decompose_Texcoords = g.getOutput(mesh_decompose, "Texcoords")
-print(f"mesh_decompose.Texcoords = {mesh_decompose_Texcoords}")
+triangulate_Ouput = g.getOutput(triangulate, "Ouput")
+print(f"triangulate.Ouput = {triangulate_Ouput}")
