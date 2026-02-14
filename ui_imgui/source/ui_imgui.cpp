@@ -450,7 +450,8 @@ void NodeWidget::ShowLeftPane(float paneWidth)
         for (auto& in : input) {
             if (auto* value_ptr = executor->get_socket_value(in)) {
                 ShowInputOrOutput(*in, *value_ptr);
-            } else {
+            }
+            else {
                 ShowInputOrOutput(*in, entt::meta_any{});
             }
         }
@@ -460,7 +461,8 @@ void NodeWidget::ShowLeftPane(float paneWidth)
         for (auto& out : output) {
             if (auto* value_ptr = executor->get_socket_value(out)) {
                 ShowInputOrOutput(*out, *value_ptr);
-            } else {
+            }
+            else {
                 ShowInputOrOutput(*out, entt::meta_any{});
             }
         }
@@ -693,6 +695,12 @@ struct NodeSystemFileStorage : public NodeSystemStorage {
 
     void save(const std::string& data) override
     {
+        // Create parent directory if it doesn't exist
+        auto parent_path = json_path_.parent_path();
+        if (!parent_path.empty() && !std::filesystem::exists(parent_path)) {
+            std::filesystem::create_directories(parent_path);
+        }
+
         std::ofstream file(json_path_);
         file << data;
     }
