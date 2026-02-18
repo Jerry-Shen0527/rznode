@@ -4,8 +4,10 @@
 #include "entt/meta/meta.hpp"
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui_internal.h>
+#if RUZINO_WITH_OPENUSD
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec3f.h>
+#endif
 
 #include <fstream>
 #include <string>
@@ -159,7 +161,7 @@ std::vector<Node*> NodeWidget::create_node_menu(bool cursor)
         auto name = value.second.ui_name;
 
         auto id_name = value.second.id_name;
-        std::ranges::replace(subs, ' ', '_');
+        std::replace(subs.begin(), subs.end(), ' ', '_');
 
         if (subs.size() > 0) {
             ImGui::SetNextWindowSizeConstraints(
@@ -551,6 +553,7 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
             changed |= ImGui::Checkbox(
                 widget_id, &input->dataField.value.cast<bool&>());
             break;
+#if RUZINO_WITH_OPENUSD
         case entt::type_hash<pxr::GfVec2f>().value(): {
             auto& vec = input->dataField.value.cast<pxr::GfVec2f&>();
             auto min_vec = input->dataField.min.cast<pxr::GfVec2f>();
@@ -588,6 +591,7 @@ bool NodeWidget::draw_socket_controllers(NodeSocket* input)
             ImGui::Text("%s", input->ui_name);
             break;
         }
+#endif
         case entt::type_hash<glm::vec2>().value(): {
             auto& vec = input->dataField.value.cast<glm::vec2&>();
             auto min_vec = input->dataField.min.cast<glm::vec2>();

@@ -2,6 +2,7 @@
 
 #include <cstdint>    // for uintptr_t
 #include <type_traits>
+#include <utility>
 
 #include "nodes/core/api.h"
 

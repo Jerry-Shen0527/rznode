@@ -23,9 +23,15 @@ DynamicLibraryLoader::DynamicLibraryLoader(const std::string& libraryName)
         throw std::runtime_error("Failed to load library: " + libraryName);
     }
 #else
-    handle = dlopen(libraryName.c_str(), RTLD_LAZY);
+    // On Linux, add 'lib' prefix if not present
+    std::string actual_library_name = libraryName;
+    if (libraryName.length() < 3 || libraryName.substr(0, 3) != "lib") {
+        actual_library_name = "lib" + libraryName;
+    }
+    handle = dlopen(actual_library_name.c_str(), RTLD_LAZY);
     if (!handle) {
-        throw std::runtime_error("Failed to load library: " + libraryName);
+        throw std::runtime_error("Failed to load library: " + libraryName +
+                                 " (tried: " + actual_library_name + ")");
     }
 #endif
 }
@@ -116,8 +122,15 @@ bool NodeDynamicLoadingSystem::load_configuration(
             std::string key = it.key();
             auto func_names = it.value();
 
+#ifdef _WIN32
+            std::string library_name = key + extension;
+#else
+            // On Linux, libraries have "lib" prefix
+            std::string library_name = "lib" + key + extension;
+#endif
+
             library_map[key] =
-                std::make_unique<DynamicLibraryLoader>(key + extension);
+                std::make_unique<DynamicLibraryLoader>(library_name);
 
             for (auto&& func_name : func_names) {
                 auto func_name_str = func_name.get<std::string>();

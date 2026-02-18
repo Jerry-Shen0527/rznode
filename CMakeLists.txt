@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29.6)
+cmake_minimum_required(VERSION 3.28)
 project(rznode VERSION 0.1.0 LANGUAGES CXX)
 
 set(RZNODES_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "RZNodes directory" FORCE)
