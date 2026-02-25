@@ -14,6 +14,24 @@ using namespace Ruzino;
 
 NB_MODULE(nodes_system_py, m)
 {
+    // NodeTree bindings
+    nb::class_<NodeTree>(m, "NodeTree")
+        .def(
+            "deserialize",
+            &NodeTree::deserialize,
+            nb::arg("json_string"),
+            "Deserialize node tree from JSON string")
+        .def(
+            "serialize",
+            &NodeTree::serialize,
+            "Serialize node tree to JSON string")
+        .def(
+            "SetDirty",
+            &NodeTree::SetDirty,
+            nb::arg("dirty") = true,
+            "Mark the tree as dirty")
+        .def("GetDirty", &NodeTree::GetDirty, "Check if tree is dirty");
+
     // NodeTreeExecutor
     nb::class_<NodeTreeExecutor>(m, "NodeTreeExecutor")
         .def(
