@@ -61,6 +61,13 @@ struct NODES_CORE_API NodeSocket {
     template<typename T>
     const T& default_value_typed() const;
 
+    /** Set the default value of the socket. */
+    template<typename T>
+    void set_default_value(const T& value)
+    {
+        dataField.value = entt::meta_any{ value };
+    }
+
     friend bool operator==(const NodeSocket& lhs, const NodeSocket& rhs)
     {
         return strcmp(lhs.identifier, rhs.identifier) == 0 &&
@@ -91,7 +98,8 @@ template<typename T>
 T NodeSocket::default_value_typed_force()
 {
     // 如果T是引用类型，直接reinterpret_cast为T类型的引用
-    return *reinterpret_cast<std::remove_reference_t<T>*>(dataField.value.data());
+    return *reinterpret_cast<std::remove_reference_t<T>*>(
+        dataField.value.data());
 }
 
 template<typename T>

@@ -4,21 +4,21 @@ Ruzino Graph API - A clean, Falcor-inspired API for node graph construction and 
 Example:
     g = RuzinoGraph("MyGraph")
     g.loadConfiguration("path/to/config.json")
-    
+
     # Create nodes
     add1 = g.createNode("add")
     add2 = g.createNode("add")
-    
+
     # Connect nodes
     g.addEdge(add1, "result", add2, "a")
-    
+
     # Set inputs
     g.setInput(add1, "a", 5)
     g.setInput(add1, "b", 3)
-    
+
     # Execute
     g.execute()
-    
+
     # Get outputs
     result = g.getOutput(add2, "result")
     print(f"Result: {result}")
@@ -34,11 +34,11 @@ class RuzinoGraph:
     High-level interface for node graph construction and execution.
     Provides a clean, Falcor-style API.
     """
-    
+
     def __init__(self, name: str = "Graph"):
         """
         Create a new render graph.
-        
+
         Args:
             name: Name of the graph (for debugging/display)
         """
@@ -49,136 +49,147 @@ class RuzinoGraph:
         self._initialized = False
         self._node_name_counter = {}  # Track node names for auto-naming
         self._output_marks = []  # Track marked outputs
-        
+
     def _ensure_initialized(self):
         """Ensure the graph system is initialized."""
         if not self._initialized:
             raise RuntimeError(
                 "Graph not initialized. Call initialize() or load_configuration() first."
             )
-    
-    def initialize(self, config_path: Optional[str] = None) -> 'RuzinoGraph':
+
+    def initialize(self, config_path: Optional[str] = None) -> "RuzinoGraph":
         """
         Initialize the graph system.
-        
+
         Args:
             config_path: Optional path to JSON configuration file with node definitions
-            
+
         Returns:
             self for chaining
         """
         # Only create system if not already initialized
         if self._system is None:
             self._system = system.create_dynamic_loading_system()
-        
+
         if config_path:
             loaded = self._system.load_configuration(config_path)
             if not loaded:
                 raise RuntimeError(f"Failed to load configuration from {config_path}")
-        
+
         # Only init once
         if not self._initialized:
             self._system.init()
             self._tree = self._system.get_node_tree()
             self._executor = self._system.get_node_tree_executor()
             self._initialized = True
-        
+
         return self
-    
-    def loadConfiguration(self, config_path: str) -> 'RuzinoGraph':
+
+    def loadConfiguration(self, config_path: str) -> "RuzinoGraph":
         """
         Load node definitions from a configuration file.
         Can be called multiple times to load multiple configuration files.
-        
+
         Args:
             config_path: Path to the configuration JSON file
-            
+
         Returns:
             self for method chaining
         """
         # If not initialized yet, do full initialization
         if not self._initialized:
             return self.initialize(config_path)
-        
+
         # If already initialized, just load the additional configuration
         loaded = self._system.load_configuration(config_path)
         if not loaded:
             raise RuntimeError(f"Failed to load configuration from {config_path}")
-        
+
         return self
-    
-    def createNode(self, node_type: str, properties: Optional[dict] = None, name: Optional[str] = None) -> core.Node:
+
+    def createNode(
+        self,
+        node_type: str,
+        properties: Optional[dict] = None,
+        name: Optional[str] = None,
+    ) -> core.Node:
         """
         Create a node in the graph (Falcor-style API).
-        
+
         Args:
             node_type: Type of node to create (e.g., "add", "multiply")
             properties: Optional dictionary of properties to set on the node
             name: Optional custom name for the node. If not provided, auto-generates one.
-            
+
         Returns:
             The created node
-            
+
         Example:
             add_node = g.createNode("add", {"initial_value": 0}, "MyAdder")
         """
         self._ensure_initialized()
-        
+
         # Auto-generate name if not provided
         if name is None:
             count = self._node_name_counter.get(node_type, 0)
             name = f"{node_type}_{count}"
             self._node_name_counter[node_type] = count + 1
-        
+
         node = self._tree.add_node(node_type)
         if node is None:
             raise RuntimeError(f"Failed to create node of type '{node_type}'")
-        
+
         node.ui_name = name
-        
+
         # TODO: Apply properties if provided
         # This would require additional bindings for setting node properties
         if properties:
-            print(f"Warning: Property setting not yet implemented. Properties ignored: {properties}")
-        
+            print(
+                f"Warning: Property setting not yet implemented. Properties ignored: {properties}"
+            )
+
         return node
-    
-    def addEdge(self, 
-                from_node: Union[core.Node, str], 
-                from_socket: str,
-                to_node: Union[core.Node, str],
-                to_socket: str) -> 'RuzinoGraph':
+
+    def addEdge(
+        self,
+        from_node: Union[core.Node, str],
+        from_socket: str,
+        to_node: Union[core.Node, str],
+        to_socket: str,
+    ) -> "RuzinoGraph":
         """
         Connect two nodes (Falcor-style API).
-        
+
         Args:
             from_node: Source node or node name
             from_socket: Name of output socket on source node
             to_node: Destination node or node name
             to_socket: Name of input socket on destination node
-            
+
         Returns:
             self for chaining
-            
+
         Example:
             g.addEdge(node1, "result", node2, "input")
             g.addEdge("node1", "result", "node2", "input")  # By name
         """
         self._ensure_initialized()
-        
+
         # Resolve node references
         from_n = self._resolve_node(from_node)
         to_n = self._resolve_node(to_node)
-        
+
         # Get sockets
         from_sock = from_n.get_output_socket(from_socket)
         to_sock = to_n.get_input_socket(to_socket)
-        
+
         if from_sock is None:
-            raise ValueError(f"Socket '{from_socket}' not found on node '{from_n.ui_name}'")
+            raise ValueError(
+                f"Socket '{from_socket}' not found on node '{from_n.ui_name}'"
+            )
         if to_sock is None:
             raise ValueError(f"Socket '{to_socket}' not found on node '{to_n.ui_name}'")
-        
+
         # Create link
         link = self._tree.add_link(from_sock, to_sock)
         if link is None:
@@ -186,36 +197,38 @@ class RuzinoGraph:
                 f"Failed to create link from {from_n.ui_name}.{from_socket} "
                 f"to {to_n.ui_name}.{to_socket}"
             )
-        
+
         return self
-    
-    def addPass(self, node: core.Node, name: str) -> 'RuzinoGraph':
+
+    def addPass(self, node: core.Node, name: str) -> "RuzinoGraph":
         """
         Add a pass to the graph (Falcor compatibility method).
         In Falcor, this names the pass. Here we just rename the node.
-        
+
         Args:
             node: The node to name
             name: Name for the node
-            
+
         Returns:
             self for chaining
         """
         node.ui_name = name
         return self
-    
-    def markOutput(self, node_or_spec: Union[core.Node, str], socket_name: Optional[str] = None) -> 'RuzinoGraph':
+
+    def markOutput(
+        self, node_or_spec: Union[core.Node, str], socket_name: Optional[str] = None
+    ) -> "RuzinoGraph":
         """
         Mark an output for tracking (Falcor-style API).
-        
+
         Args:
             node_or_spec: Either a Node object/name with socket_name parameter,
                          or a string in format "node_name.socket_name"
             socket_name: Socket name (optional if node_or_spec contains it)
-            
+
         Returns:
             self for chaining
-            
+
         Example:
             g.markOutput("AccumulatePass.output")
             g.markOutput(my_node, "output")
@@ -232,50 +245,51 @@ class RuzinoGraph:
                 output_spec = f"{node_or_spec}.{socket_name}"
             self._output_marks.append(output_spec)
         return self
-    
-    def setInput(self, 
-                 node: Union[core.Node, str], 
-                 socket_name: str, 
-                 value: Any) -> 'RuzinoGraph':
+
+    def setInput(
+        self, node: Union[core.Node, str], socket_name: str, value: Any
+    ) -> "RuzinoGraph":
         """
         Set an input value on a node.
-        
+
         Args:
             node: Target node or node name
             socket_name: Name of input socket
             value: Value to set
-            
+
         Returns:
             self for chaining
-            
+
         Example:
             g.setInput(add_node, "a", 5)
             g.setInput("add_0", "b", 3)
         """
         self._ensure_initialized()
-        
+
         n = self._resolve_node(node)
         socket = n.get_input_socket(socket_name)
-        
+
         if socket is None:
             raise ValueError(f"Socket '{socket_name}' not found on node '{n.ui_name}'")
-        
+
         # Convert Python value to meta_any
         meta_value = core.to_meta_any(value)
         self._executor.sync_node_from_external_storage(socket, meta_value)
         return self
-    
-    def setInputs(self, input_values: Dict[Tuple[Union[core.Node, str], str], Any]) -> 'RuzinoGraph':
+
+    def setInputs(
+        self, input_values: Dict[Tuple[Union[core.Node, str], str], Any]
+    ) -> "RuzinoGraph":
         """
         Set multiple input values at once (batch operation).
-        
+
         Args:
             input_values: Dictionary mapping (node, socket_name) tuples to values.
                          Example: {(add1, "a"): 5, (add1, "b"): 3, (add2, "a"): 10}
-            
+
         Returns:
             self for chaining
-            
+
         Example:
             g.setInputs({
                 (ray_gen, "Aperture"): 0.0,
@@ -284,51 +298,120 @@ class RuzinoGraph:
             })
         """
         self._ensure_initialized()
-        
+
         for (node, socket_name), value in input_values.items():
             n = self._resolve_node(node)
             socket = n.get_input_socket(socket_name)
             if socket is None:
-                raise ValueError(f"Socket '{socket_name}' not found on node '{n.ui_name}'")
+                raise ValueError(
+                    f"Socket '{socket_name}' not found on node '{n.ui_name}'"
+                )
             meta_value = core.to_meta_any(value)
             self._executor.sync_node_from_external_storage(socket, meta_value)
-        
+
         return self
-    
-    def execute(self, required_node: Optional[Union[core.Node, str]] = None) -> 'RuzinoGraph':
+
+    def setSocketDefault(
+        self, node: Union[core.Node, str], socket_name: str, value: Any
+    ) -> "RuzinoGraph":
+        """
+        Set the default value of an input socket.
+
+        Unlike setInput() which sets a temporary value for execution,
+        this method sets the socket's default value which gets serialized
+        with the node graph and persists across sessions.
+
+        Args:
+            node: Target node or node name
+            socket_name: Name of input socket
+            value: Default value to set
+
+        Returns:
+            self for chaining
+
+        Example:
+            g.setSocketDefault(tree_node, "Growth Years", 5)
+            g.setSocketDefault("tree_0", "Branch Angle", 45.0)
+        """
+        self._ensure_initialized()
+
+        n = self._resolve_node(node)
+        socket = n.get_input_socket(socket_name)
+
+        if socket is None:
+            raise ValueError(f"Socket '{socket_name}' not found on node '{n.ui_name}'")
+
+        # Set the default value directly on the socket
+        # This will be serialized with the node graph
+        socket.set_default_value(value)
+        return self
+
+    def setSocketDefaults(
+        self, default_values: Dict[Tuple[Union[core.Node, str], str], Any]
+    ) -> "RuzinoGraph":
+        """
+        Set default values for multiple input sockets at once.
+
+        Args:
+            default_values: Dictionary mapping (node, socket_name) tuples to values.
+                          Example: {(tree, "Growth Years"): 5, (tree, "Branch Angle"): 45.0}
+
+        Returns:
+            self for chaining
+
+        Example:
+            g.setSocketDefaults({
+                (tree, "Growth Years"): 5,
+                (tree, "Branch Angle"): 45.0,
+                (output, "Sub Path"): "geometry",
+            })
+        """
+        self._ensure_initialized()
+
+        for (node, socket_name), value in default_values.items():
+            self.setSocketDefault(node, socket_name, value)
+
+        return self
+
+    def execute(
+        self, required_node: Optional[Union[core.Node, str]] = None
+    ) -> "RuzinoGraph":
         """
         Execute the graph.
-        
+
         IMPORTANT: This will call prepare_tree() which initializes the executor.
         All inputs set via setInput() before execute() will be lost!
         Consider using execute_with_inputs() if you need to set inputs just before execution.
-        
+
         Args:
             required_node: Optional node to execute up to. If None, executes entire graph.
-            
+
         Returns:
             self for chaining
         """
         self._ensure_initialized()
-        
+
         req_node = None
         if required_node is not None:
             req_node = self._resolve_node(required_node)
-        
+
         # Note: execute() calls prepare_tree() which may reset the executor state
         # Inputs should be set AFTER prepare_tree() but BEFORE execute_tree()
         self._executor.execute(self._tree, req_node)
         return self
-    
-    def prepare_and_execute(self, input_values: Optional[Dict] = None, 
-                           required_node: Optional[Union[core.Node, str]] = None,
-                           auto_require_outputs: bool = True) -> 'RuzinoGraph':
+
+    def prepare_and_execute(
+        self,
+        input_values: Optional[Dict] = None,
+        required_node: Optional[Union[core.Node, str]] = None,
+        auto_require_outputs: bool = True,
+    ) -> "RuzinoGraph":
         """
         Prepare the tree, set inputs, and execute - all in the correct order.
-        
+
         This is the recommended way to execute the graph with inputs, as it ensures
         inputs are set AFTER prepare_tree() initializes the executor.
-        
+
         Args:
             input_values: Dictionary mapping (node, socket_name) tuples to values.
                          Example: {(add1, "value"): 5, (add1, "value2"): 3}
@@ -336,10 +419,10 @@ class RuzinoGraph:
                           is True, will execute all nodes that have marked outputs.
             auto_require_outputs: If True and required_node is None, automatically
                                  execute nodes with marked outputs.
-            
+
         Returns:
             self for chaining
-            
+
         Example:
             g.prepare_and_execute({
                 (add1, "value"): 5,
@@ -348,7 +431,7 @@ class RuzinoGraph:
             })
         """
         self._ensure_initialized()
-        
+
         req_node = None
         if required_node is not None:
             req_node = self._resolve_node(required_node)
@@ -363,55 +446,53 @@ class RuzinoGraph:
             # We use option 2: pick the last marked output (user should mark them in order)
             # Note: This may not execute all branches if they don't share common ancestors
             for mark in reversed(self._output_marks):
-                if isinstance(mark, str) and '.' in mark:
-                    node_name = mark.split('.')[0]
+                if isinstance(mark, str) and "." in mark:
+                    node_name = mark.split(".")[0]
                     node = self.getNode(node_name)
                     if node:
                         req_node = node
                         break  # Use the last marked output node
-        
+
         # Step 1: Prepare the tree (initializes executor state)
         self._executor.prepare_tree(self._tree, req_node)
-        
+
         # Step 2: Set inputs AFTER preparation
         if input_values:
             self.setInputs(input_values)
-        
+
         # Step 3: Execute the tree
         self._executor.execute_tree(self._tree)
-        
+
         return self
-    
-    def getOutput(self, 
-                  node: Union[core.Node, str], 
-                  socket_name: str) -> Any:
+
+    def getOutput(self, node: Union[core.Node, str], socket_name: str) -> Any:
         """
         Get an output value from a node.
-        
+
         Args:
             node: Source node or node name
             socket_name: Name of output socket
-            
+
         Returns:
             The output value. For now, returns a placeholder dict.
             TODO: Implement proper value extraction once entt_py is built.
-            
+
         Example:
             result = g.getOutput(add_node, "result")
             result = g.getOutput("add_0", "result")
         """
         self._ensure_initialized()
-        
+
         n = self._resolve_node(node)
         socket = n.get_output_socket(socket_name)
-        
+
         if socket is None:
             raise ValueError(f"Socket '{socket_name}' not found on node '{n.ui_name}'")
-        
+
         # Get value from executor
         result = core.meta_any()
         self._executor.sync_node_to_external_storage(socket, result)
-        
+
         # Try to extract the value based on type
         type_name = result.type_name()
         if type_name == "int":
@@ -427,34 +508,34 @@ class RuzinoGraph:
         else:
             # Return the raw meta_any for complex types
             return result
-    
+
     def getNode(self, name: str) -> Optional[core.Node]:
         """
         Get a node by its name.
-        
+
         Args:
             name: Node name (ui_name)
-            
+
         Returns:
             The node, or None if not found
         """
         self._ensure_initialized()
-        
+
         for node in self._tree.nodes:
             if node.ui_name == name:
                 return node
         return None
-    
+
     def _resolve_node(self, node_ref: Union[core.Node, str]) -> core.Node:
         """
         Resolve a node reference (node object or name string).
-        
+
         Args:
             node_ref: Node object or node name
-            
+
         Returns:
             The resolved node
-            
+
         Raises:
             ValueError: If node cannot be resolved
         """
@@ -464,35 +545,35 @@ class RuzinoGraph:
                 raise ValueError(f"Node '{node_ref}' not found in graph")
             return node
         return node_ref
-    
+
     def serialize(self) -> str:
         """
         Serialize the graph to JSON.
-        
+
         Returns:
             JSON string representation of the graph
         """
         self._ensure_initialized()
         return self._tree.serialize()
-    
-    def deserialize(self, json_str: str) -> 'RuzinoGraph':
+
+    def deserialize(self, json_str: str) -> "RuzinoGraph":
         """
         Deserialize a graph from JSON.
-        
+
         Args:
             json_str: JSON string representation
-            
+
         Returns:
             self for chaining
         """
         self._ensure_initialized()
         self._tree.deserialize(json_str)
         return self
-    
-    def clear(self) -> 'RuzinoGraph':
+
+    def clear(self) -> "RuzinoGraph":
         """
         Clear all nodes and links from the graph.
-        
+
         Returns:
             self for chaining
         """
@@ -501,18 +582,18 @@ class RuzinoGraph:
         self._node_name_counter.clear()
         self._output_marks.clear()
         return self
-    
-    def setGlobalParams(self, params: Any) -> 'RuzinoGraph':
+
+    def setGlobalParams(self, params: Any) -> "RuzinoGraph":
         """
         Set global parameters for node execution.
         Used for passing context like USD stages, time codes, etc.
-        
+
         Args:
             params: Global parameters object (e.g., GeomPayload for geometry nodes)
-            
+
         Returns:
             self for chaining
-            
+
         Example:
             # For USD export - automatic conversion
             from stage_py import GeomPayload, create_payload_from_stage
@@ -521,12 +602,13 @@ class RuzinoGraph:
             g.setGlobalParams(geom_payload)  # Automatically converts to meta_any
         """
         self._ensure_initialized()
-        
+
         # Auto-convert GeomPayload to meta_any if needed
         # This allows seamless usage without explicit conversion
         try:
             # Check if it's a GeomPayload (from stage_py module)
             import stage_py
+
             if isinstance(params, stage_py.GeomPayload):
                 params = stage_py.create_meta_any_from_payload(params)
         except (ImportError, AttributeError):
@@ -534,27 +616,126 @@ class RuzinoGraph:
             pass
         self._system.set_global_params(params)
         return self
-    
+
+    def apply_to_stage(
+        self,
+        stage: Any,
+        prim_path: str,
+        inputs: Optional[Dict[Tuple[Any, str], Any]] = None,
+    ) -> "RuzinoGraph":
+        """
+        Apply this node graph to a USD stage prim.
+
+        This is a convenience method that:
+        1. Sets input values on nodes (if provided)
+        2. Serializes the node graph to JSON (including input values)
+        3. Saves it to the prim's 'node_json' attribute
+        4. Creates a GeomPayload for the prim
+        5. Sets the payload as global parameters
+
+        After calling this, you can execute the graph with prepare_and_execute().
+
+        Args:
+            stage: stage_py.Stage object
+            prim_path: USD prim path (e.g., "/tree", "/geometry")
+            inputs: Optional dictionary of input values to set and save.
+                   Format: {(node, "socket_name"): value, ...}
+                   These values will be saved in the node graph and restored in UI.
+
+        Returns:
+            self for chaining
+
+        Example:
+            from stage_py import Stage
+            from ruzino_graph import RuzinoGraph
+
+            # Create and setup your node graph
+            g = RuzinoGraph("MyGraph")
+            tree = g.createNode("tree_generate", name="tree")
+            output = g.createNode("write_usd", name="output")
+            g.addEdge(tree, "Output", output, "Geometry")
+
+            # Define input values
+            inputs = {
+                (tree, "Growth Years"): 5,
+                (tree, "Branch Angle"): 45.0,
+                (output, "Sub Path"): "geometry",
+            }
+
+            # Create stage and prim
+            stage = Stage("output.usdc")
+            from pxr import UsdGeom
+            UsdGeom.Mesh.Define(stage.get_pxr_stage(), "/tree")
+
+            # Apply graph with inputs - saves everything!
+            g.apply_to_stage(stage, "/tree", inputs=inputs)
+
+            # Execute (inputs already set)
+            g.prepare_and_execute(inputs, required_node=output)
+            stage.save()
+        """
+        self._ensure_initialized()
+
+        try:
+            import stage_py
+            from pxr import Sdf
+        except ImportError:
+            raise RuntimeError(
+                "apply_to_stage requires stage_py and pxr modules. "
+                "Make sure you're running in the Ruzino environment."
+            )
+
+        # 1. Set socket default values if provided (BEFORE serialization!)
+        # This ensures the values are saved in the node graph JSON
+        if inputs:
+            self.setSocketDefaults(inputs)
+
+        # 2. Serialize node graph to JSON (now includes input values)
+        node_graph_json = self.serialize()
+
+        # 3. Get pxr stage and prim
+        pxr_stage = stage.get_pxr_stage()
+        sdf_path = Sdf.Path(prim_path)
+        prim = pxr_stage.GetPrimAtPath(sdf_path)
+
+        if not prim:
+            raise ValueError(
+                f"Prim not found at path: {prim_path}. "
+                "Please create the prim before applying the node graph."
+            )
+
+        # 4. Save node graph to prim's attribute
+        attr = prim.CreateAttribute("node_json", Sdf.ValueTypeNames.String)
+        attr.Set(node_graph_json)
+
+        # 5. Create GeomPayload and set as global params
+        geom_payload = stage_py.create_payload_from_stage(stage, prim_path)
+        self.setGlobalParams(geom_payload)
+
+        return self
+
     @property
     def nodes(self):
         """Get list of all nodes in the graph."""
         self._ensure_initialized()
         return self._tree.nodes
-    
+
     @property
     def links(self):
         """Get list of all links in the graph."""
         self._ensure_initialized()
         return self._tree.links
-    
-    def to_python_code(self, 
-                       required_node: Optional[Union[core.Node, str]] = None,
-                       include_imports: bool = True,
-                       include_comments: bool = True,
-                       use_graph_api: bool = True) -> str:
+
+    def to_python_code(
+        self,
+        required_node: Optional[Union[core.Node, str]] = None,
+        include_imports: bool = True,
+        include_comments: bool = True,
+        use_graph_api: bool = True,
+    ) -> str:
         """
         Generate executable Python code that recreates this graph.
-        
+
         This method generates a Python script that:
         - Imports necessary modules
         - Creates all nodes with their configuration
@@ -563,17 +744,17 @@ class RuzinoGraph:
         - Marks outputs
         - Executes the graph
         - Retrieves and prints results
-        
+
         Args:
             required_node: Optional node to generate code for (and its dependencies).
                           If None, generates code for the entire graph.
             include_imports: Include import statements at the top
             include_comments: Add explanatory comments
             use_graph_api: Use RuzinoGraph API (recommended). If False, uses raw node operations.
-            
+
         Returns:
             Complete Python script as a string
-            
+
         Example:
             # Create and build a graph
             g = RuzinoGraph("MyGraph")
@@ -582,76 +763,77 @@ class RuzinoGraph:
             add2 = g.createNode("add", name="second_add")
             g.addEdge(add1, "value", add2, "value")
             g.markOutput(add2, "value")
-            
+
             # Generate Python code
             code = g.to_python_code()
             print(code)
-            
+
             # Save to file
             with open("generated_graph.py", "w") as f:
                 f.write(code)
         """
         self._ensure_initialized()
-        
+
         req_node = None
         if required_node is not None:
             req_node = self._resolve_node(required_node)
-        
+
         # Call C++ to_python_code_with_options through the tree binding
         code = self._tree.to_python_code_with_options(
-            include_imports, 
-            include_comments,
-            use_graph_api,
-            req_node
+            include_imports, include_comments, use_graph_api, req_node
         )
-        
+
         # Post-process the generated code to replace hardcoded config with actual loaded configs
         if self._system is not None:
             loaded_configs = self._system.get_loaded_configs()
             if loaded_configs:
                 # Replace the hardcoded config line with actual loaded configs
                 import re
+
                 # Find and replace the config loading section
                 config_pattern = r'config_path = os\.path\.join\(binary_dir, "test_nodes\.json"\)\ng\.loadConfiguration\(config_path\)'
-                
+
                 # Generate proper config loading code
                 config_lines = []
                 for config_file in loaded_configs:
-                    config_lines.append(f'config_path = os.path.join(binary_dir, "{config_file}")')
-                    config_lines.append('g.loadConfiguration(config_path)')
-                
-                replacement = '\n'.join(config_lines)
+                    config_lines.append(
+                        f'config_path = os.path.join(binary_dir, "{config_file}")'
+                    )
+                    config_lines.append("g.loadConfiguration(config_path)")
+
+                replacement = "\n".join(config_lines)
                 code = re.sub(config_pattern, replacement, code)
-        
+
         return code
-    
-    def save_python_code(self, 
-                        filepath: str,
-                        required_node: Optional[Union[core.Node, str]] = None,
-                        include_imports: bool = True,
-                        include_comments: bool = True) -> 'RuzinoGraph':
+
+    def save_python_code(
+        self,
+        filepath: str,
+        required_node: Optional[Union[core.Node, str]] = None,
+        include_imports: bool = True,
+        include_comments: bool = True,
+    ) -> "RuzinoGraph":
         """
         Generate Python code and save it to a file.
-        
+
         Args:
             filepath: Path to save the generated Python code
             required_node: Optional node to generate code for (and its dependencies)
             include_imports: Include import statements
             include_comments: Add explanatory comments
-            
+
         Returns:
             self for chaining
-            
+
         Example:
             g.save_python_code("my_generated_graph.py")
         """
         code = self.to_python_code(required_node, include_imports, include_comments)
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.write(code)
         return self
-    
+
     def __repr__(self):
         if not self._initialized:
             return f"RuzinoGraph('{self.name}', uninitialized)"
         return f"RuzinoGraph('{self.name}', nodes={len(self.nodes)}, links={len(self.links)})"
-
