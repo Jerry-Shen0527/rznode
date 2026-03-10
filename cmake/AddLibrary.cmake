@@ -4,8 +4,15 @@ if(RUZINO_WITH_CUDA)
     set(CMAKE_CUDA_ARCHITECTURES 86)
 endif()
 
+if(NOT DEFINED RZNODE_CUDA_EXTRA_FLAGS)
+    set(RZNODE_CUDA_EXTRA_FLAGS "" CACHE STRING "Extra CUDA compiler flags")
+endif()
+
+if(NOT DEFINED RZNODE_LINK_PYTHON_TO_NANOBIND)
+    option(RZNODE_LINK_PYTHON_TO_NANOBIND "Link Python3::Python to nanobind targets" OFF)
+endif()
+
 function(Set_CUDA_Properties lib_name)
-    # Set the cuda compiler to be nvcc 12.6
     find_package(CUDAToolkit REQUIRED)
     find_package(CCCL REQUIRED)
     add_compile_definitions(RUZINO_WITH_CUDA=1)
@@ -18,9 +25,16 @@ function(Set_CUDA_Properties lib_name)
     )
 
     target_compile_features(${lib_name} PUBLIC cuda_std_20)
+    
+    set(_cuda_flags "--expt-relaxed-constexpr;--extended-lambda;-g;-lineinfo;-rdc=true;-diag-suppress=177;-diag-suppress=1394;-diag-suppress=1388;-diag-suppress=27;")
+    if(RZNODE_CUDA_EXTRA_FLAGS)
+        string(REPLACE ";" " " _extra_flags "${RZNODE_CUDA_EXTRA_FLAGS}")
+        set(_cuda_flags "${_cuda_flags}${_extra_flags}")
+    endif()
+    
     target_compile_options(${lib_name}
         PUBLIC
-        "$<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr;--extended-lambda;-g;-lineinfo;-rdc=true;-diag-suppress=177;-diag-suppress=1394;-diag-suppress=1388;-diag-suppress=27;>"
+        "$<$<COMPILE_LANGUAGE:CUDA>:${_cuda_flags}>"
     )
 
     target_link_libraries(
@@ -204,8 +218,14 @@ function(RUZINO_ADD_LIB LIB_NAME)
         # Set folder for Python wrapper
         set_target_properties(${name}_py PROPERTIES FOLDER "Libraries/${name}")
 
-        # target_link_libraries(${name}_py PRIVATE Python3::Python)
-        # target_link_libraries(nanobind-static PRIVATE Python3::Python)
+        # Optionally link Python3::Python to nanobind targets (configurable via RZNODE_LINK_PYTHON_TO_NANOBIND)
+        if(RZNODE_LINK_PYTHON_TO_NANOBIND)
+            target_link_libraries(${name}_py PRIVATE Python3::Python)
+            if(TARGET nanobind)
+                target_link_libraries(nanobind PRIVATE Python3::Python)
+            endif()
+        endif()
+        
         if(Python3_LIBRARY MATCHES "_d.lib$")
             target_compile_definitions(${name}_py PRIVATE Py_DEBUG)
         endif()
@@ -301,4 +321,29 @@ function(RUZINO_ADD_LIB LIB_NAME)
             COMMENT "Copying USD resource file ${absolute_resource_file} to ${RUZINO_ADD_LIB_RESOURCE_COPY_TARGET}"
         )
     endforeach()
+
+    # ========== INSTALL RULES ==========
+    install(TARGETS ${name}
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+    )
+
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        install(DIRECTORY include/
+            DESTINATION include
+            FILES_MATCHING
+            PATTERN "*.h"
+            PATTERN "*.hpp"
+            PATTERN "*.inl"
+        )
+    endif()
+
+    if(RUZINO_ADD_LIB_PYTHON_WRAP_SRC)
+        install(TARGETS ${name}_py
+            RUNTIME DESTINATION bin
+            LIBRARY DESTINATION python
+        )
+    endif()
+
 endfunction()
