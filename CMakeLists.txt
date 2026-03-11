@@ -61,6 +61,9 @@ set_target_properties(gtest_main PROPERTIES ${OUTPUT_DIR})
 endif()
 
 add_subdirectory(ext/entt)
+
+# Enable spdlog install rules for cmake --install
+set(SPDLOG_INSTALL ON CACHE BOOL "Generate the install target for spdlog" FORCE)
 add_subdirectory(ext/spdlog)
 
 set_target_properties(spdlog PROPERTIES ${OUTPUT_DIR})

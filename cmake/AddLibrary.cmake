@@ -77,6 +77,13 @@ function(UCG_ADD_TEST)
         COMMAND
         ${test_name}_test
     )
+
+    # Install test executable (optional, controlled by RUZINO_INSTALL_TESTS option)
+    if(RUZINO_INSTALL_TESTS)
+        install(TARGETS ${test_name}_test
+            RUNTIME DESTINATION bin/tests
+        )
+    endif()
 endfunction(UCG_ADD_TEST)
 
 function(UCG_ADD_APP)
@@ -99,6 +106,11 @@ function(UCG_ADD_APP)
     if(RUZINO_WITH_CUDA AND UCG_APP_SRC MATCHES "\\.cu$")
         Set_CUDA_Properties(${app_name})
     endif()
+
+    # Install application executable
+    install(TARGETS ${app_name}
+        RUNTIME DESTINATION bin
+    )
 endfunction(UCG_ADD_APP)
 function(RUZINO_ADD_LIB LIB_NAME)
     set(options SHARED WITH_CUDA)
@@ -321,29 +333,4 @@ function(RUZINO_ADD_LIB LIB_NAME)
             COMMENT "Copying USD resource file ${absolute_resource_file} to ${RUZINO_ADD_LIB_RESOURCE_COPY_TARGET}"
         )
     endforeach()
-
-    # ========== INSTALL RULES ==========
-    install(TARGETS ${name}
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-    )
-
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
-        install(DIRECTORY include/
-            DESTINATION include
-            FILES_MATCHING
-            PATTERN "*.h"
-            PATTERN "*.hpp"
-            PATTERN "*.inl"
-        )
-    endif()
-
-    if(RUZINO_ADD_LIB_PYTHON_WRAP_SRC)
-        install(TARGETS ${name}_py
-            RUNTIME DESTINATION bin
-            LIBRARY DESTINATION python
-        )
-    endif()
-
 endfunction()
