@@ -130,6 +130,12 @@ function(add_nodes)
             target_compile_options(${target_name} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/wd4251 /wd4996>)
         endif()
 
+        # Install the node module
+        install(TARGETS ${target_name}
+            LIBRARY DESTINATION bin
+            RUNTIME DESTINATION bin
+        )
+
         list(APPEND all_nodes ${target_name})
     endforeach()
 
@@ -142,6 +148,17 @@ function(add_nodes)
         OUTPUT_JSON ${OUT_BINARY_DIR}/${ARG_JSON_DIR}/${ARG_TARGET_NAME}.json
     )
     set_target_properties(${ARG_TARGET_NAME}_json_target PROPERTIES FOLDER "Nodes/JSON")
+
+    # Install the generated JSON file
+    if(ARG_JSON_DIR)
+        install(FILES ${OUT_BINARY_DIR}/${ARG_JSON_DIR}/${ARG_TARGET_NAME}.json
+            DESTINATION bin/${ARG_JSON_DIR}
+        )
+    else()
+        install(FILES ${OUT_BINARY_DIR}/${ARG_TARGET_NAME}.json
+            DESTINATION bin
+        )
+    endif()
 
     add_library(${ARG_TARGET_NAME} INTERFACE)
     add_dependencies(${ARG_TARGET_NAME} ${all_nodes} ${all_conversions} ${ARG_TARGET_NAME}_json_target)
@@ -190,6 +207,13 @@ function(add_nodes_with_prefix)
         if(ARG_EXTRA_INCLUDE_DIRS)
             target_include_directories(${ARG_CUS_PREFIX}_${target_name} PRIVATE ${ARG_EXTRA_INCLUDE_DIRS})
         endif()
+        
+        # Install the node module
+        install(TARGETS ${ARG_CUS_PREFIX}_${target_name}
+            LIBRARY DESTINATION bin
+            RUNTIME DESTINATION bin
+        )
+        
         list(APPEND all_nodes ${ARG_CUS_PREFIX}_${target_name})
     endforeach()
 
@@ -201,6 +225,11 @@ function(add_nodes_with_prefix)
         CONVERSIONS_DIRS ${ARG_CONVERSION_DIRS}
         CONVERSIONS_FILES ${ARG_CONVERSION_FILES}
         OUTPUT_JSON ${OUT_BINARY_DIR}/${ARG_CUS_PREFIX}_${ARG_TARGET_NAME}.json
+    )
+
+    # Install the generated JSON file
+    install(FILES ${OUT_BINARY_DIR}/${ARG_CUS_PREFIX}_${ARG_TARGET_NAME}.json
+        DESTINATION bin
     )
 
     add_library(${ARG_CUS_PREFIX}_${ARG_TARGET_NAME} INTERFACE)

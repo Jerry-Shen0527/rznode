@@ -333,4 +333,49 @@ function(RUZINO_ADD_LIB LIB_NAME)
             COMMENT "Copying USD resource file ${absolute_resource_file} to ${RUZINO_ADD_LIB_RESOURCE_COPY_TARGET}"
         )
     endforeach()
+
+    # Install USD resource directories and files
+    # Calculate the relative path from OUT_BINARY_DIR to RESOURCE_COPY_TARGET
+    file(RELATIVE_PATH resource_relative_path ${OUT_BINARY_DIR} ${RUZINO_ADD_LIB_RESOURCE_COPY_TARGET})
+    
+    foreach(resource_dir ${RUZINO_ADD_LIB_USD_RESOURCE_DIRS})
+        get_filename_component(absolute_resource_dir ${resource_dir} ABSOLUTE)
+        get_filename_component(resource_dir_name ${absolute_resource_dir} NAME)
+        install(DIRECTORY ${absolute_resource_dir}/
+            DESTINATION bin/${resource_relative_path}
+            PATTERN ".git" EXCLUDE
+        )
+    endforeach()
+
+    foreach(resource_file ${RUZINO_ADD_LIB_USD_RESOURCE_FILES})
+        get_filename_component(absolute_resource_file ${resource_file} ABSOLUTE)
+        install(FILES ${absolute_resource_file}
+            DESTINATION bin/${resource_relative_path}
+        )
+    endforeach()
+
+    # Install the library target
+    install(TARGETS ${name}
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION bin
+        ARCHIVE DESTINATION lib
+    )
+    
+    # Install Python bindings if they exist
+    if(TARGET ${name}_py)
+        install(TARGETS ${name}_py
+            RUNTIME DESTINATION bin
+            LIBRARY DESTINATION bin
+            ARCHIVE DESTINATION lib
+        )
+    endif()
+    
+    # Install public headers
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+            DESTINATION include
+            PATTERN ".git" EXCLUDE
+            PATTERN "tests" EXCLUDE
+        )
+    endif()
 endfunction()
