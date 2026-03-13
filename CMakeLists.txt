@@ -76,3 +76,10 @@ if(NODE_IMGUI_ENABLED)
     add_subdirectory(ui_imgui)
 endif()
 
+# Install cmake files for add_nodes functionality
+install(FILES 
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/AddNodes.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/nodes_json.py
+    DESTINATION lib/cmake/rznode
+)
+
