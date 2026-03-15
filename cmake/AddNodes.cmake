@@ -35,30 +35,28 @@ function(GEN_NODES_JSON TARGET_NAME)
         list(APPEND ABS_CONVERSIONS_FILES "${file}")
     endforeach()
 
-    # Convert the list of directories and files to a semicolon-separated string
-    set (NODES_DIRS_STR "${ABS_NODES_DIRS}")
-    # string(REPLACE ";" " " NODES_DIRS_STR "${ABS_NODES_DIRS}")
-    string(REPLACE ";" " " NODES_FILES_STR "${ABS_NODES_FILES}")
-    string(REPLACE ";" " " CONVERSIONS_DIRS_STR "${ABS_CONVERSIONS_DIRS}")
-    string(REPLACE ";" " " CONVERSIONS_FILES_STR "${ABS_CONVERSIONS_FILES}")
-
     # Construct the command to call the Python script
+    # Pass lists directly to CMake so they expand properly as multiple arguments
     set(COMMAND_ARGS ${Python3_EXECUTABLE} ${RZNODES_DIR}/cmake/nodes_json.py)
 
-    if(NODES_DIRS_STR)
-        list(APPEND COMMAND_ARGS --nodes-dir ${NODES_DIRS_STR})
+    if(ABS_NODES_DIRS)
+        list(APPEND COMMAND_ARGS --nodes-dir)
+        list(APPEND COMMAND_ARGS ${ABS_NODES_DIRS})
     endif()
 
-    if(NODES_FILES_STR)
-        list(APPEND COMMAND_ARGS --nodes-files ${NODES_FILES_STR})
+    if(ABS_NODES_FILES)
+        list(APPEND COMMAND_ARGS --nodes-files)
+        list(APPEND COMMAND_ARGS ${ABS_NODES_FILES})
     endif()
 
-    if(CONVERSIONS_DIRS_STR)
-        list(APPEND COMMAND_ARGS --conversions-dir ${CONVERSIONS_DIRS_STR})
+    if(ABS_CONVERSIONS_DIRS)
+        list(APPEND COMMAND_ARGS --conversions-dir)
+        list(APPEND COMMAND_ARGS ${ABS_CONVERSIONS_DIRS})
     endif()
 
-    if(CONVERSIONS_FILES_STR)
-        list(APPEND COMMAND_ARGS --conversions-files ${CONVERSIONS_FILES_STR})
+    if(ABS_CONVERSIONS_FILES)
+        list(APPEND COMMAND_ARGS --conversions-files)
+        list(APPEND COMMAND_ARGS ${ABS_CONVERSIONS_FILES})
     endif()
 
     if (GEN_NODES_JSON_USERNAME)
@@ -115,7 +113,12 @@ function(add_nodes)
             ${OUTPUT_DIR}
             FOLDER "Nodes/${ARG_TARGET_NAME}"
         )
-        target_link_libraries(${target_name} PUBLIC nodes_core ${ARG_DEP_LIBS})
+        # Use Ruzino::nodes_core if available (external build), otherwise nodes_core (internal build)
+        if(TARGET Ruzino::nodes_core)
+            target_link_libraries(${target_name} PUBLIC Ruzino::nodes_core ${ARG_DEP_LIBS})
+        else()
+            target_link_libraries(${target_name} PUBLIC nodes_core ${ARG_DEP_LIBS})
+        endif()
         if(ARG_COMPILE_DEFS)
             target_compile_definitions(${target_name} PRIVATE ${ARG_COMPILE_DEFS})
         endif()
@@ -140,21 +143,25 @@ function(add_nodes)
     endforeach()
 
 
+    # When JSON_DIR is specified, write directly to RUZINO_BIN_DIR/Plugins (no install needed)
+    # When JSON_DIR is not specified, write to OUT_BINARY_DIR and install to bin/
+    if(ARG_JSON_DIR)
+        set(_json_output_path "${RUZINO_BIN_DIR}/${ARG_JSON_DIR}/${ARG_TARGET_NAME}.json")
+    else()
+        set(_json_output_path "${OUT_BINARY_DIR}/${ARG_TARGET_NAME}.json")
+    endif()
+
     GEN_NODES_JSON(${ARG_TARGET_NAME}_json_target
         NODES_DIRS ${ARG_SRC_DIRS}
         NODES_FILES ${ARG_SRC_FILES}
         CONVERSIONS_DIRS ${ARG_CONVERSION_DIRS}
         CONVERSIONS_FILES ${ARG_CONVERSION_FILES}
-        OUTPUT_JSON ${OUT_BINARY_DIR}/${ARG_JSON_DIR}/${ARG_TARGET_NAME}.json
+        OUTPUT_JSON ${_json_output_path}
     )
     set_target_properties(${ARG_TARGET_NAME}_json_target PROPERTIES FOLDER "Nodes/JSON")
 
-    # Install the generated JSON file
-    if(ARG_JSON_DIR)
-        install(FILES ${OUT_BINARY_DIR}/${ARG_JSON_DIR}/${ARG_TARGET_NAME}.json
-            DESTINATION bin/${ARG_JSON_DIR}
-        )
-    else()
+    # Install the generated JSON file (only when not already in RUZINO_BIN_DIR)
+    if(NOT ARG_JSON_DIR)
         install(FILES ${OUT_BINARY_DIR}/${ARG_TARGET_NAME}.json
             DESTINATION bin
         )

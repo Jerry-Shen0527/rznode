@@ -3,8 +3,6 @@ import os
 import re
 import json
 import argparse
-import concurrent.futures
-from threading import Lock
 
 
 def process_file(file_path, pattern, suffix="", prefix=""):
@@ -48,17 +46,12 @@ def scan_cpp_files(directories, files, pattern, suffix="", prefix=""):
     # Add individual files
     file_paths.extend([f for f in files if f.endswith(".cpp")])
 
-    # Process files in parallel
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {
-            executor.submit(process_file, file_path, pattern, suffix, prefix): file_path
-            for file_path in file_paths
-        }
-        for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            if result:
-                file_name, matches = result
-                nodes[file_name] = matches
+    # Process files sequentially (no threading to avoid hanging on Windows)
+    for file_path in file_paths:
+        result = process_file(file_path, pattern, suffix, prefix)
+        if result:
+            file_name, matches = result
+            nodes[file_name] = matches
 
     return nodes
 
@@ -71,7 +64,7 @@ def main():
         "--nodes-dir",
         nargs="+",
         type=str,
-        help="Paths to the directories containing node cpp files",
+        help="Paths to directories containing node cpp files",
         default=[],
     )
     parser.add_argument(
@@ -128,7 +121,7 @@ def main():
     else:
         result["conversions"] = {}
 
-    with open(args.output, "w", encoding="utf-8") as json_file:
+    with open(args.output, "w", encoding="utf-8", newline="") as json_file:
         json.dump(result, json_file, indent=4)
 
 
