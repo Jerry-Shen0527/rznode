@@ -143,10 +143,10 @@ function(add_nodes)
     endforeach()
 
 
-    # When JSON_DIR is specified, write directly to RUZINO_BIN_DIR/Plugins (no install needed)
+    # When JSON_DIR is specified, write directly to OUT_BINARY_DIR/Plugins (no install needed)
     # When JSON_DIR is not specified, write to OUT_BINARY_DIR and install to bin/
     if(ARG_JSON_DIR)
-        set(_json_output_path "${RUZINO_BIN_DIR}/${ARG_JSON_DIR}/${ARG_TARGET_NAME}.json")
+        set(_json_output_path "${OUT_BINARY_DIR}/${ARG_JSON_DIR}/${ARG_TARGET_NAME}.json")
     else()
         set(_json_output_path "${OUT_BINARY_DIR}/${ARG_TARGET_NAME}.json")
     endif()

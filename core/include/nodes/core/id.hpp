@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstdint>    // for uintptr_t
+#include <cstdint>  // for uintptr_t
 #include <type_traits>
+#include <utility>  // for std::move
 
 #include "nodes/core/api.h"
 

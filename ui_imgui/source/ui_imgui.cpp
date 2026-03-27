@@ -8,6 +8,7 @@
 #include <pxr/base/gf/vec3f.h>
 
 #include <fstream>
+#include <ranges>
 #include <string>
 
 #include "RHI/rhi.hpp"
@@ -159,7 +160,7 @@ std::vector<Node*> NodeWidget::create_node_menu(bool cursor)
         auto name = value.second.ui_name;
 
         auto id_name = value.second.id_name;
-        std::ranges::replace(subs, ' ', '_');
+        std::replace(subs.begin(), subs.end(), ' ', '_');
 
         if (subs.size() > 0) {
             ImGui::SetNextWindowSizeConstraints(
