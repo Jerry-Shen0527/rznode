@@ -25,7 +25,7 @@ os.chdir(BINARY_DIR)  # 这是关键！
    - ✅ 注册节点集成测试
    - ✅ 动态套接字测试
 
-2. **`node_system.py`** - 系统功能测试  
+2. **`node_system.py`** - 系统功能测试
    - ✅ 系统创建和初始化
    - ✅ 配置加载和节点创建
    - ✅ 网络执行测试
@@ -52,12 +52,12 @@ os.chdir(BINARY_DIR)  # 这是关键！
 - **输入**: `value` (int), `value2` (int), `input_group` (动态)
 - **输出**: `value` (int), `output_group` (动态)
 
-### Print Node (`print`)  
+### Print Node (`print`)
 - **输入**: `info` (int)
 - **输出**: 无（控制台日志输出）
 
 ### Sub Node (`sub`)
-- **输入**: `value` (int), `float` (float)  
+- **输入**: `value` (int), `float` (float)
 - **输出**: `value` (int)
 
 ## 运行测试
@@ -68,7 +68,7 @@ os.chdir(BINARY_DIR)  # 这是关键！
 cd core/tests
 python nodes_core.py
 
-# 系统功能测试  
+# 系统功能测试
 cd system/tests
 python node_system.py
 
@@ -124,7 +124,7 @@ print(f"test_nodes.json存在: {os.path.exists('test_nodes.json')}")
 ```
 rznode/
 ├── tests/
-│   └── README.md                      # 本文档  
+│   └── README.md                      # 本文档
 ├── core/tests/
 │   └── nodes_core.py                  # 核心功能测试
 └── system/tests/

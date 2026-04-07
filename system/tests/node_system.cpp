@@ -32,14 +32,14 @@ TEST(NodeSystem, LoadDyLib)
 {
     // Suppress verbose logging during tests
     spdlog::set_level(spdlog::level::warn);
-    
+
     auto dl_load_system = create_dynamic_loading_system();
 
     auto loaded = dl_load_system->load_configuration("test_nodes.json");
 
     ASSERT_TRUE(loaded);
     dl_load_system->init();
-    
+
     // Restore log level
     spdlog::set_level(spdlog::level::info);
 }
@@ -58,7 +58,7 @@ TEST(NodeSystem, DynamicSockets)
 {
     // Suppress verbose logging during tests
     spdlog::set_level(spdlog::level::warn);
-    
+
     auto dl_load_system = create_dynamic_loading_system();
     auto loaded = dl_load_system->load_configuration("test_nodes.json");
     ASSERT_TRUE(loaded);
@@ -86,7 +86,7 @@ TEST(NodeSystem, DynamicSockets)
 
     // Verify socket removed
     EXPECT_EQ(tree->socket_count(), initial_socket_count);
-    
+
     // Restore log level
     spdlog::set_level(spdlog::level::info);
 }

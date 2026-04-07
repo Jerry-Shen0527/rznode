@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>    // for uintptr_t
+#include <cstdint>  // for uintptr_t
 #include <type_traits>
 
 #include "nodes/core/api.h"
@@ -16,10 +16,11 @@ struct SafeType {
     SafeType(const SafeType&) = default;
 
     template<typename T2, typename Tag2>
-    SafeType(const SafeType<
-             typename std::enable_if<!std::is_same<T, T2>::value, T2>::type,
-             typename std::enable_if<!std::is_same<Tag, Tag2>::value, Tag2>::
-                 type>&) = delete;
+    SafeType(
+        const SafeType<
+            typename std::enable_if<!std::is_same<T, T2>::value, T2>::type,
+            typename std::enable_if<!std::is_same<Tag, Tag2>::value, Tag2>::
+                type>&) = delete;
 
     SafeType& operator=(const SafeType&) = default;
 
