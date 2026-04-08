@@ -15,27 +15,27 @@ def test_run_generated_geometry_graph():
     print("\n" + "="*60)
     print("TEST: Run Geometry Code Generated from JSON")
     print("="*60)
-    
+
     if not os.path.exists(generated_file):
         print(f"⚠ Generated file not found: {generated_file}")
         print("  Run test_geometry_json_roundtrip_and_codegen first to generate it.")
         return
-    
+
     print(f"✓ Found generated file: {generated_file}")
-    
+
     # Execute the generated code
     print("\n✓ Executing geometry code generated from JSON roundtrip...")
     print("  Pipeline: Geometry Graph -> JSON -> Deserialize -> Generate Code -> Execute")
     print("-" * 60)
-    
+
     # Read and execute
     with open(generated_file, 'r') as f:
         code = f.read()
-    
+
     try:
         exec_namespace = {}
         exec(code, exec_namespace)
-        
+
         print("-" * 60)
         print("\n✓ Geometry full roundtrip test PASSED!")
         print("  ✓ Created geometry graph programmatically")
@@ -44,7 +44,7 @@ def test_run_generated_geometry_graph():
         print("  ✓ Generated executable Python code")
         print("  ✓ Executed generated geometry code successfully")
         print("\n🎉 Complete geometry self-hosting pipeline verified!")
-        
+
     except Exception as e:
         print("-" * 60)
         print(f"\n⚠ Execution note: {e}")

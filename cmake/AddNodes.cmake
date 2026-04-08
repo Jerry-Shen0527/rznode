@@ -109,7 +109,7 @@ function(add_nodes)
     foreach(source ${ALL_THAT_NEEDS_TO_BE_COMPILED})
         get_filename_component(target_name ${source} NAME_WE)
         add_library(${target_name} MODULE ${source})
-        set_target_properties(${target_name} PROPERTIES 
+        set_target_properties(${target_name} PROPERTIES
             ${OUTPUT_DIR}
             FOLDER "Nodes/${ARG_TARGET_NAME}"
         )

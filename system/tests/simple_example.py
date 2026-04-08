@@ -16,18 +16,18 @@ except ImportError as e:
 def main():
     """基本使用示例"""
     print("=== Node System Basic Usage Example ===")
-    
+
     # 创建动态加载系统
     print("\n1. Creating dynamic loading system...")
     node_system = system.create_dynamic_loading_system()
     print(f"   Created: {type(node_system).__name__}")
-    
+
     try:
         # 初始化系统
         print("\n2. Initializing system...")
         node_system.init()
         print("   System initialized")
-        
+
         # 获取节点树
         print("\n3. Getting node tree...")
         tree = node_system.get_node_tree()
@@ -35,17 +35,17 @@ def main():
             print("   Node tree obtained")
         else:
             print("   No node tree available")
-        
+
         # 执行系统
         print("\n4. Executing system...")
         node_system.execute()
         print("   Execution completed")
-        
+
         # 清理
         print("\n5. Finalizing...")
         node_system.finalize()
         print("   System finalized")
-        
+
     except Exception as e:
         print(f"   Error: {e}")
         try:

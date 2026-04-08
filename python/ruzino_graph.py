@@ -714,6 +714,7 @@ class RuzinoGraph:
 
         return self
 
+
     @property
     def nodes(self):
         """Get list of all nodes in the graph."""

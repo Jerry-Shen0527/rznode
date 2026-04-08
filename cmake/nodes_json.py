@@ -121,7 +121,8 @@ def main():
     else:
         result["conversions"] = {}
 
-    with open(args.output, "w", encoding="utf-8", newline="") as json_file:
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    with open(args.output, "w", encoding="utf-8") as json_file:
         json.dump(result, json_file, indent=4)
 
 

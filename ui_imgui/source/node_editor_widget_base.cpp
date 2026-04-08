@@ -266,8 +266,9 @@ bool NodeEditorWidgetBase::BuildUI()
                         tree_->delete_link(linkId);
 
                         // Mark the node that lost its input connection as dirty
-                        // We notify the node (not socket) because the socket might have been removed
-                        // from the node during delete_link if it was part of a SocketGroup
+                        // We notify the node (not socket) because the socket
+                        // might have been removed from the node during
+                        // delete_link if it was part of a SocketGroup
                         if (affected_node && get_executor()) {
                             get_executor()->notify_node_dirty(affected_node);
                         }

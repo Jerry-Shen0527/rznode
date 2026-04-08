@@ -11,7 +11,8 @@ RUZINO_NAMESPACE_OPEN_SCOPE
 // Initialize the global meta context through entt::locator
 // This ensures all entt operations use the same context
 // The locator manages the lifetime with shared_ptr internally
-static entt::meta_ctx& init_global_ctx() {
+static entt::meta_ctx& init_global_ctx()
+{
     static bool initialized = false;
     if (!initialized) {
         // Use value_or() which will create a context if none exists

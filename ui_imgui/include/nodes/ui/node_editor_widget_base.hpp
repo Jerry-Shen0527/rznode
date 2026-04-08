@@ -55,7 +55,8 @@ class NODES_UI_IMGUI_API NodeEditorWidgetBase : public IWidget {
 
     virtual void handle_suspended_popups()
     {
-        // Override in derived class to handle custom popups in suspended context
+        // Override in derived class to handle custom popups in suspended
+        // context
     }
 
     virtual void create_new_node(ImVec2 openPopupPosition)
@@ -70,7 +71,7 @@ class NODES_UI_IMGUI_API NodeEditorWidgetBase : public IWidget {
     void connectLinks();
     static ImColor GetIconColor(SocketType type);
     void DrawPinIcon(const NodeSocket& pin, bool connected, int alpha);
-    
+
     std::shared_ptr<NodeSystem> system_;  // Keep system alive
     NodeTree* tree_;
 
