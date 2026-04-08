@@ -25,7 +25,9 @@ DynamicLibraryLoader::DynamicLibraryLoader(const std::string& libraryName)
 #else
     handle = dlopen(libraryName.c_str(), RTLD_LAZY);
     if (!handle) {
-        throw std::runtime_error("Failed to load library: " + libraryName);
+        handle = dlopen(("lib" + libraryName).c_str(), RTLD_LAZY);
+        if (!handle)
+            throw std::runtime_error("Failed to load library: " + libraryName);
     }
 #endif
 }
