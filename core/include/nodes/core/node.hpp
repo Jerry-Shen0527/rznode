@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <variant>
 
 #include "api.hpp"
 #include "entt/meta/meta.hpp"
