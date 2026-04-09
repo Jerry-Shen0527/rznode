@@ -14,7 +14,11 @@ using namespace Ruzino;
 
 NB_MODULE(nodes_system_py, m)
 {
-    // NodeTree bindings
+    // Import nodes_core_py to ensure NodeTree is registered there first,
+    // so we extend it rather than creating a duplicate registration.
+    nb::module_::import_("nodes_core_py");
+
+    // Extend NodeTree with execution-related methods
     nb::class_<NodeTree>(m, "NodeTree")
         .def(
             "deserialize",

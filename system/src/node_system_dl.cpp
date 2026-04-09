@@ -34,15 +34,10 @@ DynamicLibraryLoader::DynamicLibraryLoader(const std::string& libraryName)
 
 DynamicLibraryLoader::~DynamicLibraryLoader()
 {
-#ifdef _WIN32
-    if (handle) {
-        // FreeLibrary(handle);
-    }
-#else
-    if (handle) {
-        dlclose(handle);
-    }
-#endif
+    // Intentionally not closing the library handle (FreeLibrary/dlclose).
+    // During process exit, global/static destruction order is undefined.
+    // Closing a library whose globals are already being destroyed causes segfaults.
+    // The OS reclaims all resources when the process exits.
 }
 
 std::shared_ptr<NodeTreeDescriptor>
