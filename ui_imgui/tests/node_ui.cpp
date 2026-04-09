@@ -9,6 +9,10 @@
 #include "nodes/system/node_system.hpp"
 #include "nodes/ui/imgui.hpp"
 
+#ifdef __linux__
+#include <cstdlib>
+#endif
+
 using namespace Ruzino;
 
 class Widget : public IWidget {
@@ -59,6 +63,12 @@ class CreateWindowTest : public ::testing::Test {
 
 TEST_F(CreateWindowTest, create_window)
 {
+#ifdef __linux__
+    const char* display = std::getenv("DISPLAY");
+    if (!display || std::string(display).empty()) {
+        GTEST_SKIP() << "Skipping: no DISPLAY available (headless environment)";
+    }
+#endif
     Window window;
 
     FileBasedNodeWidgetSettings widget_desc;
@@ -81,6 +91,13 @@ TEST_F(CreateWindowTest, create_window)
 
 int main()
 {
+#ifdef __linux__
+    const char* display = std::getenv("DISPLAY");
+    if (!display || std::string(display).empty()) {
+        std::cout << "Skipping: no DISPLAY available (headless environment)" << std::endl;
+        return 0;
+    }
+#endif
     std::shared_ptr<NodeSystem> system_;
     spdlog::set_level(spdlog::level::info);
 
