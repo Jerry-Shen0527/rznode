@@ -4,3 +4,4 @@ Binaries/
 .vs/
 out/
 __pycache__/
+tests/geometry_graph_export.json
