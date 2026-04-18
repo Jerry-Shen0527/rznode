@@ -5,3 +5,4 @@ Binaries/
 out/
 __pycache__/
 tests/geometry_graph_export.json
+tests/graph_export.json
