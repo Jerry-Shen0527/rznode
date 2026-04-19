@@ -18,7 +18,7 @@ bool NodeSocket::is_placeholder() const
 }
 
 // Hack...
-#define PXR_NAMESPACE "pxrInternal_v0_25_5__pxrReserved__"
+#define PXR_NAMESPACE "pxrInternal_v0_26_3__pxrReserved__"
 
 static bool is_vec2(const SocketType& type)
 {
