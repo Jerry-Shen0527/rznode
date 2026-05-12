@@ -14,27 +14,8 @@ using namespace Ruzino;
 
 NB_MODULE(nodes_system_py, m)
 {
-    // Import nodes_core_py to ensure NodeTree is registered there first,
-    // so we extend it rather than creating a duplicate registration.
+    // Import nodes_core_py for NodeTree and other base types
     nb::module_::import_("nodes_core_py");
-
-    // Extend NodeTree with execution-related methods
-    nb::class_<NodeTree>(m, "NodeTree")
-        .def(
-            "deserialize",
-            &NodeTree::deserialize,
-            nb::arg("json_string"),
-            "Deserialize node tree from JSON string")
-        .def(
-            "serialize",
-            &NodeTree::serialize,
-            "Serialize node tree to JSON string")
-        .def(
-            "SetDirty",
-            &NodeTree::SetDirty,
-            nb::arg("dirty") = true,
-            "Mark the tree as dirty")
-        .def("GetDirty", &NodeTree::GetDirty, "Check if tree is dirty");
 
     // NodeTreeExecutor
     nb::class_<NodeTreeExecutor>(m, "NodeTreeExecutor")

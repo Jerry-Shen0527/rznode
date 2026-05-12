@@ -344,6 +344,13 @@ NB_MODULE(nodes_core_py, m)
         // Serialization
         .def("serialize", &NodeTree::serialize)
         .def("deserialize", &NodeTree::deserialize)
+        // Dirty state
+        .def(
+            "SetDirty",
+            &NodeTree::SetDirty,
+            nb::arg("dirty") = true,
+            "Mark the tree as dirty")
+        .def("GetDirty", &NodeTree::GetDirty, "Check if tree is dirty")
         // Python code generation
         .def(
             "to_python_code",
