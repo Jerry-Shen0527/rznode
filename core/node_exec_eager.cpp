@@ -887,6 +887,9 @@ void EagerNodeTreeExecutor::sync_node_from_external_storage(
             input_states[index_cache[socket]].is_forwarded = true;
             input_states[index_cache[socket]].is_cached = false;
 
+            // Persist to cache so prepare_tree() doesn't lose the value
+            persistent_input_cache[socket] = input_states[index_cache[socket]];
+
             // Mark node and downstream nodes dirty if data changed
             if (data_changed) {
                 mark_node_dirty(socket->node);
