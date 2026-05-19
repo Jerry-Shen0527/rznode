@@ -5,6 +5,7 @@
 
 #include <entt/meta/meta.hpp>
 
+#include "nodes/core/math/vec.hpp"
 #include "nodes/core/node_exec_python.hpp"
 #include "nodes/core/node_link.hpp"
 #include "nodes/core/node_tree.hpp"
@@ -73,6 +74,23 @@ NB_MODULE(nodes_core_py, m)
         else if (nb::isinstance<nb::str>(obj)) {
             return entt::meta_any{ nb::cast<std::string>(obj) };
         }
+        else if (nb::isinstance<nb::list>(obj) || nb::isinstance<nb::tuple>(obj)) {
+            auto size = nb::len(obj);
+            if (size == 2) {
+                return entt::meta_any{ Vec2f(
+                    nb::cast<float>(obj[0]), nb::cast<float>(obj[1])) };
+            }
+            else if (size == 3) {
+                return entt::meta_any{ Vec3f(
+                    nb::cast<float>(obj[0]),
+                    nb::cast<float>(obj[1]),
+                    nb::cast<float>(obj[2])) };
+            }
+            else {
+                throw std::runtime_error(
+                    "Unsupported sequence size for meta_any (expected 2 or 3)");
+            }
+        }
         else {
             throw std::runtime_error(
                 "Unsupported type for meta_any conversion");
@@ -118,10 +136,48 @@ NB_MODULE(nodes_core_py, m)
             "connected_sockets",
             [](const NodeSocket& s) { return s.directly_linked_sockets; },
             nb::rv_policy::reference_internal)
+        .def_prop_ro(
+            "value_type_name",
+            [](const NodeSocket& s) -> std::string {
+                if (!s.dataField.value)
+                    return "void";
+                return std::string(s.dataField.value.type().info().name());
+            })
+        .def(
+            "get_raw_value",
+            [](const NodeSocket& s) -> entt::meta_any {
+                return s.dataField.value;
+            },
+            nb::rv_policy::copy)
         .def(
             "set_default_value",
             [](NodeSocket& s, const nb::object& obj) {
-                // Inline to_meta_any conversion logic
+                // Vec types: write bytes in-place via default_value_typed_force
+                // to preserve the socket's original type (e.g. GfVec3f).
+                if (nb::isinstance<nb::list>(obj) ||
+                    nb::isinstance<nb::tuple>(obj)) {
+                    auto size = nb::len(obj);
+                    if (!s.dataField.value) {
+                        throw std::runtime_error(
+                            "Cannot set vec value on empty socket");
+                    }
+                    if (size == 2) {
+                        s.default_value_typed_force<Vec2f&>() = Vec2f(
+                            nb::cast<float>(obj[0]), nb::cast<float>(obj[1]));
+                    }
+                    else if (size == 3) {
+                        s.default_value_typed_force<Vec3f&>() = Vec3f(
+                            nb::cast<float>(obj[0]),
+                            nb::cast<float>(obj[1]),
+                            nb::cast<float>(obj[2]));
+                    }
+                    else {
+                        throw std::runtime_error(
+                            "Unsupported vector size (expected 2 or 3)");
+                    }
+                    return;
+                }
+                // Scalar types
                 entt::meta_any value;
                 if (nb::isinstance<nb::bool_>(obj)) {
                     value = entt::meta_any{ nb::cast<bool>(obj) };
