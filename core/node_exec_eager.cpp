@@ -2,13 +2,99 @@
 
 #include <algorithm>
 #include <set>
+#include <sstream>
 
 #include "entt/core/any.hpp"
 #include "entt/meta/resolve.hpp"
 #include "nodes/core/api.h"
+#include "nodes/core/logging.hpp"
 #include "nodes/core/node_tree.hpp"
+#include "spdlog/spdlog.h"
 
 RUZINO_NAMESPACE_OPEN_SCOPE
+
+namespace {
+
+std::string socket_type_name(const SocketType& type)
+{
+    return type ? std::string(type.info().name()) : "<untyped>";
+}
+
+std::string describe_socket(const NodeSocket* socket)
+{
+    std::ostringstream oss;
+    oss << socket->identifier << " ["
+        << (socket->in_out == PinKind::Input ? "input" : "output") << "]";
+    oss << ", type=" << socket_type_name(socket->type_info);
+    oss << ", optional=" << (socket->optional ? "true" : "false");
+    oss << ", links=" << socket->directly_linked_sockets.size();
+
+    if (!socket->directly_linked_sockets.empty()) {
+        oss << ", peers=[";
+        for (size_t i = 0; i < socket->directly_linked_sockets.size(); ++i) {
+            if (i > 0) {
+                oss << ", ";
+            }
+            const auto* peer = socket->directly_linked_sockets[i];
+            oss << peer->node->ui_name << "." << peer->identifier;
+        }
+        oss << "]";
+    }
+
+    return oss.str();
+}
+
+std::string build_node_execution_context(const Node* node)
+{
+    std::ostringstream oss;
+    oss << "node='" << node->ui_name << "', node_type='"
+        << (node->typeinfo ? node->typeinfo->id_name : "<unknown>") << "', node_id="
+        << node->ID.Get();
+
+    if (!node->error_message.empty()) {
+        oss << ", error_message='" << node->error_message << "'";
+    }
+    if (!node->execution_failed.empty()) {
+        oss << ", execution_failed='" << node->execution_failed << "'";
+    }
+
+    oss << "\ninputs:";
+    for (const auto* input : node->get_inputs()) {
+        oss << "\n  - " << describe_socket(input);
+    }
+
+    oss << "\noutputs:";
+    for (const auto* output : node->get_outputs()) {
+        oss << "\n  - " << describe_socket(output);
+    }
+
+    return oss.str();
+}
+
+std::string build_missing_input_message(const Node* node)
+{
+    std::ostringstream oss;
+    oss << "Missing required inputs: ";
+    bool first = true;
+    for (const auto* input : node->get_inputs()) {
+        if (!input->optional && input->directly_linked_sockets.empty() &&
+            !input->dataField.value) {
+            if (!first) {
+                oss << ", ";
+            }
+            first = false;
+            oss << input->identifier;
+        }
+    }
+
+    if (first) {
+        oss << "<unknown>";
+    }
+
+    return oss.str();
+}
+
+}  // namespace
 
 void EagerNodeTreeExecutor::mark_node_dirty(Node* node)
 {
@@ -218,14 +304,43 @@ bool EagerNodeTreeExecutor::execute_node(NodeTree* tree, Node* node)
 
     ExeParams params = prepare_params(tree, node);
     if (node->MISSING_INPUT) {
+        node->error_message = build_missing_input_message(node);
+        node->execution_failed = node->error_message;
+        spdlog::error(
+            "Node execution aborted because required inputs are missing.\n{}",
+            build_node_execution_context(node));
         return false;
     }
     auto typeinfo = node->typeinfo;
-    if (!typeinfo->node_execute(params)) {
-        node->execution_failed = "Execution failed";
+    try {
+        if (!typeinfo->node_execute(params)) {
+            if (node->error_message.empty()) {
+                node->error_message =
+                    "Execution function returned false without calling params.set_error().";
+            }
+            node->execution_failed = node->error_message;
+            spdlog::error(
+                "Node execution returned failure.\n{}",
+                build_node_execution_context(node));
+            return false;
+        }
+    }
+    catch (const std::exception& exception) {
+        node->error_message = exception.what();
+        node->execution_failed = node->error_message;
+        log_exception_with_context(
+            build_node_execution_context(node), exception);
         return false;
     }
+    catch (...) {
+        node->error_message = "Unhandled non-std exception.";
+        node->execution_failed = node->error_message;
+        log_current_exception_with_context(build_node_execution_context(node));
+        return false;
+    }
+
     node->execution_failed = {};
+    node->error_message.clear();
     return true;
 }
 
@@ -278,13 +393,21 @@ void EagerNodeTreeExecutor::forward_output_to_input(Node* node)
                     else if (
                         input_state.value.type() &&
                         input_state.value.type() != value_to_forward.type()) {
-                        auto unequal =
-                            input_state.value.type() != value_to_forward.type();
                         directly_linked_input_socket->node->execution_failed =
                             "Type mismatch input, from type " +
                             std::string(value_to_forward.type().info().name()) +
                             " to type " +
                             std::string(input_state.value.type().info().name());
+                        spdlog::error(
+                            "Type mismatch while forwarding node output. "
+                            "from_node='{}', from_socket='{}', from_type='{}', "
+                            "to_node='{}', to_socket='{}', to_type='{}'",
+                            node->ui_name,
+                            output->identifier,
+                            value_to_forward.type().info().name(),
+                            directly_linked_input_socket->node->ui_name,
+                            directly_linked_input_socket->identifier,
+                            input_state.value.type().info().name());
                         input_state.is_forwarded = false;
                     }
                     else {
