@@ -7,6 +7,7 @@
 #include "entt/meta/resolve.hpp"
 #include "nodes/core/api.h"
 #include "nodes/core/node_tree.hpp"
+#include "spdlog/spdlog.h"
 
 RUZINO_NAMESPACE_OPEN_SCOPE
 
@@ -213,11 +214,32 @@ ExeParams EagerNodeTreeExecutor::prepare_params(NodeTree* tree, Node* node)
 bool EagerNodeTreeExecutor::execute_node(NodeTree* tree, Node* node)
 {
     bool successfully_filled_data;
-    if (try_fill_storage_to_node(node, successfully_filled_data))
+    if (try_fill_storage_to_node(node, successfully_filled_data)) {
         return successfully_filled_data;
+    }
 
     ExeParams params = prepare_params(tree, node);
     if (node->MISSING_INPUT) {
+        // Surface which required inputs are missing -- this is the single most
+        // common cause of a node silently not cooking (and, in a simulation
+        // zone, of a downstream crash when the feedback storage stays empty).
+        std::string missing_names;
+        for (auto* input : node->get_inputs()) {
+            if (input->is_placeholder())
+                continue;
+            if (input->optional)
+                continue;
+            if (input->directly_linked_sockets.empty() &&
+                !input->dataField.value) {
+                if (!missing_names.empty())
+                    missing_names += ",";
+                missing_names += std::string(input->ui_name);
+            }
+        }
+        spdlog::warn(
+            "[exec] node '{}' skipped: missing required input [{}]",
+            std::string(node->typeinfo->id_name),
+            missing_names);
         return false;
     }
     auto typeinfo = node->typeinfo;
