@@ -863,3 +863,62 @@ TEST_F(SocketGroupBugsTest, TypeMismatchAfterIntermediateNodeWithDifferentType)
               << " (expected: 500)" << std::endl;
     ASSERT_EQ(result_final.cast<int>(), 500);
 }
+
+// Regression: connecting to a runtime_dynamic socket group by its group NAME
+// (not by a pre-existing socket identifier) must resolve to the group's
+// placeholder, and add_link must then auto-instantiate a real socket from it -
+// the same workflow the UI uses when dragging a link onto a dynamic group.
+// This lets Python addEdge(node, "result", merge_node, "inputs") work without
+// an explicit group_add_socket call first.
+TEST_F(SocketGroupBugsTest, FindSocketByGroupNameResolvesPlaceholder)
+{
+    std::cout << "\n=== TEST: FindSocketByGroupNameResolvesPlaceholder ==="
+              << std::endl;
+
+    auto nodeC = tree->add_node("merge");
+
+    // "inputs" is the group identifier, NOT a real socket identifier yet.
+    // Before the fallback, get_input_socket("inputs") would throw.
+    NodeSocket* placeholder = nullptr;
+    EXPECT_NO_THROW(placeholder = nodeC->get_input_socket("inputs"))
+        << "get_input_socket by group name should resolve the placeholder, "
+           "not throw";
+    ASSERT_NE(placeholder, nullptr);
+    EXPECT_TRUE(placeholder->is_placeholder())
+        << "resolved socket should be the group's placeholder";
+    std::cout << "placeholder resolved: identifier='" << placeholder->identifier
+              << "', ui_name='" << placeholder->ui_name << "'" << std::endl;
+    // A placeholder's ui_name is empty; its identifier equals the group id.
+    EXPECT_STREQ(placeholder->ui_name, "");
+    EXPECT_STREQ(placeholder->identifier, "inputs");
+
+    // A real socket name ("result" is the merge node's output) still works and
+    // must NOT accidentally resolve to a placeholder.
+    NodeSocket* real_output = nullptr;
+    EXPECT_NO_THROW(real_output = nodeC->get_output_socket("result"));
+    ASSERT_NE(real_output, nullptr);
+    EXPECT_FALSE(real_output->is_placeholder());
+
+    // Driving an add_link through the placeholder must auto-instantiate a real
+    // socket, borrowing type/name from the peer (mirroring add_link @ node_tree
+    // .cpp:786-802).
+    auto nodeA = tree->add_node("producer");
+    auto socketA_out = nodeA->get_output_socket("result");
+    auto* link = tree->add_link(socketA_out, placeholder);
+    ASSERT_NE(link, nullptr) << "add_link via placeholder should succeed";
+
+    // After linking, nodeC now has a real (non-placeholder) input socket whose
+    // ui_name came from the peer ("result").
+    bool found_materialized = false;
+    for (NodeSocket* s : nodeC->get_inputs()) {
+        if (!s->is_placeholder() &&
+            std::string(s->ui_name).find("result") != std::string::npos) {
+            found_materialized = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(found_materialized)
+        << "add_link should have materialized a real socket from the "
+           "placeholder";
+    std::cout << "auto-instantiation via add_link succeeded" << std::endl;
+}

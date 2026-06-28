@@ -179,16 +179,14 @@ class RuzinoGraph:
         from_n = self._resolve_node(from_node)
         to_n = self._resolve_node(to_node)
 
-        # Get sockets
+        # Get sockets. get_output_socket / get_input_socket return a valid
+        # pointer or throw (C++ find_socket raises std::runtime_error, which
+        # nanobind surfaces as a Python RuntimeError). Passing a
+        # runtime_dynamic socket *group* name (e.g. "Simulation In") resolves
+        # to the group's placeholder, and add_link below then auto-instantiates
+        # a real socket from it - same workflow as dragging a link in the UI.
         from_sock = from_n.get_output_socket(from_socket)
         to_sock = to_n.get_input_socket(to_socket)
-
-        if from_sock is None:
-            raise ValueError(
-                f"Socket '{from_socket}' not found on node '{from_n.ui_name}'"
-            )
-        if to_sock is None:
-            raise ValueError(f"Socket '{to_socket}' not found on node '{to_n.ui_name}'")
 
         # Create link
         link = self._tree.add_link(from_sock, to_sock)
@@ -214,6 +212,76 @@ class RuzinoGraph:
         """
         node.ui_name = name
         return self
+
+    def createSimulationZone(
+        self,
+        sim_in_name: Optional[str] = None,
+        sim_out_name: Optional[str] = None,
+    ) -> Tuple[core.Node, core.Node]:
+        """
+        Create a simulation_in / simulation_out pair with the framework's
+        feedback loop wired up, exactly like the UI does
+        (ui_imgui.cpp NodeWidget::add_node).
+
+        This does three things the raw createNode() calls would NOT do, and
+        which are mandatory for the zone to actually feed state back frame to
+        frame:
+
+        1. Create both ``simulation_in`` and ``simulation_out`` nodes.
+        2. Synchronize their four socket groups pairwise so that adding a
+           socket to one group adds the matching socket to the others
+           (``SocketGroup.add_sync_group``).
+        3. Set ``paired_node`` on each to point at the other. This pairing is
+           what makes the eager executor move ``simulation_out``'s storage into
+           ``simulation_in`` after each cook
+           (node_exec_eager.cpp ``simulation_out`` branch), closing the loop.
+
+        Without step 2+3 the zone compiles and runs one frame, but never
+        accumulates state across frames. (They are normally set up by the UI
+        editor or by JSON deserialization; the Python API needs this helper.)
+
+        Returns:
+            (simulation_in_node, simulation_out_node)
+
+        Example::
+
+            sim_in, sim_out = g.createSimulationZone()
+            # wire geometry in/out of the zone:
+            g.addEdge(grid, "Geometry", sim_in, "Simulation In")  # via group slot
+            # ... nodes inside the zone ...
+            g.addEdge(inner_out, "Geometry", sim_out, "Simulation In")  # via group slot
+        """
+        self._ensure_initialized()
+
+        sim_in = self.createNode("simulation_in", name=sim_in_name or "SimulationIn")
+        sim_out = self.createNode("simulation_out", name=sim_out_name or "SimulationOut")
+
+        # The four socket groups that must stay synchronized. This mirrors the
+        # sync table registered in node_tree.cpp add_socket_group_syncronization
+        # and the pairwise loop in ui_imgui.cpp add_node.
+        groups = [
+            (sim_in, "Simulation In", core.PinKind.Input),
+            (sim_in, "Simulation Out", core.PinKind.Output),
+            (sim_out, "Simulation In", core.PinKind.Input),
+            (sim_out, "Simulation Out", core.PinKind.Output),
+        ]
+        resolved = [(node.find_socket_group(name, kind), name, kind)
+                    for (node, name, kind) in groups]
+        for i in range(len(resolved)):
+            for j in range(i + 1, len(resolved)):
+                gi, _, _ = resolved[i]
+                gj, _, _ = resolved[j]
+                if gi is None or gj is None:
+                    raise RuntimeError(
+                        "Could not find socket group to synchronize "
+                        f"({resolved[i][1]}/{resolved[i][2]})")
+                gi.add_sync_group(gj)
+
+        # Pair the two nodes. paired_node is bidirectional (the setter
+        # back-links the other side).
+        sim_in.paired_node = sim_out
+
+        return sim_in, sim_out
 
     def markOutput(
         self, node_or_spec: Union[core.Node, str], socket_name: Optional[str] = None

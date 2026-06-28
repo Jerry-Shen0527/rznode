@@ -122,6 +122,20 @@ struct NODES_CORE_API Node {
         const char* name,
         PinKind in_out);
 
+    // Find an already-materialized socket on the named group whose ui_name
+    // matches, or - if none exists - materialize one from the group's
+    // placeholder using the peer's identifier/name (mirroring the explicit
+    // group_add_socket workflow, without a UniqueID suffix). Used by
+    // NodeTree::add_link when auto-instantiating from a placeholder so that
+    // synchronized zone boundaries reuse a single logical slot instead of
+    // spawning one socket per connect.
+    NodeSocket* find_or_materialize_group_socket(
+        const std::string& socket_group_identifier,
+        SocketType type_info,
+        const char* identifier,
+        const char* name,
+        PinKind in_out);
+
     virtual void group_remove_socket(
         const std::string& group_identifier,
         const char* identifier,

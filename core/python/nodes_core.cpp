@@ -74,7 +74,8 @@ NB_MODULE(nodes_core_py, m)
         else if (nb::isinstance<nb::str>(obj)) {
             return entt::meta_any{ nb::cast<std::string>(obj) };
         }
-        else if (nb::isinstance<nb::list>(obj) || nb::isinstance<nb::tuple>(obj)) {
+        else if (
+            nb::isinstance<nb::list>(obj) || nb::isinstance<nb::tuple>(obj)) {
             auto size = nb::len(obj);
             if (size == 2) {
                 return entt::meta_any{ Vec2f(
@@ -200,6 +201,20 @@ NB_MODULE(nodes_core_py, m)
             nb::arg("value"),
             "Set the default value of this socket");
 
+    // SocketGroup - dynamic socket container (simulation zones, node groups).
+    // Exposed so Python can wire up synchronized groups when building a
+    // simulation zone via the API (mirrors ui_imgui.cpp add_node).
+    nb::class_<SocketGroup>(m, "SocketGroup")
+        .def_ro("identifier", &SocketGroup::identifier)
+        .def_ro("kind", &SocketGroup::kind)
+        .def_ro("node", &SocketGroup::node, nb::rv_policy::reference)
+        .def(
+            "add_sync_group",
+            &SocketGroup::add_sync_group,
+            nb::arg("group"),
+            "Make this group keep its sockets in sync with another group "
+            "(used to link simulation_in <-> simulation_out).");
+
     // Node - core node functionality
     nb::class_<Node>(m, "Node")
         .def_prop_ro("name", &Node::getName)
@@ -256,7 +271,30 @@ NB_MODULE(nodes_core_py, m)
             nb::arg("group_identifier"),
             nb::arg("identifier"),
             nb::arg("in_out"),
-            nb::arg("is_recursive_call") = false);
+            nb::arg("is_recursive_call") = false)
+        .def(
+            "find_socket_group",
+            &Node::find_socket_group,
+            nb::arg("group_identifier"),
+            nb::arg("in_out"),
+            nb::rv_policy::reference,
+            "Find a socket group on this node by (name, PinKind).")
+        // paired_node: read/write the simulation-zone pairing. Setting it from
+        // Python automatically back-links the other node, mirroring how the UI
+        // (ui_imgui.cpp add_node) and deserialize (node.cpp) establish the
+        // link.
+        .def_prop_rw(
+            "paired_node",
+            [](const Node& n) -> Node* { return n.paired_node; },
+            [](Node& n, Node* other) {
+                n.paired_node = other;
+                if (other) {
+                    other->paired_node = &n;
+                }
+            },
+            nb::arg("value"),
+            nb::rv_policy::reference,
+            "Paired node for simulation_in/out zones (bidirectional).");
 
     // NodeLink - connection between sockets
     nb::class_<NodeLink>(m, "NodeLink")

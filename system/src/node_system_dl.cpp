@@ -18,7 +18,18 @@ RUZINO_NAMESPACE_OPEN_SCOPE
 DynamicLibraryLoader::DynamicLibraryLoader(const std::string& libraryName)
 {
 #ifdef _WIN32
-    handle = LoadLibrary(libraryName.c_str());
+    // Use LoadLibraryEx with LOAD_LIBRARY_SEARCH_DEFAULT_DIRS so the loader
+    // searches the app dir + AddDllDirectory() dirs (set by the Python host
+    // via os.add_dll_directory) + system dirs. A bare LoadLibrary() ignores
+    // AddDllDirectory() dirs once any have been registered, which breaks
+    // plugin loading from a Python process whose cwd != the binaries dir.
+    handle = LoadLibraryExA(
+        libraryName.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    if (!handle) {
+        // Fall back to the default search (app dir + PATH + cwd) in case the
+        // process never registered any AddDllDirectory dir.
+        handle = LoadLibraryA(libraryName.c_str());
+    }
     if (!handle) {
         throw std::runtime_error("Failed to load library: " + libraryName);
     }
@@ -36,8 +47,8 @@ DynamicLibraryLoader::~DynamicLibraryLoader()
 {
     // Intentionally not closing the library handle (FreeLibrary/dlclose).
     // During process exit, global/static destruction order is undefined.
-    // Closing a library whose globals are already being destroyed causes segfaults.
-    // The OS reclaims all resources when the process exits.
+    // Closing a library whose globals are already being destroyed causes
+    // segfaults. The OS reclaims all resources when the process exits.
 }
 
 std::shared_ptr<NodeTreeDescriptor>
@@ -66,31 +77,37 @@ bool NodeDynamicLoadingSystem::load_configuration(
     std::filesystem::path config_file_path(config_file_path_str);
     nlohmann::json j;
 
-    std::filesystem::path executable_path;
-
-#ifdef _WIN32
-    char path[MAX_PATH];
-    GetModuleFileNameA(NULL, path, MAX_PATH);
-    executable_path = std::filesystem::path(path).parent_path();
-#else
-    char path[PATH_MAX];
-    ssize_t count = readlink("/proc/self/exe", path, PATH_MAX);
-    if (count != -1) {
-        path[count] = '\0';
-        executable_path = std::filesystem::path(path).parent_path();
-    }
-    else {
-        throw std::runtime_error("Failed to get executable path.");
-    }
-#endif
-
     std::filesystem::path abs_path;
 
-    if (!config_file_path.is_absolute()) {
-        abs_path = executable_path / config_file_path;
+    if (config_file_path.is_absolute()) {
+        abs_path = config_file_path;
     }
     else {
-        abs_path = config_file_path;
+        // Resolve a relative config path against the current working directory
+        // first (e.g. when driven from a Python host whose cwd is the binaries
+        // directory), then fall back to the executable's directory (the native
+        // binary case where cwd may differ). The original behavior relied only
+        // on the executable directory, which broke when the process was a
+        // Python interpreter (python.exe) living outside Binaries/.
+        abs_path = std::filesystem::absolute(config_file_path);
+        if (!std::filesystem::exists(abs_path)) {
+            std::filesystem::path executable_path;
+#ifdef _WIN32
+            char path[MAX_PATH];
+            GetModuleFileNameA(NULL, path, MAX_PATH);
+            executable_path = std::filesystem::path(path).parent_path();
+#else
+            char path[PATH_MAX];
+            ssize_t count = readlink("/proc/self/exe", path, PATH_MAX);
+            if (count != -1) {
+                path[count] = '\0';
+                executable_path = std::filesystem::path(path).parent_path();
+            }
+#endif
+            if (!executable_path.empty()) {
+                abs_path = executable_path / config_file_path;
+            }
+        }
     }
     abs_path = abs_path.lexically_normal();
     std::ifstream config_file(abs_path);

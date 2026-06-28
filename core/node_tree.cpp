@@ -784,19 +784,25 @@ NodeLink* NodeTree::add_link(
     auto tonode = tosock->node;
 
     if (fromsock->is_placeholder()) {
-        fromsock = fromnode->group_add_socket(
+        // Auto-instantiate a real socket from the placeholder, mirroring the
+        // explicit group_add_socket workflow. Reuse an existing materialized
+        // socket on the same group when one matches the peer's ui_name: this
+        // keeps synchronized zone boundaries (one logical slot synced across
+        // all 4 groups) targeting the SAME socket instead of spawning a new
+        // one per connect. Only the first connect materializes a socket.
+        fromsock = fromnode->find_or_materialize_group_socket(
             fromsock->socket_group_identifier,
-            get_type_name(tosock->type_info).c_str(),
-            (tosock->identifier + std::to_string(UniqueID())).c_str(),
+            tosock->type_info,
+            tosock->identifier,
             tosock->ui_name,
             fromsock->in_out);
     }
 
     if (tosock->is_placeholder()) {
-        tosock = tonode->group_add_socket(
+        tosock = tonode->find_or_materialize_group_socket(
             tosock->socket_group_identifier,
-            get_type_name(fromsock->type_info).c_str(),
-            (fromsock->identifier + std::to_string(UniqueID())).c_str(),
+            fromsock->type_info,
+            fromsock->identifier,
             fromsock->ui_name,
             tosock->in_out);
     }
