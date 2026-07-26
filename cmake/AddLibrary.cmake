@@ -2,6 +2,14 @@
 
 if(RUZINO_WITH_CUDA)
     set(CMAKE_CUDA_ARCHITECTURES 86)
+
+    # Resolve CUDA/CCCL ONCE at configure-directory scope (this file is included
+    # from the top-level CMakeLists.txt). find_package() results are directory-
+    # scoped, so all subdirectories added afterwards inherit CUDAToolkit::*/CCCL::*
+    # targets without re-running the (expensive, system-scanning) CCCL find module
+    # once per CUDA library — previously this fired 8x during configure.
+    find_package(CUDAToolkit REQUIRED)
+    find_package(CCCL REQUIRED)
 endif()
 
 if(NOT DEFINED RZNODE_CUDA_EXTRA_FLAGS)
@@ -13,8 +21,9 @@ if(NOT DEFINED RZNODE_LINK_PYTHON_TO_NANOBIND)
 endif()
 
 function(Set_CUDA_Properties lib_name)
-    find_package(CUDAToolkit REQUIRED)
-    find_package(CCCL REQUIRED)
+    # find_package(CUDAToolkit/CCCL) is done once at directory scope above; the
+    # CCCL module re-runs its full find script on every call (no early-out on
+    # cached results), which made configure print "Finding CCCL components" 8x.
     add_compile_definitions(RUZINO_WITH_CUDA=1)
     set(CMAKE_CUDA_STANDARD 20)
 
