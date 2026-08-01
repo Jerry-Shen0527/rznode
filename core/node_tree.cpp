@@ -785,11 +785,12 @@ NodeLink* NodeTree::add_link(
 
     if (fromsock->is_placeholder()) {
         // Auto-instantiate a real socket from the placeholder, mirroring the
-        // explicit group_add_socket workflow. Reuse an existing materialized
-        // socket on the same group when one matches the peer's ui_name: this
-        // keeps synchronized zone boundaries (one logical slot synced across
-        // all 4 groups) targeting the SAME socket instead of spawning a new
-        // one per connect. Only the first connect materializes a socket.
+        // explicit group_add_socket workflow. The reuse-vs-materialize choice
+        // lives in find_or_materialize_group_socket: synchronized zone groups
+        // reuse one slot per ui_name (keeps the 4 boundaries in sync on a
+        // single logical slot), collection groups (e.g. merge_geometry.
+        // Geometries) materialize a fresh uniquely-identified socket per
+        // connect so the placeholder stays at the tail for the next connect.
         fromsock = fromnode->find_or_materialize_group_socket(
             fromsock->socket_group_identifier,
             tosock->type_info,

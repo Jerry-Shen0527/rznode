@@ -153,6 +153,18 @@ struct NODES_CORE_API Node {
     unsigned _level = 0;  // For auto-layouting.
 
    private:
+    // Build an identifier unique among this node's sockets of `in_out` kind by
+    // suffixing `base` with "_0", "_1", ... until a free one is found. Used
+    // when materializing sockets on a collection (non-synchronized) dynamic
+    // group, where multiple sockets may share the same peer ui_name (e.g. 9
+    // transforms all output "Geometry") and therefore the same base id.
+    // Uniqueness is required because refresh_node preserves sockets across a
+    // regen by matching identifier (first match wins) and would otherwise
+    // collapse siblings onto the first one.
+    std::string make_unique_socket_identifier(
+        const std::string& base,
+        PinKind in_out) const;
+
     void remove_outdated_socket(NodeSocket* socket, PinKind kind);
 
     void out_date_sockets(

@@ -250,20 +250,12 @@ size_t Node::find_socket_id(const char* identifier, PinKind in_out) const
     // mirrors the UI drag-to-group workflow (NodeTree::add_link auto-
     // instantiates a real socket from the placeholder).
     //
-    // Prefer an already-materialized socket on that group over the placeholder:
-    // for synchronized zone boundaries this keeps repeated connects targeting
-    // the SAME logical slot (one Geometry socket synced across all 4 zone
-    // boundaries) instead of spawning one socket per connect. Only when no
-    // real socket exists yet do we return the placeholder, letting add_link
-    // materialize the first one.
-    counter = 0;
-    for (NodeSocket* socket : *socket_group) {
-        if (!socket->is_placeholder() &&
-            socket->socket_group_identifier == identifier) {
-            return counter;
-        }
-        counter++;
-    }
+    // Always return the placeholder here. The reuse-vs-materialize decision is
+    // centralized in find_or_materialize_group_socket: synchronized groups
+    // reuse one slot per ui_name (4 zone boundaries -> 1 logical slot),
+    // collection groups (e.g. merge_geometry.Geometries) materialize a fresh
+    // socket per connect. Returning the placeholder from this lookup is what
+    // lets the placeholder stay at the group tail and accept the next connect.
     counter = 0;
     for (NodeSocket* socket : *socket_group) {
         if (socket->is_placeholder() &&
@@ -450,6 +442,27 @@ NodeSocket* Node::group_add_socket(
     return socket;
 }
 
+std::string Node::make_unique_socket_identifier(
+    const std::string& base,
+    PinKind in_out) const
+{
+    const auto& sockets = (in_out == PinKind::Input) ? inputs : outputs;
+    size_t i = 0;
+    for (;; ++i) {
+        std::string candidate = base + "_" + std::to_string(i);
+        bool taken = false;
+        for (NodeSocket* s : sockets) {
+            if (std::string(s->identifier) == candidate) {
+                taken = true;
+                break;
+            }
+        }
+        if (!taken) {
+            return candidate;
+        }
+    }
+}
+
 NodeSocket* Node::find_or_materialize_group_socket(
     const std::string& socket_group_identifier,
     SocketType type_info,
@@ -458,25 +471,37 @@ NodeSocket* Node::find_or_materialize_group_socket(
     PinKind in_out)
 {
     const auto& sockets = (in_out == PinKind::Input) ? inputs : outputs;
-    // Reuse a socket already materialized on this group with a matching
-    // ui_name. group sync propagates materialized sockets across synchronized
-    // groups, so this also catches sockets created by an earlier connect on a
-    // sibling boundary - keeping the whole zone pointed at one logical slot.
-    for (NodeSocket* socket : sockets) {
-        if (!socket->is_placeholder() &&
-            socket->socket_group_identifier == socket_group_identifier &&
-            std::string(socket->ui_name) == name) {
-            return socket;
+    SocketGroup* group = find_socket_group(socket_group_identifier, in_out);
+
+    // Synchronized groups (e.g. the 4 boundaries of a simulation zone) must
+    // reuse a single logical slot per peer ui_name: group sync propagates a
+    // materialized socket to all sibling boundaries on the first connect, so
+    // later connects targeting the same slot must hit that existing socket
+    // rather than spawn a new one (which would desync the boundaries).
+    if (group && group->is_synchronized()) {
+        for (NodeSocket* socket : sockets) {
+            if (!socket->is_placeholder() &&
+                socket->socket_group_identifier == socket_group_identifier &&
+                std::string(socket->ui_name) == name) {
+                return socket;
+            }
         }
     }
-    // First connect on this group: materialize a real socket from the
-    // placeholder using the peer's plain identifier (no UniqueID suffix), so
-    // the identifier matches the explicit group_add_socket workflow and the
-    // executor's data-flow name matching.
+
+    // Collection groups (and the first connect on a synchronized group):
+    // materialize a real socket from the placeholder. The ui_name comes from
+    // the peer (so the UI shows a sensible label and the executor's data-flow
+    // name matching works), but the identifier must be UNIQUE on this node -
+    // multiple peers can share the same ui_name (e.g. 9 transforms all named
+    // "Geometry"), and refresh_node preserves sockets across a regen by
+    // matching identifier (first match wins). Without unique ids it would
+    // collapse all siblings onto the first socket and destroy the rest.
+    const std::string unique_id =
+        make_unique_socket_identifier(identifier, in_out);
     return group_add_socket(
         socket_group_identifier,
         get_type_name(type_info).c_str(),
-        identifier,
+        unique_id.c_str(),
         name,
         in_out);
 }

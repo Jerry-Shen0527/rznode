@@ -2,6 +2,8 @@
 
 #include <entt/meta/meta.hpp>
 #include <iostream>
+#include <set>
+#include <string>
 
 #include "nodes/core/api.hpp"
 #include "nodes/core/node.hpp"
@@ -921,4 +923,105 @@ TEST_F(SocketGroupBugsTest, FindSocketByGroupNameResolvesPlaceholder)
         << "add_link should have materialized a real socket from the "
            "placeholder";
     std::cout << "auto-instantiation via add_link succeeded" << std::endl;
+}
+
+// Regression: a "collection" runtime_dynamic group (like merge_geometry's
+// "Geometries") must accept MANY connects through its placeholder, even when
+// every peer output socket has the SAME identifier/ui_name (e.g. 9 transforms
+// all outputting "Geometry"). Before the fix, the first connect materialized
+// a socket and the placeholder was effectively "consumed"; the second connect
+// then collapsed onto that socket and threw "Socket already linked" - breaking
+// merge_geometry / set_value and the test_terrain_usd_grid / test_tree_grid
+// tests. The distinguishing flag vs a synchronized (sim-zone) group is
+// SocketGroup::is_synchronized(): collection groups always materialize a fresh
+// uniquely-identified socket per connect (placeholder stays at the tail).
+TEST_F(SocketGroupBugsTest, CollectionGroupAcceptsMultiplePlaceholderConnects)
+{
+    std::cout
+        << "\n=== TEST: CollectionGroupAcceptsMultiplePlaceholderConnects "
+           "===\n";
+    std::cout << "3 producers (all output \"result\") -> merge \"inputs\" via "
+                 "placeholder\n";
+
+    // Three producers. Their output sockets all share identifier+ui_name
+    // "result", mirroring N transform_geom nodes each outputting "Geometry".
+    auto nodeA = tree->add_node("producer");
+    auto nodeB = tree->add_node("producer");
+    auto nodeC = tree->add_node("producer");
+    auto nodeMerge = tree->add_node("merge");
+
+    NodeSocket* placeholder = nodeMerge->get_input_socket("inputs");
+    ASSERT_NE(placeholder, nullptr);
+    ASSERT_TRUE(placeholder->is_placeholder())
+        << "group-name lookup must resolve to the placeholder, so add_link "
+           "materializes from it";
+
+    // Connect all three through the placeholder path (NOT explicit
+    // group_add_socket). Before the fix, connect #2 throws.
+    auto outA = nodeA->get_output_socket("result");
+    auto outB = nodeB->get_output_socket("result");
+    auto outC = nodeC->get_output_socket("result");
+
+    EXPECT_NO_THROW(tree->add_link(outA, placeholder))
+        << "first placeholder connect must succeed";
+    EXPECT_NO_THROW(tree->add_link(outB, placeholder))
+        << "second placeholder connect must succeed (was the bug)";
+    EXPECT_NO_THROW(tree->add_link(outC, placeholder))
+        << "third placeholder connect must succeed (was the bug)";
+
+    // Exactly 3 materialized sockets on the group, each with a UNIQUE
+    // identifier (refresh_node preserves by identifier; dupes would collapse
+    // siblings onto the first and destroy the rest). The placeholder stays.
+    int materialized = 0;
+    bool placeholder_alive = false;
+    std::set<std::string> ids_seen;
+    std::set<std::string> ui_names_seen;
+    for (NodeSocket* s : nodeMerge->get_inputs()) {
+        if (s->socket_group_identifier != "inputs") {
+            continue;
+        }
+        if (s->is_placeholder()) {
+            placeholder_alive = true;
+            continue;
+        }
+        ++materialized;
+        ids_seen.insert(s->identifier);
+        ui_names_seen.insert(s->ui_name);
+    }
+    std::cout << "materialized=" << materialized
+              << " unique_ids=" << ids_seen.size()
+              << " ui_names=" << ui_names_seen.size()
+              << " placeholder_alive=" << placeholder_alive << "\n";
+    for (const auto& id : ids_seen) {
+        std::cout << "  socket id='" << id << "'\n";
+    }
+    EXPECT_EQ(materialized, 3) << "expected 3 distinct materialized slots";
+    EXPECT_EQ(ids_seen.size(), 3u)
+        << "each materialized socket must have a unique identifier";
+    EXPECT_TRUE(placeholder_alive)
+        << "placeholder must remain at the group tail for further connects";
+    // ui_names all come from the same peer ("result"); that is fine and even
+    // expected for a collection - identity is by socket, not ui_name.
+    EXPECT_EQ(ui_names_seen.size(), 1u);
+
+    // Execute and confirm all three slots actually feed the group (sum).
+    NodeTreeExecutorDesc desc;
+    desc.policy = NodeTreeExecutorDesc::Policy::Eager;
+    auto executor_ptr = create_node_tree_executor(desc);
+    auto executor = dynamic_cast<EagerNodeTreeExecutor*>(executor_ptr.get());
+    executor->prepare_tree(tree.get());
+    executor->sync_node_from_external_storage(
+        nodeA->get_input_socket("value"), 10);
+    executor->sync_node_from_external_storage(
+        nodeB->get_input_socket("value"), 20);
+    executor->sync_node_from_external_storage(
+        nodeC->get_input_socket("value"), 30);
+    executor->execute_tree(tree.get());
+
+    entt::meta_any result;
+    executor->sync_node_to_external_storage(
+        nodeMerge->get_output_socket("result"), result);
+    std::cout << "merge result: " << result.cast<int>() << " (expected: 60)\n";
+    ASSERT_EQ(result.cast<int>(), 60)
+        << "all 3 placeholder-connected inputs must reach the merge node";
 }

@@ -147,6 +147,17 @@ struct NODES_CORE_API SocketGroup {
     void serialize(nlohmann::json& value);
     void deserialize(const nlohmann::json& json);
 
+    // A synchronized group is bound to one or more sibling groups (e.g. the
+    // 4 boundaries of a simulation zone) via add_sync_group, so they always
+    // mirror each other's sockets. A non-synchronized runtime_dynamic group is
+    // a "collection" (e.g. merge_geometry.Geometries): each connect must get
+    // its own socket instead of reusing one. This distinction drives how
+    // add_link materializes sockets from a placeholder.
+    bool is_synchronized() const
+    {
+        return !synchronized_groups.empty();
+    }
+
    private:
     // Sometimes, we would like the some socket groups to always have the same
     // inputs or outputs
