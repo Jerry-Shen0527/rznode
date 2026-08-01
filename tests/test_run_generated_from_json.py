@@ -4,10 +4,11 @@ Test running the Python code generated from JSON-deserialized graph.
 
 import os
 
+from conftest import OUTPUT_DIR
+
 # Get paths
-test_dir = os.path.dirname(os.path.abspath(__file__))
 binary_dir = os.getcwd()
-generated_file = os.path.join(test_dir, "generated_from_json.py")
+generated_file = os.path.join(OUTPUT_DIR, "generated_from_json.py")
 
 
 def test_run_generated_from_json():

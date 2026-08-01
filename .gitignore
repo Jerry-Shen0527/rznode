@@ -4,5 +4,6 @@ Binaries/
 .vs/
 out/
 __pycache__/
-tests/geometry_graph_export.json
-tests/graph_export.json
+# Test output (generated code/json) now lives under the top-level
+# Binaries/Release/test_output/rznode/, covered by Binaries/ above. The previous
+# per-file ignores for tests/*_export.json are obsolete.

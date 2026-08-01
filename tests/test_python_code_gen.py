@@ -6,11 +6,12 @@ This test demonstrates how to generate Python code from a node graph.
 
 import os
 from ruzino_graph import RuzinoGraph
+from conftest import OUTPUT_DIR
 
 # Get binary directory
 binary_dir = os.getcwd()
-# Get test directory for saving generated code
-test_dir = os.path.dirname(os.path.abspath(__file__))
+# Generated code is written to OUTPUT_DIR (Binaries/.../test_output/rznode/),
+# not into the source tree.
 
 
 def test_python_code_generation_simple():
@@ -68,7 +69,7 @@ def test_python_code_generation_complex():
     print("-" * 60)
 
     # Optionally save to file
-    output_file = os.path.join(test_dir, "generated_complex_graph.py")
+    output_file = os.path.join(OUTPUT_DIR, "generated_complex_graph.py")
     g.save_python_code(output_file)
     print(f"\n✓ Code saved to: {output_file}")
 
@@ -150,7 +151,7 @@ def test_execute_generated_code():
     print("\n✓ Generated Python code")
 
     # Save to file
-    output_file = os.path.join(test_dir, "generated_test_exec.py")
+    output_file = os.path.join(OUTPUT_DIR, "generated_test_exec.py")
     g.save_python_code(output_file)
     print(f"✓ Saved to: {output_file}")
 
@@ -206,7 +207,7 @@ def test_json_roundtrip_and_codegen():
     print(f"\n✓ Serialized to JSON ({len(json_str)} characters)")
 
     # Save JSON to file
-    json_file = os.path.join(test_dir, "graph_export.json")
+    json_file = os.path.join(OUTPUT_DIR, "graph_export.json")
     with open(json_file, 'w') as f:
         f.write(json_str)
     print(f"✓ Saved JSON to: {json_file}")
@@ -232,7 +233,7 @@ def test_json_roundtrip_and_codegen():
     print("-" * 60)
 
     # Save generated code
-    output_file = os.path.join(test_dir, "generated_from_json.py")
+    output_file = os.path.join(OUTPUT_DIR, "generated_from_json.py")
     g2.save_python_code(output_file)
     print(f"\n✓ Saved generated code to: {output_file}")
 

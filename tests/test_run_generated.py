@@ -5,10 +5,11 @@ Test that runs the generated Python code to verify self-bootstrap.
 import os
 import sys
 
+from conftest import OUTPUT_DIR
+
 # Get paths
-test_dir = os.path.dirname(os.path.abspath(__file__))
 binary_dir = os.getcwd()
-generated_file = os.path.join(test_dir, "generated_complex_graph.py")
+generated_file = os.path.join(OUTPUT_DIR, "generated_complex_graph.py")
 
 
 def test_run_generated_complex_graph():

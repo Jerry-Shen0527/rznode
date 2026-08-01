@@ -21,6 +21,13 @@ python_dir = os.path.join(rznode_dir, "python")
 binary_dir = os.path.join(tests_dir, "..", "..", "..", "..", "Binaries", "Release")
 binary_dir = os.path.abspath(binary_dir)
 
+# All test outputs (generated .py/.json codegen products) must live under
+# Binaries/Release/test_output/rznode/. Binaries/ is gitignored at the repo
+# root, so nothing here enters the source tree or git history. Tests import
+# this via `from conftest import OUTPUT_DIR`.
+OUTPUT_DIR = os.path.join(binary_dir, "test_output", "rznode")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 # Save original directory
 _original_cwd = os.getcwd()
 

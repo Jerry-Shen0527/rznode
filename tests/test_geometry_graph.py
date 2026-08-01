@@ -13,6 +13,7 @@ import json
 
 # Import modules - environment setup is handled by conftest.py
 from ruzino_graph import RuzinoGraph
+from conftest import OUTPUT_DIR
 import nodes_core_py as core
 import nodes_system_py as system
 
@@ -313,8 +314,8 @@ def test_geometry_json_roundtrip_and_codegen():
     print("TEST: Geometry Graph - JSON Roundtrip & Code Generation")
     print("="*60)
 
-    # Get test directory for saving files
-    test_dir = os.path.dirname(os.path.abspath(__file__))
+    # Output goes to OUTPUT_DIR (Binaries/.../test_output/rznode/), not source.
+    test_dir = OUTPUT_DIR
 
     # Step 1: Create original geometry graph (simplified - no decompose!)
     g1 = RuzinoGraph("GeometryOriginal")
